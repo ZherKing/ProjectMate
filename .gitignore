@@ -1,0 +1,39 @@
+# Local instructions and agent context
+AGENT.md
+AGENTS.md
+.agents/
+.codex/
+
+# Local planning and product documents
+docs/
+tasks/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+.next/
+coverage/
+.cache/
+
+# Logs and local runtime data
+*.log
+logs/
+tmp/
+temp/
+*.db
+*.sqlite
+*.sqlite3
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/
+*.swp
