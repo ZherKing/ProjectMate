@@ -19,7 +19,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
             {links.map(([label, href]) => <a key={href} href={href} className="hover:text-indigo-600">{label}</a>)}
           </nav>
           <div className="ml-auto flex items-center gap-3">
-            <button className="hidden rounded-md border border-slate-200 px-3 py-2 text-sm md:block">⌘ K 搜索</button>
+            <a href="/profile" className="hidden rounded-md border border-slate-200 px-3 py-2 text-sm md:block">能力画像</a>
             <a href="/login" className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">登录 / 注册</a>
           </div>
         </div>
