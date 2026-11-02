@@ -1,5 +1,6 @@
 import { sqlite } from "./client";
 import { initializeDatabase } from "./initialize";
+import { hashPassword } from "@/lib/auth/password";
 
 const seedCompetitions = [
   ["c4-ai-2025", "中国高校计算机大赛", "2025 全球 AI 智能体应用创新大赛"],
@@ -9,6 +10,12 @@ const seedCompetitions = [
 
 export function seedDatabase() {
   initializeDatabase();
+  const userCount = sqlite.prepare("SELECT COUNT(*) AS count FROM users").get() as { count: number };
+  if (userCount.count === 0) {
+    sqlite.prepare(
+      "INSERT INTO users (id, email, name, password_hash, created_at) VALUES (?, ?, ?, ?, ?)",
+    ).run("demo-user", "demo@projectmate.local", "林星宇", hashPassword("projectmate-demo"), Date.now());
+  }
   const count = sqlite.prepare("SELECT COUNT(*) AS count FROM competitions").get() as { count: number };
   if (count.count > 0) return;
 
