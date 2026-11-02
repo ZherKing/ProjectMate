@@ -1,0 +1,22 @@
+import { sqlite } from "./client";
+import { initializeDatabase } from "./initialize";
+
+export function createRecruitmentProject(input: {
+  creatorId: string;
+  competitionId: string;
+  trackName: string;
+  title: string;
+  description: string;
+  roles: string;
+  weeklyHours: number;
+}) {
+  initializeDatabase();
+  const id = crypto.randomUUID();
+  sqlite.prepare("INSERT INTO recruitment_projects (id, creator_id, competition_id, track_name, title, description, roles, weekly_hours, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(id, input.creatorId, input.competitionId, input.trackName, input.title, input.description, input.roles, input.weeklyHours, "招募中", Date.now());
+  return id;
+}
+
+export function listRecruitmentProjects() {
+  initializeDatabase();
+  return sqlite.prepare("SELECT id, creator_id AS creatorId, competition_id AS competitionId, track_name AS trackName, title, description, roles, weekly_hours AS weeklyHours, status FROM recruitment_projects ORDER BY created_at DESC").all() as Array<{ id: string; title: string; description: string; roles: string | null; trackName: string | null; status: string }>;
+}

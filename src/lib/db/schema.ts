@@ -36,3 +36,16 @@ export const competitionTracks = sqliteTable("competition_tracks", {
   description: text("description"),
   deadline: integer("deadline", { mode: "timestamp" }),
 });
+
+export const recruitmentProjects = sqliteTable("recruitment_projects", {
+  id: text("id").primaryKey(),
+  creatorId: text("creator_id").notNull(),
+  competitionId: text("competition_id"),
+  trackName: text("track_name"),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  roles: text("roles"),
+  weeklyHours: integer("weekly_hours"),
+  status: text("status").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
