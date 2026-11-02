@@ -49,3 +49,12 @@ export const recruitmentProjects = sqliteTable("recruitment_projects", {
   status: text("status").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
+
+export const teamApplications = sqliteTable("team_applications", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  applicantId: text("applicant_id").notNull(),
+  message: text("message"),
+  status: text("status").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});

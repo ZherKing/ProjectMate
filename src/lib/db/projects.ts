@@ -20,3 +20,10 @@ export function listRecruitmentProjects() {
   initializeDatabase();
   return sqlite.prepare("SELECT id, creator_id AS creatorId, competition_id AS competitionId, track_name AS trackName, title, description, roles, weekly_hours AS weeklyHours, status FROM recruitment_projects ORDER BY created_at DESC").all() as Array<{ id: string; title: string; description: string; roles: string | null; trackName: string | null; status: string }>;
 }
+
+export function applyToRecruitmentProject(input: { projectId: string; applicantId: string; message?: string }) {
+  initializeDatabase();
+  sqlite.prepare(
+    "INSERT OR IGNORE INTO team_applications (id, project_id, applicant_id, message, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+  ).run(crypto.randomUUID(), input.projectId, input.applicantId, input.message ?? "", "待审核", Date.now());
+}
