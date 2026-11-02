@@ -11,6 +11,15 @@ export class SaikrAdapter implements CompetitionSourceAdapter {
   }
 
   async fetchAndParse(url = sourceUrl): Promise<RawCompetition[]> {
+    const apiUrl = process.env.SAIKR_API_URL;
+    if (apiUrl) {
+      const response = await fetch(apiUrl, {
+        headers: { "user-agent": process.env.CRAWLER_USER_AGENT ?? "ProjectMateBot/1.0" },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!response.ok) throw new Error("赛事接口请求失败：" + response.status);
+      return this.parseApi(await response.json(), apiUrl);
+    }
     const response = await fetch(url, {
       headers: { "user-agent": process.env.CRAWLER_USER_AGENT ?? "ProjectMateBot/1.0" },
       signal: AbortSignal.timeout(15_000),
@@ -43,5 +52,36 @@ export class SaikrAdapter implements CompetitionSourceAdapter {
     });
 
     return output.slice(0, 200);
+  }
+
+  parseApi(payload: unknown, apiUrl: string): RawCompetition[] {
+    const rows: unknown[] = [];
+    const visit = (value: unknown) => {
+      if (Array.isArray(value)) {
+        for (const item of value) visit(item);
+        return;
+      }
+      if (!value || typeof value !== "object") return;
+      const item = value as Record<string, unknown>;
+      const name = item.name ?? item.title ?? item.contest_name ?? item.contestName;
+      const id = item.id ?? item.contest_id ?? item.contestId;
+      if (typeof name === "string" && name.trim().length >= 4 && id != null) rows.push(item);
+      for (const child of Object.values(item)) visit(child);
+    };
+    visit(payload);
+    const seen = new Set<string>();
+    return rows.flatMap((value) => {
+      const item = value as Record<string, unknown>;
+      const id = String(item.id ?? item.contest_id ?? item.contestId);
+      if (seen.has(id)) return [];
+      seen.add(id);
+      return [{
+        externalId: id,
+        platform: this.sourceName,
+        name: String(item.name ?? item.title ?? item.contest_name ?? item.contestName),
+        status: String(item.status ?? item.state ?? "公开赛事"),
+        sourceUrl: String(item.url ?? item.link ?? apiUrl),
+      }];
+    });
   }
 }
