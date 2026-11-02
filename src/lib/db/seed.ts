@@ -1,0 +1,29 @@
+import { sqlite } from "./client";
+import { initializeDatabase } from "./initialize";
+
+const seedCompetitions = [
+  ["c4-ai-2025", "中国高校计算机大赛", "2025 全球 AI 智能体应用创新大赛"],
+  ["ccf-bdci-2025", "中国计算机学会", "2025 CCF 大数据与计算智能大赛"],
+  ["tianchi-agent-2025", "阿里天池", "天池医疗领域垂直 Agent 微调挑战"],
+];
+
+export function seedDatabase() {
+  initializeDatabase();
+  const count = sqlite.prepare("SELECT COUNT(*) AS count FROM competitions").get() as { count: number };
+  if (count.count > 0) return;
+
+  const insert = sqlite.prepare(
+    "INSERT INTO competitions (id, platform, name, season, status, source_url, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+  );
+  const insertMany = sqlite.transaction(() => {
+    for (const [id, platform, name] of seedCompetitions) {
+      insert.run(id, platform, name, "2025", "报名中", "https://example.com/competitions/" + id, Date.now());
+    }
+  });
+  insertMany();
+}
+
+if (process.argv[1]?.endsWith("seed.ts")) {
+  seedDatabase();
+  console.log("Competition seed completed.");
+}
