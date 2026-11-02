@@ -1,0 +1,15 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: file:/app/data/database.sqlite
+      STORAGE_PATH: /app/data/storage
+    volumes:
+      - projectmate-data:/app/data
+
+volumes:
+  projectmate-data:

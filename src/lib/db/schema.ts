@@ -1,0 +1,26 @@
+import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
+
+export const competitions = sqliteTable("competitions", {
+  id: text("id").primaryKey(),
+  platform: text("platform").notNull(),
+  name: text("name").notNull(),
+  season: text("season"),
+  status: text("status").notNull(),
+  sourceUrl: text("source_url").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
+export const competitionTracks = sqliteTable("competition_tracks", {
+  id: text("id").primaryKey(),
+  competitionId: text("competition_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  deadline: integer("deadline", { mode: "timestamp" }),
+});

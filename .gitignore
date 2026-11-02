@@ -31,6 +31,11 @@ temp/
 *.db
 *.sqlite
 *.sqlite3
+storage/
+
+# Docker local artifacts
+*.tar
+docker-compose.override.yml
 
 # OS and editor files
 .DS_Store
