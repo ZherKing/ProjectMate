@@ -58,3 +58,13 @@ export const teamApplications = sqliteTable("team_applications", {
   status: text("status").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
+
+export const projectTasks = sqliteTable("project_tasks", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  title: text("title").notNull(),
+  status: text("status").notNull(),
+  priority: text("priority").notNull(),
+  assignee: text("assignee"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});

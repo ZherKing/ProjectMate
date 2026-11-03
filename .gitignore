@@ -6,7 +6,7 @@ AGENTS.md
 
 # Local planning and product documents
 docs/
-tasks/
+/tasks/
 
 # Secrets and local configuration
 .env
