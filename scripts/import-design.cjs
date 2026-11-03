@@ -27,6 +27,7 @@ for(const [name,dir] of Object.entries(sources)){
  // A real session controls access; no guest/logged-in toggle controls.
  $('button,a').filter((_,e)=>/游客态|登录态/.test($(e).text())).remove();
  const navMap={'competitions-hub':'/competitions','team-hall':'/teams','project-workspace':'/projects','product-overview':'/#workflow','guest-home':'/','dashboard':'/dashboard'};
+ $('header [data-path="product-overview"]').remove();
  $('[data-path]').each((_,e)=>{const dest=navMap[$(e).attr('data-path')];if(dest)$(e).attr('href',dest);});
  $('header').attr('data-design-header','');
  $('body > main').attr('data-design-main',name);

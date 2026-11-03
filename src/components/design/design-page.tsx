@@ -82,11 +82,25 @@ export async function DesignPage({ name }: { name: ScreenName }) {
     $("#authForm").attr("data-auth-form","");
   }
   if (name === "home") {
+    main.find("aside").filter((_,el)=>/游客浏览模式已就绪/.test(text($(el)))).each((_,el)=>{
+      if(user) $(el).remove();
+      else $(el).find("button").filter((_,button)=>/立即登录/.test(text($(button)))).attr("data-route","/login");
+    });
+    main.find("button").filter((_,el)=>/登录开始工作台/.test(text($(el)))).each((_,el)=>{
+      $(el).attr("data-route",user?"/dashboard":"/login").removeAttr("data-action");
+      if(user) {
+        const icon=$(el).find("svg").first().clone();
+        $(el).empty().append(icon).append("<span>进入个人工作台</span>");
+      }
+    });
+    main.find("h2").filter((_,el)=>/游客模式 vs/.test(text($(el)))).text("公开浏览与登录后功能").attr("data-access-details","");
+    main.find("th").filter((_,el)=>/当前：游客模式/.test(text($(el)))).text("公开浏览");
+    main.find("th").filter((_,el)=>/已登录账号/.test(text($(el)))).text("登录后");
+    if(user) main.find("button").filter((_,el)=>/免费注册账号/.test(text($(el)))).text("进入个人工作台").attr("data-route","/dashboard");
     main.find("button").filter((_,el)=>/查看全部.*比赛/.test(text($(el)))).attr("data-route","/competitions");
     main.find("a,button").filter((_,el)=>/一键发帖|发帖招募/.test(text($(el)))).attr("data-route","/teams/create");
     const flow = main.find("h2").filter((_,el)=>/四步标准闭环/.test(text($(el))));
     flow.closest("section").attr("id","workflow");
-    main.find("h2").filter((_,el)=>/游客模式 vs/.test(text($(el)))).attr("data-access-details","");
   }
   if (name === "competitions") {
     // Keep each source card's complete geometry; bind titles and sources from SQLite.
