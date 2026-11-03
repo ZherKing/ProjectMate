@@ -68,3 +68,11 @@ export const projectTasks = sqliteTable("project_tasks", {
   assignee: text("assignee"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
+
+export const projectAiReports = sqliteTable("project_ai_reports", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  summary: text("summary").notNull(),
+  source: text("source").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
