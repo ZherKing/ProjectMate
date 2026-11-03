@@ -1,41 +1,38 @@
 import type { ReactNode } from "react";
+import { Bell, Plus, Search, UserRound } from "lucide-react";
+import { auth } from "@/auth";
+import { ToastNotice } from "./toast-notice";
+import { SiteNav } from "./site-nav";
 
-const links = [
+export { ToastNotice } from "./toast-notice";
+
+const nav = [
   ["比赛中心", "/competitions"],
   ["组队大厅", "/teams"],
   ["项目空间", "/projects"],
+  ["产品说明", "/#workflow"],
 ] as const;
 
-export function SiteShell({ children }: { children: ReactNode }) {
-  return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-[1280px] items-center gap-8 px-6">
-          <a href="/" className="flex items-center gap-2 font-semibold">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-600 font-bold text-white">P</span>
-            ProjectMate
-          </a>
-          <nav className="hidden gap-6 text-sm text-slate-600 md:flex">
-            {links.map(([label, href]) => <a key={href} href={href} className="hover:text-indigo-600">{label}</a>)}
-          </nav>
-          <div className="ml-auto flex items-center gap-3">
-            <a href="/profile" className="hidden rounded-md border border-slate-200 px-3 py-2 text-sm md:block">能力画像</a>
-            <a href="/login" className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">登录 / 注册</a>
-          </div>
-        </div>
-      </header>
-      {children}
-      <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-[1280px] flex-wrap gap-6 px-6 py-8 text-sm text-slate-500">
-          <span className="font-semibold text-slate-700">ProjectMate</span>
-          <a href="/competitions">比赛中心</a><a href="/teams">组队大厅</a><a href="/#about">数据来源</a>
-          <span className="ml-auto">© 2026 ProjectMate</span>
-        </div>
-      </footer>
-    </div>
-  );
-}
-
-export function ToastNotice({ children }: { children: ReactNode }) {
-  return <div className="fixed bottom-6 right-6 z-30 rounded-xl border border-slate-200 border-l-4 border-l-emerald-500 bg-white px-4 py-3 text-sm shadow-xl"><span className="mr-2 text-emerald-600">✓</span>{children}</div>;
+export async function SiteShell({ children }: { children: ReactNode }) {
+  const session = await auth();
+  const user = session?.user;
+  return <div className="pm-shell">
+    <header className="pm-header"><div className="pm-header-inner">
+      <a href="/" className="pm-brand"><span className="pm-brand-mark"><span className="pm-logo-glyph">P</span></span><span>ProjectMate</span></a>
+      <SiteNav items={nav} />
+      <label className="pm-search"><Search size={17} strokeWidth={1.8} /><input placeholder="搜索比赛、赛道、技能、队伍" /><kbd>⌘K</kbd></label>
+      <div className="pm-header-actions">
+        {user ? <button className="pm-icon-button" aria-label="通知中心"><Bell size={18} strokeWidth={1.8} /><span className="pm-unread" /></button> : null}
+        {user ? <a className="pm-header-cta" href="/teams/create"><Plus size={16} /><span className="pm-header-cta-label">发布项目</span></a> : null}
+        {user ? <a href="/profile" className="pm-user"><span className="pm-avatar"><UserRound size={17} /></span><span className="pm-user-meta"><strong>{user.name || "项目搭档"}</strong><span>个人工作台</span></span></a> : <div className="pm-auth-links"><a href="/login">登录</a><a className="pm-register" href="/register">免费注册</a></div>}
+      </div>
+    </div></header>
+    <main className="pm-main">{children}</main>
+    <footer className="pm-footer"><div className="pm-footer-grid">
+      <div><a href="/" className="pm-footer-brand">ProjectMate</a><p className="pm-footer-desc">面向高校学生与青年开发者的智能赛事协作平台。算法驱动精准人岗匹配，让每一次组队都迸发硬核生产力。</p><div className="pm-footer-symbols"><span>⌘</span><span>◇</span><span>▣</span></div></div>
+      <div><h3>平台资源</h3><a href="/competitions">比赛中心</a><a href="/teams">组队大厅</a><a href="/projects">项目协作工作台</a></div>
+      <div><h3>合规与条款</h3><a href="/competitions">赛事数据合规来源</a><a href="/#privacy">隐私权保护政策</a><a href="/#terms">用户服务协议</a></div>
+      <div><h3>支持与关于</h3><a href="/#about">产品版本说明</a><a href="/#help">使用帮助中心</a><a href="/#contact">高校合作对接</a></div>
+    </div><div className="pm-footer-bottom"><span>© 2025 ProjectMate AI. 赛事官方数据均经授权同步，保留所有权利。</span><span className="pm-mono">v2.4.0-collegian-core</span></div></footer>
+  </div>;
 }

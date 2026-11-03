@@ -1,0 +1,67 @@
+"use server";
+
+import { auth } from "@/auth";
+import { revalidatePath } from "next/cache";
+import { initializeDatabase } from "@/lib/db/initialize";
+import { sqlite } from "@/lib/db/client";
+import { createRecruitmentProject, applyToRecruitmentProject } from "@/lib/db/projects";
+import { runProjectCoach } from "@/lib/ai/project-coach";
+import { updateProjectTaskStatus } from "@/lib/db/tasks";
+
+type Payload = Record<string, string>;
+export type ScreenResult = { ok: boolean; message: string; href?: string; summary?: string; id?: string };
+
+export async function screenAction(action: string, data: Payload = {}): Promise<ScreenResult> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return { ok: false, message: "登录后即可使用此功能", href: "/login" };
+  initializeDatabase();
+  try {
+    switch (action) {
+      case "apply": {
+        const project = sqlite.prepare("SELECT creator_id AS creatorId, status FROM recruitment_projects WHERE id = ?").get(data.projectId) as { creatorId: string; status: string } | undefined;
+        if (!project) return { ok: false, message: "此卡片为设计演示，请选择真实发布的项目后申请。" };
+        if (project.creatorId === userId) return { ok: false, message: "这是你发布的项目，无需申请加入。" };
+        if (project.status !== "招募中") return { ok: false, message: "该项目目前未开放招募。" };
+        const exists = sqlite.prepare("SELECT id FROM team_applications WHERE project_id = ? AND applicant_id = ?").get(data.projectId, userId);
+        if (exists) return { ok: false, message: "你已申请过该项目，请等待队长审核。" };
+        applyToRecruitmentProject({ projectId: data.projectId, applicantId: userId });
+        revalidatePath("/teams");
+        return { ok: true, message: "申请已提交，等待队长审核。" };
+      }
+      case "favorite": {
+        if (!data.key || data.key.length > 300) return { ok: false, message: "无法识别收藏项目。" };
+        sqlite.exec("CREATE TABLE IF NOT EXISTS favorites (user_id TEXT NOT NULL, item_key TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(user_id, item_key))");
+        const exists = sqlite.prepare("SELECT 1 FROM favorites WHERE user_id = ? AND item_key = ?").get(userId, data.key);
+        if (exists) sqlite.prepare("DELETE FROM favorites WHERE user_id = ? AND item_key = ?").run(userId, data.key);
+        else sqlite.prepare("INSERT INTO favorites VALUES (?, ?, ?)").run(userId, data.key, Date.now());
+        return { ok: true, message: exists ? "已取消收藏" : "已收藏，可在比赛中心查看。" };
+      }
+      case "publish": {
+        const title = (data.title || "").trim();
+        const description = (data.description || "").trim();
+        if (title.length < 2 || title.length > 100 || description.length < 5 || description.length > 5000) return { ok: false, message: "请填写项目名称（2—100字）与项目描述（5—5000字）。" };
+        const competition = sqlite.prepare("SELECT id FROM competitions WHERE id = ?").get(data.competitionId) as { id: string } | undefined;
+        if (!competition) return { ok: false, message: "请选择有效的目标比赛。" };
+        const id = createRecruitmentProject({ creatorId: userId, competitionId: competition.id, trackName: (data.trackName || "").slice(0,100), title, description, roles: (data.roles || "").slice(0,500), weeklyHours: Math.max(1, Math.min(80, Number(data.weeklyHours) || 10)) });
+        revalidatePath("/teams");
+        return { ok: true, message: "项目已发布至组队大厅。", id };
+      }
+      case "coach": {
+        const summary = await runProjectCoach("demo-project", (data.prompt || "").slice(0,2000));
+        revalidatePath("/projects"); revalidatePath("/projects/tasks");
+        return { ok: true, message: "分析完成，报告已保存。", summary };
+      }
+      case "complete-task": {
+        const task = sqlite.prepare("SELECT id FROM project_tasks WHERE id = ? AND project_id = ?").get(data.taskId, "demo-project");
+        if (!task) return { ok: false, message: "该任务是设计演示，尚未保存到任务数据库。" };
+        updateProjectTaskStatus(data.taskId, "已完成");
+        revalidatePath("/projects"); revalidatePath("/projects/tasks");
+        return { ok: true, message: "任务已标记为完成。" };
+      }
+      default: return { ok: false, message: "此功能尚在完善中，当前操作未修改数据。" };
+    }
+  } catch {
+    return { ok: false, message: "操作未完成，请稍后重试。已有数据保持不变。" };
+  }
+}

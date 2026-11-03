@@ -8,6 +8,16 @@ import { verifyPassword } from "@/lib/auth/password";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET ?? "projectmate-development-secret",
   session: { strategy: "jwt" },
+  callbacks: {
+    jwt({ token, user }) {
+      if (user?.id) token.sub = user.id;
+      return token;
+    },
+    session({ session, token }) {
+      if (session.user && token.sub) session.user.id = token.sub;
+      return session;
+    },
+  },
   providers: [
     Credentials({
       credentials: {

@@ -18,7 +18,7 @@ export function createRecruitmentProject(input: {
 
 export function listRecruitmentProjects() {
   initializeDatabase();
-  return sqlite.prepare("SELECT id, creator_id AS creatorId, competition_id AS competitionId, track_name AS trackName, title, description, roles, weekly_hours AS weeklyHours, status FROM recruitment_projects ORDER BY created_at DESC").all() as Array<{ id: string; title: string; description: string; roles: string | null; trackName: string | null; status: string }>;
+  return sqlite.prepare("SELECT id, creator_id AS creatorId, competition_id AS competitionId, track_name AS trackName, title, description, roles, weekly_hours AS weeklyHours, status, (SELECT name FROM users WHERE users.id = recruitment_projects.creator_id) AS creatorName FROM recruitment_projects ORDER BY created_at DESC").all() as Array<{ id: string; title: string; description: string; roles: string | null; trackName: string | null; status: string; weeklyHours: number | null; creatorName: string | null }>;
 }
 
 export function applyToRecruitmentProject(input: { projectId: string; applicantId: string; message?: string }) {
