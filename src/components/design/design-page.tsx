@@ -39,7 +39,15 @@ export async function DesignPage({ name }: { name: ScreenName }) {
   });
   $("[data-design-handler]").each((_, el) => {
     const $el = $(el); const label = text($el); const handler = $el.attr("data-design-handler") || "";
-    if (/closeDemoModal/.test(handler)) $el.attr("data-action", "close-demo");
+    if (/togglePasswordVisibility/.test(handler)) $el.attr("data-action", "toggle-password");
+    else if (/switchLoginMethod/.test(handler)) $el.attr("data-action", handler.includes("sms") ? "auth-sms" : "auth-password");
+    else if (/switchAuthTab/.test(handler)) {
+      if (handler.includes("register")) $el.attr("data-route", "/register");
+      else $el.attr("data-action", "auth-password");
+    }
+    else if (/triggerOAuthLogin|triggerCountdown/.test(handler)) $el.attr("data-action", "auth-unavailable");
+    else if (name === "login" && /忘记密码/.test(label)) $el.attr("data-action", "auth-unavailable");
+    else if (/closeDemoModal/.test(handler)) $el.attr("data-action", "close-demo");
     else if (/openDemoModal/.test(handler)) $el.attr("data-action", "open-demo");
     else if (/toggleCollect|收藏/.test(handler)) $el.attr("data-action", "favorite");
     else if (/注册/.test(label)) $el.attr("data-route", "/register");
@@ -64,6 +72,15 @@ export async function DesignPage({ name }: { name: ScreenName }) {
   });
   $("input").filter((_,el)=>/搜索比赛、赛道/.test($(el).attr("placeholder")||"")).attr("data-global-search","");
 
+  if (name === "login") {
+    main.addClass("overflow-x-clip");
+    $("#principalInput").attr("autocomplete","username").attr("maxlength","254").attr("type","email").attr("placeholder","请输入注册邮箱");
+    $('label[for="principalInput"]').text("登录邮箱");
+    $("#passwordInput").attr("autocomplete","current-password").attr("maxlength","256");
+    $("#smsInput").prop("disabled",true);
+    $('[data-action="toggle-password"]').attr("aria-label","显示密码").attr("aria-pressed","false");
+    $("#authForm").attr("data-auth-form","");
+  }
   if (name === "home") {
     main.find("button").filter((_,el)=>/查看全部.*比赛/.test(text($(el)))).attr("data-route","/competitions");
     main.find("a,button").filter((_,el)=>/一键发帖|发帖招募/.test(text($(el)))).attr("data-route","/teams/create");

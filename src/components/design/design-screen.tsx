@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Info, X } from "lucide-react";
 import { screenAction } from "./actions";
 
@@ -12,6 +13,8 @@ export function DesignScreen({ name, html, loggedIn }: { name: string; html: str
   const router=useRouter();
   const [notice,setNotice]=useState<Notice|null>(null);
   const step=useRef(1);
+  const loginMethod=useRef("password");
+  const loginPending=useRef(false);
   const publishedId=useRef("");
   const publishedDraft=useRef({title:"",roles:""});
   const posterVisible=useRef(false);
@@ -72,11 +75,33 @@ export function DesignScreen({ name, html, loggedIn }: { name: string; html: str
     const active=Array.from(scope.querySelectorAll('.role-chip[data-selected="true"],.filter-pill[data-selected="true"]')).map(el=>el.textContent?.trim()||"");
     scope.querySelectorAll<HTMLElement>('[data-project-id]').forEach(el=>{if(el.tagName==="BUTTON")return;const text=el.textContent||"";el.classList.toggle("hidden",active.some(tag=>tag!=="全部赛事"&&!text.includes(tag)));});
   };
+  async function onAuthSubmit(event: React.FormEvent<HTMLDivElement>) {
+    const form = event.target as HTMLFormElement;
+    if(form.id!=="authForm")return;
+    event.preventDefault();
+    if(loginPending.current)return;
+    if(loginMethod.current!=="password"){toast("验证码服务尚未接入，请使用账号密码登录。","暂不可用");return;}
+    const data=new FormData(form);
+    const principal=String(data.get("principal")||"").trim();
+    const password=String(data.get("password")||"");
+    if(!principal||!password){toast("请填写账号和登录密码。","信息不完整");return;}
+    const button=form.querySelector<HTMLButtonElement>('#btnSubmit');
+    loginPending.current=true;if(button)button.disabled=true;
+    try {
+      const result=await signIn("credentials",{email:principal,password,redirect:false});
+      if(!result?.ok||result.error){toast("账号或密码不正确，请重新输入。","登录失败");return;}
+      const next=new URLSearchParams(location.search).get("next");
+      const destination=next?.startsWith("/")&&!next.startsWith("//")?next:"/dashboard";
+      router.push(destination);router.refresh();
+    } catch {toast("登录服务暂时不可用，请稍后重试。","登录失败");}
+    finally {loginPending.current=false;if(button)button.disabled=false;}
+  }
   async function onClick(event:React.MouseEvent<HTMLDivElement>){
     const raw=event.target as Element;
     const el=raw.closest<HTMLElement>('button,a,[data-route],[data-action],[data-competition-id]');if(!el||!root.current?.contains(el))return;
     const button=el.tagName==="BUTTON"?el as HTMLButtonElement:undefined;
     const id=el.id;const action=el.dataset.action;
+    if(id==="btnSubmit")return;
     const label=el.textContent?.replace(/\s+/g," ").trim()||"";
     const route=el.dataset.route;
     if(route){event.preventDefault();if(["/profile","/teams/create","/projects","/dashboard"].some(p=>route.startsWith(p))&&!guard())return;router.push(route.startsWith("/teams/create")?"/teams?create=1":route);return;}
@@ -85,6 +110,21 @@ export function DesignScreen({ name, html, loggedIn }: { name: string; html: str
       if(href.startsWith("/")){event.preventDefault();if(href.startsWith("/teams/create")&&!guard())return;router.push(href.startsWith("/teams/create")?"/teams?create=1":href);return;}
       if(href==="#")event.preventDefault();
     }
+    if(action==="toggle-password"){
+      const input=root.current.querySelector<HTMLInputElement>('#passwordInput');
+      if(input){const visible=input.type==="password";input.type=visible?"text":"password";el.setAttribute("aria-label",visible?"隐藏密码":"显示密码");el.setAttribute("aria-pressed",String(visible));}
+      return;
+    }
+    if(action==="auth-password"||action==="auth-sms"){
+      const sms=action==="auth-sms";loginMethod.current=sms?"sms":"password";
+      root.current.querySelector('#passwordFieldGroup')?.classList.toggle("hidden",sms);
+      root.current.querySelector('#smsFieldGroup')?.classList.toggle("hidden",!sms);
+      const pwd=root.current.querySelector<HTMLInputElement>('#passwordInput');if(pwd){pwd.disabled=sms;pwd.required=!sms;}
+      const code=root.current.querySelector<HTMLInputElement>('#smsInput');if(code)code.disabled=!sms;
+      for(const [id,active] of [["btnMethodPwd",!sms],["btnMethodSms",sms]] as const){const tab=root.current.querySelector('#'+id);tab?.classList.toggle("text-primary",active);tab?.classList.toggle("text-on-surface-variant",!active);}
+      return;
+    }
+    if(action==="auth-unavailable"){event.preventDefault();toast("此认证服务尚未配置，请使用已注册的账号密码登录。","暂不可用");return;}
     if(id==="open-ai-match-btn"){if(guard())modal("ai-synergy-modal",true);return;}
     if(id==="open-creator-btn"){if(guard()){updateStep(1);modal("creator-modal",true);}return;}
     if(["close-ai-synergy","close-ai-synergy-action","close-creator-btn","close-poster-btn"].includes(id)){modal(id.includes("synergy")?"ai-synergy-modal":id.includes("poster")?"poster-modal":"creator-modal",false);if(id==="close-poster-btn"){posterVisible.current=false;router.refresh();}return;}
@@ -138,7 +178,7 @@ export function DesignScreen({ name, html, loggedIn }: { name: string; html: str
     if(action==="unavailable"||button){toast("此功能尚在完善中，当前操作未修改数据。","功能说明");}
   }
   return <div className="design-screen" data-screen={name}>
-    <div ref={root} onClick={onClick} onInput={filterCompetitions} onChange={filterCompetitions} onKeyDown={event=>{const el=event.target as HTMLElement;if(event.key==="Enter"&&el.hasAttribute('data-global-search')){router.push('/competitions?q='+encodeURIComponent((el as HTMLInputElement).value));}}} >{markup}</div>
+    <div ref={root} onSubmit={onAuthSubmit} onClick={onClick} onInput={filterCompetitions} onChange={filterCompetitions} onKeyDown={event=>{const el=event.target as HTMLElement;if(event.key==="Enter"&&el.hasAttribute('data-global-search')){router.push('/competitions?q='+encodeURIComponent((el as HTMLInputElement).value));}}} >{markup}</div>
     {notice&&<div className="fixed top-20 right-6 z-[100] w-80 max-w-[calc(100vw-2rem)] flex gap-3 p-4 bg-white rounded-xl shadow-xl border-l-4 border-primary" role="status" aria-live="polite"><Info className="text-primary shrink-0" size={20}/><div className="flex-1"><p className="text-label-md font-semibold">{notice.title}</p><p className="text-body-sm text-on-surface-variant mt-1">{notice.message}</p>{notice.login&&<a href="/login" className="inline-block text-label-sm text-primary mt-2 font-bold">去登录 →</a>}</div><button aria-label="关闭通知" onClick={()=>setNotice(null)}><X size={16}/></button></div>}
   </div>;
 }
