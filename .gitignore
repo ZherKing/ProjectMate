@@ -43,3 +43,9 @@ docker-compose.override.yml
 .vscode/
 *.swp
 *.tsbuildinfo
+
+# Local design reference archive
+/stitch_projectmate_ui_design/
+
+# Isolated UI verification build
+/.next-ui-qa/

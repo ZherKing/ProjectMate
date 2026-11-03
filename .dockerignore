@@ -7,5 +7,12 @@ node_modules
 database.sqlite
 storage
 docs
-tasks
+/tasks/
 *.log
+
+/stitch_projectmate_ui_design/
+AGENT.md
+AGENTS.md
+
+# Isolated UI verification build
+/.next-ui-qa/

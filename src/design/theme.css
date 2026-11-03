@@ -1,0 +1,139 @@
+@import "tailwindcss";
+@import "./fonts.css";
+@source "../design/screens.json";
+@theme {
+  --color-on-tertiary-fixed-variant: #653e00;
+  --color-secondary: #006c49;
+  --color-error-container: #ffdad6;
+  --color-surface-container-low: #f2f3ff;
+  --color-tertiary-fixed: #ffddb8;
+  --color-outline-variant: #c7c4d8;
+  --color-on-secondary-fixed: #002113;
+  --color-surface-container-high: #e2e7ff;
+  --color-surface-dim: #d2d9f4;
+  --color-secondary-fixed: #6ffbbe;
+  --color-surface-variant: #dae2fd;
+  --color-on-primary-fixed: #0f0069;
+  --color-inverse-surface: #283044;
+  --color-on-secondary-container: #00714d;
+  --color-primary-fixed: #e2dfff;
+  --color-on-surface-variant: #464555;
+  --color-on-tertiary-fixed: #2a1700;
+  --color-secondary-container: #6cf8bb;
+  --color-on-error: #ffffff;
+  --color-surface: #faf8ff;
+  --color-primary-container: #4f46e5;
+  --color-on-tertiary: #ffffff;
+  --color-on-secondary: #ffffff;
+  --color-on-primary-container: #dad7ff;
+  --color-primary: #3525cd;
+  --color-primary-fixed-dim: #c3c0ff;
+  --color-on-surface: #131b2e;
+  --color-secondary-fixed-dim: #4edea3;
+  --color-surface-tint: #4d44e3;
+  --color-on-primary-fixed-variant: #3323cc;
+  --color-on-primary: #ffffff;
+  --color-on-secondary-fixed-variant: #005236;
+  --color-tertiary-container: #885500;
+  --color-surface-container: #eaedff;
+  --color-on-tertiary-container: #ffd4a4;
+  --color-tertiary: #684000;
+  --color-background: #faf8ff;
+  --color-on-error-container: #93000a;
+  --color-error: #ba1a1a;
+  --color-surface-bright: #faf8ff;
+  --color-on-background: #131b2e;
+  --color-surface-container-lowest: #ffffff;
+  --color-inverse-primary: #c3c0ff;
+  --color-surface-container-highest: #dae2fd;
+  --color-tertiary-fixed-dim: #ffb95f;
+  --color-outline: #777587;
+  --color-inverse-on-surface: #eef0ff;
+  --spacing-gutter-mobile: 1rem;
+  --spacing-space-xs: 0.25rem;
+  --spacing-margin: 2rem;
+  --spacing-space-xl: 2.5rem;
+  --spacing-gutter: 1.5rem;
+  --spacing-space-sm: 0.5rem;
+  --spacing-space-md: 1rem;
+  --spacing-margin-mobile: 1rem;
+  --spacing-space-lg: 1.5rem;
+  --radius-default: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-full: 9999px;
+  --font-headline-lg-mobile: "Plus Jakarta Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-title-lg: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-headline-xl: "Plus Jakarta Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-body-md: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-label-sm: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono-metric: "JetBrains Mono", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-body-sm: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-headline-md: "Plus Jakarta Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-headline-xl-mobile: "Plus Jakarta Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-body-lg: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-title-md: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-label-md: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-headline-lg: "Plus Jakarta Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --text-headline-lg-mobile: 24px;
+  --text-headline-lg-mobile--line-height: 32px;
+  --text-headline-lg-mobile--font-weight: 700;
+  --text-title-lg: 18px;
+  --text-title-lg--line-height: 26px;
+  --text-title-lg--font-weight: 600;
+  --text-headline-xl: 40px;
+  --text-headline-xl--line-height: 48px;
+  --text-headline-xl--font-weight: 800;
+  --text-body-md: 14px;
+  --text-body-md--line-height: 20px;
+  --text-body-md--font-weight: 400;
+  --text-label-sm: 11px;
+  --text-label-sm--line-height: 14px;
+  --text-label-sm--font-weight: 600;
+  --text-mono-metric: 12px;
+  --text-mono-metric--line-height: 16px;
+  --text-mono-metric--font-weight: 500;
+  --text-body-sm: 12px;
+  --text-body-sm--line-height: 16px;
+  --text-body-sm--font-weight: 400;
+  --text-headline-md: 22px;
+  --text-headline-md--line-height: 28px;
+  --text-headline-md--font-weight: 600;
+  --text-headline-xl-mobile: 30px;
+  --text-headline-xl-mobile--line-height: 38px;
+  --text-headline-xl-mobile--font-weight: 800;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 24px;
+  --text-body-lg--font-weight: 400;
+  --text-title-md: 16px;
+  --text-title-md--line-height: 24px;
+  --text-title-md--font-weight: 600;
+  --text-label-md: 13px;
+  --text-label-md--line-height: 18px;
+  --text-label-md--font-weight: 600;
+  --text-headline-lg: 30px;
+  --text-headline-lg--line-height: 38px;
+  --text-headline-lg--font-weight: 700;
+}
+.text-headline-lg-mobile{font-size:24px;line-height:32px;font-weight:700;}
+.text-title-lg{font-size:18px;line-height:26px;font-weight:600;}
+.text-headline-xl{font-size:40px;line-height:48px;font-weight:800;}
+.text-body-md{font-size:14px;line-height:20px;font-weight:400;}
+.text-label-sm{font-size:11px;line-height:14px;font-weight:600;}
+.text-mono-metric{font-size:12px;line-height:16px;font-weight:500;}
+.text-body-sm{font-size:12px;line-height:16px;font-weight:400;}
+.text-headline-md{font-size:22px;line-height:28px;font-weight:600;}
+.text-headline-xl-mobile{font-size:30px;line-height:38px;font-weight:800;}
+.text-body-lg{font-size:16px;line-height:24px;font-weight:400;}
+.text-title-md{font-size:16px;line-height:24px;font-weight:600;}
+.text-label-md{font-size:13px;line-height:18px;font-weight:600;}
+.text-headline-lg{font-size:30px;line-height:38px;font-weight:700;}
+
+.design-screen { background:#faf8ff; color:#131b2e; font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif; font-size:14px; line-height:20px; -webkit-font-smoothing:antialiased; }
+.design-icon { width:1em; height:1em; display:inline-block; vertical-align:middle; flex-shrink:0; }
+.design-screen svg { overflow:visible; }
+.design-screen button { cursor:pointer; }
+.design-screen input[type=checkbox],.design-screen input[type=radio]{accent-color:#3525cd;}
+.design-screen a, .design-screen button { transition:background-color .15s,color .15s; }
+.design-screen :focus-visible{outline:2px solid #4f46e5;outline-offset:3px;}
+.design-screen button:disabled{opacity:.6;cursor:wait;}
