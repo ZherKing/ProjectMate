@@ -22,6 +22,13 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
   const main = $("main");
   $("[data-action=\"favorite\"]").each((index,el)=>{ $(el).attr("data-favorite-key",name+"-"+index); });
   const competitions = name === "competitions" || name === "home" || name === "teams" ? listCompetitions() : [];
+  if (name === "competitionDetail") {
+    // 详情页只呈现设计稿中的卡片，不重复渲染站点导航、页脚和背景模拟列表。
+    $("body > header").remove();
+    $("body > footer").remove();
+    main.children("div").first().children("div").first().remove();
+    main.removeClass("pt-16 bg-surface").addClass("min-h-screen");
+  }
   if (name === "settings" && user?.id) {
     const profile = getProfile(user.id);
     main.find('input[type="text"]').filter((_,el)=>$(el).attr("value")==="林星宇").attr("value", profile?.school || user.name || "");
