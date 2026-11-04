@@ -37,7 +37,8 @@ button { cursor: pointer; }
 
 .pm-display { font-family: "Plus Jakarta Sans", Inter, "Noto Sans SC", system-ui, sans-serif; }
 .pm-shell { min-height: 100vh; background: var(--canvas); }
-.pm-header { position: fixed; inset: 0 0 auto; z-index: 40; height: 64px; border-bottom: 1px solid rgba(226, 226, 239, .72); background: rgba(255,255,255,.96); backdrop-filter: blur(14px); }
+.pm-header { position: fixed; inset: 0 0 auto; z-index: 40; height: 64px; border-bottom: 1px solid rgba(226, 226, 239, .72); background: rgba(255,255,255,.96); backdrop-filter: blur(14px); transition: background-color .28s ease, border-color .28s ease, box-shadow .28s ease, backdrop-filter .28s ease; }
+.pm-header.is-scrolled { background: rgba(255,255,255,.78); border-color: rgba(226,226,239,.42); box-shadow: 0 8px 24px rgba(39,30,111,.08); backdrop-filter: blur(20px) saturate(1.15); }
 .pm-header-inner { width: min(100% - 48px, 1240px); height: 100%; margin: auto; display: flex; align-items: center; gap: 24px; }
 .pm-brand { display: flex; align-items: center; gap: 10px; white-space: nowrap; color: var(--primary); font-size: 21px; font-weight: 700; letter-spacing: -.3px; }
 .pm-brand-mark { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 8px; color: white; background: var(--primary-bright); }
@@ -69,11 +70,20 @@ button { cursor: pointer; }
 .pm-footer-brand { color: var(--primary); font-size: 20px; font-weight: 700; }
 .pm-footer-bottom { margin-top: 30px; padding-top: 16px; display: flex; justify-content: space-between; border-top: 1px solid #f0eff6; color: #777587; font-size: 10px; }
 .pm-toast-stack { position: fixed; z-index: 60; top: 80px; right: max(24px, calc((100vw - 1240px) / 2)); display: grid; gap: 10px; pointer-events: none; }
-.pm-toast { width: min(320px, calc(100vw - 32px)); min-height: 64px; display: flex; align-items: flex-start; gap: 11px; padding: 13px 12px; border: 1px solid #e5e3ef; border-left: 4px solid var(--primary-bright); border-radius: 13px; background: white; box-shadow: 0 8px 24px rgba(39,30,111,.13); pointer-events: auto; }
+.pm-toast { width: min(320px, calc(100vw - 32px)); min-height: 64px; display: flex; align-items: flex-start; gap: 11px; padding: 13px 12px; border: 1px solid #e5e3ef; border-left: 4px solid var(--primary-bright); border-radius: 13px; background: white; box-shadow: 0 8px 24px rgba(39,30,111,.13); pointer-events: auto; animation: pm-toast-in .28s cubic-bezier(.22,1,.36,1) both; }
+.pm-toast.pm-toast-closing { animation: pm-toast-out .22s ease-in both; }
 .pm-toast-success { border-left-color: #10a16e; }
 .pm-toast-title { margin: 0; font-size: 12px; font-weight: 700; }
 .pm-toast-text { margin: 3px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
 .pm-toast-close { margin-left: auto; border: 0; color: #76768a; background: transparent; }
+@keyframes pm-toast-in { from { opacity: 0; transform: translate3d(24px,-8px,0) scale(.96); } to { opacity: 1; transform: translate3d(0,0,0) scale(1); } }
+@keyframes pm-toast-out { from { opacity: 1; transform: translate3d(0,0,0) scale(1); } to { opacity: 0; transform: translate3d(24px,-6px,0) scale(.96); } }
+.design-screen [data-design-header] { transition: background-color .28s ease, border-color .28s ease, box-shadow .28s ease, backdrop-filter .28s ease; }
+.design-screen [data-design-header].is-scrolled { background-color: rgba(255,255,255,.78) !important; border-color: rgba(226,226,239,.42); box-shadow: 0 8px 24px rgba(39,30,111,.08); backdrop-filter: blur(20px) saturate(1.15); }
+.design-screen [role="status"] { animation: pm-toast-in .28s cubic-bezier(.22,1,.36,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .pm-header, .design-screen [data-design-header], .pm-toast, .design-screen [role="status"] { animation: none; transition: none; }
+}
 .pm-panel { border: 1px solid var(--line); border-radius: 16px; background: white; box-shadow: 0 2px 7px rgba(19,27,46,.025); }
 .pm-soft-panel { border: 1px solid #e8e8f5; border-radius: 14px; background: var(--surface-soft); }
 .pm-eyebrow { display: flex; align-items: center; gap: 7px; color: var(--primary); font-size: 11px; font-weight: 650; letter-spacing: .02em; }

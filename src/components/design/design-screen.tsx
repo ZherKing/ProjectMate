@@ -35,6 +35,13 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
   },[name,loggedIn]);
   useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),notice.login?7000:5000);return()=>clearTimeout(timer);},[notice]);
   useEffect(()=>{const onKey=(event:KeyboardEvent)=>{if(event.key==="Escape")root.current?.querySelectorAll('[role="dialog"],#creator-modal,#ai-synergy-modal,#demo-modal,#poster-modal').forEach(el=>el.classList.add("hidden"));};document.addEventListener("keydown",onKey);return()=>document.removeEventListener("keydown",onKey);},[]);
+  useEffect(()=>{
+    const header=root.current?.querySelector<HTMLElement>('[data-design-header]');
+    if(!header)return;
+    const onScroll=()=>header.classList.toggle("is-scrolled",window.scrollY>12);
+    onScroll();window.addEventListener("scroll",onScroll,{passive:true});
+    return()=>window.removeEventListener("scroll",onScroll);
+  },[]);
   const toast=(message:string,title="操作提示",login=false)=>setNotice({title,message,login});
   const guard=()=>{if(loggedIn)return true;toast("登录后即可使用此功能，登录成功后可返回当前页面。","需要登录",true);return false;};
   const modal=(id:string,open:boolean)=>{const el=root.current?.querySelector("#"+id);if(el){el.classList.toggle("hidden",!open);el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");if(open)(el.querySelector('button,input') as HTMLElement|null)?.focus();}};

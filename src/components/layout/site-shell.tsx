@@ -3,6 +3,7 @@ import { Bell, Plus, Search, UserRound } from "lucide-react";
 import { auth } from "@/auth";
 import { ToastNotice } from "./toast-notice";
 import { SiteNav } from "./site-nav";
+import { ScrollHeader } from "./scroll-header";
 
 export { ToastNotice } from "./toast-notice";
 
@@ -16,7 +17,7 @@ export async function SiteShell({ children }: { children: ReactNode }) {
   const session = await auth();
   const user = session?.user;
   return <div className="pm-shell">
-    <header className="pm-header"><div className="pm-header-inner">
+    <ScrollHeader className="pm-header"><div className="pm-header-inner">
       <a href="/" className="pm-brand"><span className="pm-brand-mark"><span className="pm-logo-glyph">P</span></span><span>ProjectMate</span></a>
       <SiteNav items={nav} />
       <label className="pm-search"><Search size={17} strokeWidth={1.8} /><input placeholder="搜索比赛、赛道、技能、队伍" /><kbd>⌘K</kbd></label>
@@ -25,7 +26,7 @@ export async function SiteShell({ children }: { children: ReactNode }) {
         {user ? <a className="pm-header-cta" href="/teams/create"><Plus size={16} /><span className="pm-header-cta-label">发布项目</span></a> : null}
         {user ? <a href="/profile" className="pm-user"><span className="pm-avatar"><UserRound size={17} /></span><span className="pm-user-meta"><strong>{user.name || "项目搭档"}</strong><span>个人工作台</span></span></a> : <div className="pm-auth-links"><a href="/login">登录</a><a className="pm-register" href="/register">免费注册</a></div>}
       </div>
-    </div></header>
+    </div></ScrollHeader>
     <main className="pm-main">{children}</main>
     <footer className="pm-footer"><div className="pm-footer-grid">
       <div><a href="/" className="pm-footer-brand">ProjectMate</a><p className="pm-footer-desc">面向高校学生与青年开发者的智能赛事协作平台。算法驱动精准人岗匹配，让每一次组队都迸发硬核生产力。</p><div className="pm-footer-symbols"><span>⌘</span><span>◇</span><span>▣</span></div></div>
