@@ -34,3 +34,13 @@ export function listCompetitionTracks(): { competitionId: string; names: string[
   }
   return [...grouped].map(([competitionId, item]) => ({ competitionId, ...item }));
 }
+
+export function getCompetition(id: string) {
+  initializeDatabase();
+  return sqlite.prepare("SELECT id, platform, name, season, status, source_url AS sourceUrl, updated_at AS updatedAt FROM competitions WHERE id = ?").get(id) as CompetitionListItem | undefined;
+}
+
+export function getCompetitionTrackDetails(competitionId: string) {
+  initializeDatabase();
+  return sqlite.prepare("SELECT id, name, description, deadline FROM competition_tracks WHERE competition_id = ? ORDER BY name").all(competitionId) as Array<{ id: string; name: string; description: string | null; deadline: number | null }>;
+}

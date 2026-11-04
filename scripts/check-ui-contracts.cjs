@@ -19,8 +19,9 @@ for(const [name,html] of Object.entries(screens)){
  console.log(name+': local assets, SVG icons, layout and script removal verified');
 }
 assert.equal(icons,manifest.svgOccurrences);
-assert.equal(Object.keys(screens).length,6);
+assert.equal(Object.keys(screens).length,9);
+for(const name of ['competitionDetail','settings','admin'])assert.ok(screens[name],name+': imported future screen');
 const fonts=fs.readFileSync('src/design/fonts.css','utf8');
 for(const m of fonts.matchAll(/url\(([^)]+)\)/g))assert.ok(fs.existsSync('public'+m[1]),'local font missing');
 assert.ok(fs.readFileSync('.gitignore','utf8').includes('/stitch_projectmate_ui_design/'));
-console.log(icons+' inline SVG occurrences, '+manifest.icons.length+' icon types; 6 screens verified.');
+console.log(icons+' inline SVG occurrences, '+manifest.icons.length+' icon types; '+Object.keys(screens).length+' screens verified.');

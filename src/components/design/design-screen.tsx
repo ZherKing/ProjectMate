@@ -185,7 +185,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     if(id==="btnSubmit"||id==="registerSubmit")return;
     const label=el.textContent?.replace(/\s+/g," ").trim()||"";
     const route=el.dataset.route;
-    if(route){event.preventDefault();const destination=route.startsWith("/teams/create")?"/teams?create=1":route;if(["/profile","/teams/create","/projects","/dashboard"].some(p=>route.startsWith(p))&&!guard(destination))return;router.push(destination);return;}
+    if(route){event.preventDefault();const destination=route.startsWith("/teams/create")?"/teams?create=1":route;if(["/profile","/teams/create","/projects","/dashboard","/settings","/competitions/detail"].some(p=>route.startsWith(p))&&!guard(destination))return;router.push(destination);return;}
     if(el.tagName==="A"){
       const href=el.getAttribute("href")||"";
       if(href.startsWith("/")){event.preventDefault();const destination=href.startsWith("/teams/create")?"/teams?create=1":href;if(href.startsWith("/teams/create")&&!guard(destination))return;router.push(destination);return;}
@@ -253,6 +253,8 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       const input=root.current.querySelector<HTMLInputElement>('[data-competition-search]');if(input)input.value="";
       filterCompetitions();return;
     }
+    if(action==="logout"){toast("正在退出当前登录会话。","退出登录");setTimeout(()=>router.push("/api/auth/signout?callbackUrl=/"),800);return;}
+    if(action==="save-settings"){toast("设置页面已接入真实资料读取；MCP、安全凭证和头像保存仍待服务端接口。","保存说明");return;}
     if(action==="apply-filters"){filterCompetitions();root.current.querySelector('[data-results-heading]')?.scrollIntoView({behavior:"smooth",block:"center"});return;}
     if(action==="select-competition"||el.dataset.competitionId){
       if(el.tagName==="A"&&el.getAttribute("target")==="_blank")return;

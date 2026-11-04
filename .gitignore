@@ -53,3 +53,4 @@ docker-compose.override.yml
 /.next-motion-qa/
 /.next-filter-qa/
 /.next-role-qa/
+/.next-future-qa/

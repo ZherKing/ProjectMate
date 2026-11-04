@@ -3,22 +3,49 @@ import * as cheerio from "cheerio";
 import screens from "@/design/screens.json";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { listCompetitionTracks, listCompetitions } from "@/lib/db/queries";
+import { getCompetition, getCompetitionTrackDetails, listCompetitionTracks, listCompetitions } from "@/lib/db/queries";
+import { getProfile } from "@/lib/db/profile";
+import { requireAdmin } from "@/lib/auth/guards";
 import { listRecruitmentProjects } from "@/lib/db/projects";
 import { listProjectTasks, getLatestCoachReport } from "@/lib/db/tasks";
 import { DesignScreen } from "./design-screen";
 
 export type ScreenName = keyof typeof screens;
 
-export async function DesignPage({ name, variant }: { name: ScreenName; variant?: "register" }) {
+export async function DesignPage({ name, variant, query }: { name: ScreenName; variant?: "register"; query?: Record<string, string | string[] | undefined> }) {
   const session = await auth();
   const user = session?.user;
-  if ((name === "dashboard" || name === "projects") && !user) redirect("/login");
+  if ((name === "dashboard" || name === "projects" || name === "settings" || name === "competitionDetail") && !user) redirect("/login");
+  if (name === "admin" && !(await requireAdmin())) redirect("/login?next=/admin");
   const $ = cheerio.load(screens[name]);
   const text = (el: cheerio.Cheerio<AnyNode>) => el.text().replace(/\s+/g, " ").trim();
   const main = $("main");
   $("[data-action=\"favorite\"]").each((index,el)=>{ $(el).attr("data-favorite-key",name+"-"+index); });
   const competitions = name === "competitions" || name === "home" || name === "teams" ? listCompetitions() : [];
+  if (name === "settings" && user?.id) {
+    const profile = getProfile(user.id);
+    main.find('input[type="text"]').filter((_,el)=>$(el).attr("value")==="林星宇").attr("value", profile?.school || user.name || "");
+    main.find('input[type="email"]').attr("value", user.email || "");
+    main.find("button").filter((_,el)=>/保存个人设置/.test(text($(el)))).attr("data-action","save-settings");
+    main.find("button").filter((_,el)=>/立即接入 OAuth 认证|接入新 MCP 协议|更新密码|重置密钥|注销 Token|申请永久注销/.test(text($(el)))).attr("data-action","unavailable");
+    main.find("button").filter((_,el)=>/退出当前登录会话/.test(text($(el)))).attr("data-action","logout");
+  }
+  if (name === "competitionDetail") {
+    const rawId = query?.id;
+    const selectedId = (Array.isArray(rawId) ? rawId[0] : rawId) || listCompetitions()[0]?.id || "";
+    const competition = getCompetition(selectedId) || listCompetitions()[0];
+    const tracks = competition ? getCompetitionTrackDetails(competition.id) : [];
+    if (competition) {
+      main.find("h1").filter((_,el)=>/2025 CCF|赛事详情/.test(text($(el)))).last().text(competition.name);
+      main.find("span").filter((_,el)=>/报名进行中|待核验/.test(text($(el)))).first().text(competition.status);
+      main.find("a").filter((_,el)=>/ccf.org|官方权威来源/.test(text($(el)))).attr("href", competition.sourceUrl).text("查看赛事原文");
+      main.find("button").filter((_,el)=>/Track-A|Track-B|Track-C/.test(text($(el)))).remove();
+      const trackHost = main.find("h2").filter((_,el)=>/赛题方向列表/.test(text($(el)))).parent();
+      const trackTemplate = main.find("button").filter((_,el)=>/赛题/.test(text($(el)))).first();
+      tracks.slice(0, 6).forEach((track, index) => trackHost.after('<button type="button" data-track-id="'+escapeHtml(track.id)+'" class="w-full text-left p-4 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition"><strong>'+escapeHtml(track.name)+'</strong><span class="block mt-1 text-body-sm text-on-surface-variant">'+escapeHtml(track.description || "暂无赛道说明")+'</span></button>'));
+      main.find("h1").last().text(tracks[0]?.name || "暂无赛道说明");
+    }
+  }
 
   // Header uses the source layout but real authentication state.
   const actions = $("header > div").children().last();
@@ -140,7 +167,7 @@ export async function DesignPage({ name, variant }: { name: ScreenName; variant?
         .attr("data-deadline",deadline==null?"":String(deadline)).attr("data-source-url",item.sourceUrl)
         .attr("tabindex","0").attr("role","button").attr("aria-label",item.name);
       card.find("span").filter((_,el)=>/官方规约已校验/.test(text($(el)))).text("来源："+item.platform);
-      card.find("span").filter((_,el)=>/查看赛道专区/.test(text($(el)))).first().replaceWith('<a target="_blank" rel="noreferrer" class="font-label-md text-label-md text-primary" href="'+escapeHtml(item.sourceUrl)+'">查看赛事原文 →</a>');
+      card.find("span").filter((_,el)=>/查看赛道专区/.test(text($(el)))).first().replaceWith('<button type="button" data-route="/competitions/detail?id='+encodeURIComponent(item.id)+'" class="font-label-md text-label-md text-primary">详情</button>');
       card.find("p").first().after('<p class="mt-2 text-body-sm text-on-surface-variant">更新于 '+escapeHtml(new Date(item.updatedAt).toLocaleDateString("zh-CN"))+ (tracks?.names.length?' · '+tracks.names.length+' 个赛道':'')+'</p>');
       listContainer.append(card);
     });
@@ -189,6 +216,7 @@ export async function DesignPage({ name, variant }: { name: ScreenName; variant?
     main.find("button").filter((_,el)=>/发起组队/.test(text($(el)))).attr("data-route","/teams/create");
     main.find("button").filter((_,el)=>/AI 生成参赛方案/.test(text($(el)))).attr("data-action","unavailable");
     main.find("[data-selected-competition-title]").text((competitions[0]?.name||"暂无赛事")+" · 分析示例");
+    main.find("h2").filter((_,el)=>/生产力智能体赛道/.test(text($(el)))).closest("section").remove();
   }
   if (name === "dashboard") {
     const h=main.find("h1");h.text("下午好，"+(user?.name || "项目成员")+"！");

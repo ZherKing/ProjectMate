@@ -23,7 +23,7 @@ export async function SiteShell({ children }: { children: ReactNode }) {
       <div className="pm-header-actions">
         {user ? <button className="pm-icon-button" aria-label="通知中心"><Bell size={18} strokeWidth={1.8} /><span className="pm-unread" /></button> : null}
         {user ? <a className="pm-header-cta" href="/teams/create"><Plus size={16} /><span className="pm-header-cta-label">发布项目</span></a> : null}
-        {user ? <a href="/profile" className="pm-user"><span className="pm-avatar"><UserRound size={17} /></span><span className="pm-user-meta"><strong>{user.name || "项目搭档"}</strong><span>个人工作台</span></span></a> : <div className="pm-auth-links"><a href="/login">登录</a><a className="pm-register" href="/register">免费注册</a></div>}
+        {user ? <details className="pm-user-menu"><summary className="pm-user"><span className="pm-avatar"><UserRound size={17} /></span><span className="pm-user-meta"><strong>{user.name || "项目搭档"}</strong><span>个人工作台</span></span></summary><div className="pm-user-menu-panel"><a href="/settings">设置</a><a href="/profile">能力画像</a><a href="/api/auth/signout?callbackUrl=/">退出登录</a></div></details> : <div className="pm-auth-links"><a href="/login">登录</a><a className="pm-register" href="/register">免费注册</a></div>}
       </div>
     </div></ScrollHeader>
     <main className="pm-main">{children}</main>
