@@ -156,9 +156,14 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
   }
   if (name === "competitions") {
     const headings=main.find("h3").slice(0,3);
-    const listContainer=headings.first().closest("article").parent();
+    const listColumn=headings.first().closest("article").parent();
+    listColumn.removeClass("xl:col-span-5").addClass("xl:col-span-12");
     const template=headings.first().closest("article").clone();
     const trackGroups=new Map(listCompetitionTracks().map(track=>[track.competitionId,track]));
+    const articleGrid=$('<div class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>');
+    listColumn.children("article").appendTo(articleGrid);
+    listColumn.append(articleGrid);
+    const listContainer=articleGrid;
     listContainer.children("article").remove();
     competitions.forEach((item,index)=>{
       const card=template.clone();
@@ -219,12 +224,7 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     main.find("button").filter((_,el)=>/重置条件/.test(text($(el)))).attr("data-action","reset-filters");
     main.find("button").filter((_,el)=>/精准筛选/.test(text($(el)))).attr("data-action","apply-filters");
     main.find("#filter-tabs button").first().find("span").last().text(String(competitions.length));
-    main.find("h2").filter((_,el)=>/生产力智能体赛道/.test(text($(el)))).attr("data-selected-competition-title","");
-    const original=main.find("a").filter((_,el)=>/组委会官方原文/.test(text($(el)))).attr("data-selected-source","").text("查看来源原文");
-    if(competitions[0])original.attr("href",competitions[0].sourceUrl).attr("target","_blank").attr("rel","noreferrer");
     main.find("button").filter((_,el)=>/发起组队/.test(text($(el)))).attr("data-route","/teams/create");
-    main.find("button").filter((_,el)=>/AI 生成参赛方案/.test(text($(el)))).attr("data-action","unavailable");
-    main.find("[data-selected-competition-title]").text((competitions[0]?.name||"暂无赛事")+" · 分析示例");
     main.find("h2").filter((_,el)=>/生产力智能体赛道/.test(text($(el)))).closest("section").remove();
   }
   if (name === "dashboard") {
