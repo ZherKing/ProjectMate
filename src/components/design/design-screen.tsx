@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Info, X } from "lucide-react";
@@ -12,9 +13,11 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
   const markup = useMemo(() => <div dangerouslySetInnerHTML={{__html:html}} />, [html]);
   const router=useRouter();
   const [notice,setNotice]=useState<Notice|null>(null);
+  const [noticeClosing,setNoticeClosing]=useState(false);
   const step=useRef(1);
   const loginMethod=useRef("password");
   const loginPending=useRef(false);
+  const loginReturnTo=useRef<string|null>(null);
   const publishedId=useRef("");
   const publishedDraft=useRef({title:"",roles:""});
   const posterVisible=useRef(false);
@@ -48,7 +51,20 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     restore();window.addEventListener("popstate",restore);
     return()=>window.removeEventListener("popstate",restore);
   },[name,loggedIn,html]);
-  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),notice.login?7000:5000);return()=>clearTimeout(timer);},[notice]);
+  useEffect(()=>{
+    if(!notice)return;
+    setNoticeClosing(false);
+    const duration=notice.login?1200:5000;
+    const closeTimer=setTimeout(()=>setNoticeClosing(true),duration);
+    const removeTimer=setTimeout(()=>{
+      if(notice.login){
+        const next=loginReturnTo.current||location.pathname+location.search;
+        loginReturnTo.current=null;
+        router.push("/login?next="+encodeURIComponent(next));
+      } else setNotice(null);
+    },duration+220);
+    return()=>{clearTimeout(closeTimer);clearTimeout(removeTimer);};
+  },[notice,router]);
   useEffect(()=>{const onKey=(event:KeyboardEvent)=>{if(event.key==="Escape")root.current?.querySelectorAll('[role="dialog"],#creator-modal,#ai-synergy-modal,#demo-modal,#poster-modal').forEach(el=>el.classList.add("hidden"));};document.addEventListener("keydown",onKey);return()=>document.removeEventListener("keydown",onKey);},[]);
   useEffect(()=>{
     const header=root.current?.querySelector<HTMLElement>('[data-design-header]');
@@ -58,7 +74,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     return()=>window.removeEventListener("scroll",onScroll);
   },[]);
   const toast=(message:string,title="操作提示",login=false)=>setNotice({title,message,login});
-  const guard=()=>{if(loggedIn)return true;toast("登录后即可使用此功能，登录成功后可返回当前页面。","需要登录",true);return false;};
+  const guard=(returnTo?:string)=>{if(loggedIn)return true;loginReturnTo.current=returnTo||location.pathname+location.search;toast("正在前往登录页面，登录后可继续当前操作。","需要登录",true);return false;};
   const modal=(id:string,open:boolean)=>{const el=root.current?.querySelector("#"+id);if(el){el.classList.toggle("hidden",!open);el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");if(open)(el.querySelector('button,input') as HTMLElement|null)?.focus();}};
   const value=(id:string)=>(root.current?.querySelector("#"+id) as HTMLInputElement|HTMLTextAreaElement|null)?.value||"";
   const setValue=(id:string,text:string)=>{const el=root.current?.querySelector("#"+id) as HTMLInputElement|HTMLTextAreaElement|null;if(el)el.value=text;};
@@ -169,10 +185,10 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     if(id==="btnSubmit"||id==="registerSubmit")return;
     const label=el.textContent?.replace(/\s+/g," ").trim()||"";
     const route=el.dataset.route;
-    if(route){event.preventDefault();if(["/profile","/teams/create","/projects","/dashboard"].some(p=>route.startsWith(p))&&!guard())return;router.push(route.startsWith("/teams/create")?"/teams?create=1":route);return;}
+    if(route){event.preventDefault();const destination=route.startsWith("/teams/create")?"/teams?create=1":route;if(["/profile","/teams/create","/projects","/dashboard"].some(p=>route.startsWith(p))&&!guard(destination))return;router.push(destination);return;}
     if(el.tagName==="A"){
       const href=el.getAttribute("href")||"";
-      if(href.startsWith("/")){event.preventDefault();if(href.startsWith("/teams/create")&&!guard())return;router.push(href.startsWith("/teams/create")?"/teams?create=1":href);return;}
+      if(href.startsWith("/")){event.preventDefault();const destination=href.startsWith("/teams/create")?"/teams?create=1":href;if(href.startsWith("/teams/create")&&!guard(destination))return;router.push(destination);return;}
       if(href==="#")event.preventDefault();
     }
     if(action==="toggle-password"){
@@ -256,6 +272,6 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
   }
   return <div className="design-screen" data-screen={name} data-variant={variant}>
     <div ref={root} onSubmit={onAuthSubmit} onClick={onClick} onInput={event=>{if((event.target as HTMLElement).matches('[data-competition-search],[data-platform-filter],[data-status-filter]'))filterCompetitions();}} onChange={event=>{if((event.target as HTMLElement).matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}}>{markup}</div>
-    {notice&&<div className="fixed top-20 right-6 z-[100] w-80 max-w-[calc(100vw-2rem)] flex gap-3 p-4 bg-white rounded-xl shadow-xl border-l-4 border-primary" role="status" aria-live="polite"><Info className="text-primary shrink-0" size={20}/><div className="flex-1"><p className="text-label-md font-semibold">{notice.title}</p><p className="text-body-sm text-on-surface-variant mt-1">{notice.message}</p>{notice.login&&<a href="/login" className="inline-block text-label-sm text-primary mt-2 font-bold">去登录 →</a>}</div><button aria-label="关闭通知" onClick={()=>setNotice(null)}><X size={16}/></button></div>}
+    {notice&&<div className={`fixed top-20 right-6 z-[100] w-80 max-w-[calc(100vw-2rem)] flex gap-3 overflow-hidden p-4 pb-5 bg-white rounded-xl shadow-xl border-l-4 border-primary ${noticeClosing?"pm-toast-closing":""}`} role="status" aria-live="polite" style={{"--pm-toast-duration":`${notice.login?1200:5000}ms`} as CSSProperties}><Info className="text-primary shrink-0" size={20}/><div className="flex-1"><p className="text-label-md font-semibold">{notice.title}</p><p className="text-body-sm text-on-surface-variant mt-1">{notice.message}</p></div>{!notice.login&&<button aria-label="关闭通知" onClick={()=>{setNoticeClosing(true);setTimeout(()=>setNotice(null),220);}}><X size={16}/></button>}<span className="pm-toast-progress absolute bottom-0 left-0 h-[3px] w-full origin-left bg-primary" aria-hidden="true"/></div>}
   </div>;
 }
