@@ -10,7 +10,7 @@ import { DesignScreen } from "./design-screen";
 
 export type ScreenName = keyof typeof screens;
 
-export async function DesignPage({ name }: { name: ScreenName }) {
+export async function DesignPage({ name, variant }: { name: ScreenName; variant?: "register" }) {
   const session = await auth();
   const user = session?.user;
   if ((name === "dashboard" || name === "projects") && !user) redirect("/login");
@@ -80,6 +80,24 @@ export async function DesignPage({ name }: { name: ScreenName }) {
     $("#smsInput").prop("disabled",true);
     $('[data-action="toggle-password"]').attr("aria-label","显示密码").attr("aria-pressed","false");
     $("#authForm").attr("data-auth-form","");
+    if (variant === "register") {
+      $("#authForm").attr("id", "registerForm").removeAttr("data-auth-form").attr("data-register-form", "");
+      $("#btnMethodPwd").parent().html('<span class="font-label-md text-label-md text-primary">邮箱注册</span>');
+      $("#passwordFieldGroup").remove();
+      $("#smsFieldGroup").remove();
+      const form = $("#registerForm");
+      form.html(`
+        <div class="space-y-1.5"><label class="block font-label-md text-label-md text-on-surface" for="registerName">昵称</label><div class="relative flex items-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="lucide lucide-user-round absolute left-3.5 design-icon text-[20px] text-on-surface-variant"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg><input class="w-full pl-11 pr-4 py-3 bg-surface-container-low rounded-lg font-body-md text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary transition-all" id="registerName" name="name" placeholder="输入你的昵称" required type="text" maxlength="40"></div></div>
+        <div class="space-y-1.5"><label class="block font-label-md text-label-md text-on-surface" for="registerEmail">注册邮箱</label><div class="relative flex items-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="lucide lucide-mail absolute left-3.5 design-icon text-[20px] text-on-surface-variant"><path d="m4 4 8 6 8-6"></path><rect width="20" height="16" x="2" y="4" rx="2"></rect></svg><input class="w-full pl-11 pr-4 py-3 bg-surface-container-low rounded-lg font-body-md text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary transition-all" id="registerEmail" name="email" placeholder="name@university.edu.cn" required type="email" maxlength="254"></div></div>
+        <div class="space-y-1.5"><label class="block font-label-md text-label-md text-on-surface" for="registerPassword">设置密码</label><div class="relative flex items-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="lucide lucide-lock-keyhole absolute left-3.5 design-icon text-[20px] text-on-surface-variant"><circle cx="12" cy="16" r="1"></circle><rect width="18" height="12" x="3" y="10" rx="2"></rect><path d="M7 10V7a5 5 0 0 1 10 0v3"></path></svg><input class="w-full pl-11 pr-4 py-3 bg-surface-container-low rounded-lg font-body-md text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary transition-all" id="registerPassword" name="password" placeholder="至少 8 位密码" required type="password" minlength="8" maxlength="256"></div></div>
+        <div class="space-y-1.5"><label class="block font-label-md text-label-md text-on-surface" for="registerPasswordConfirm">确认密码</label><div class="relative flex items-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="lucide lucide-shield-check absolute left-3.5 design-icon text-[20px] text-on-surface-variant"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20 4 17.5 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg><input class="w-full pl-11 pr-4 py-3 bg-surface-container-low rounded-lg font-body-md text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary transition-all" id="registerPasswordConfirm" name="passwordConfirm" placeholder="再次输入密码" required type="password" minlength="8" maxlength="256"></div></div>
+        <div class="flex items-center justify-between pt-1"><span class="font-body-sm text-body-sm text-on-surface-variant">注册后可完善能力画像</span><span class="font-body-sm text-body-sm text-on-surface-variant">受 TLS 1.3 安全保护</span></div>
+        <div class="pt-2"><button class="w-full py-3.5 px-6 rounded-lg bg-primary text-on-primary font-title-md text-title-md hover:bg-primary-container shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2" id="registerSubmit" type="submit"><span>创建账号</span></button></div>
+      `);
+      $("#registerForm").closest(".lg\\:col-span-6").find(".flex.items-center.justify-between.pb-4").find("button").first().attr("data-route", "/login").removeAttr("data-design-handler").text("账号登录").removeClass("text-primary border-b-2 border-primary").addClass("text-on-surface-variant");
+      $("#registerForm").closest(".lg\\:col-span-6").find(".flex.items-center.justify-between.pb-4").find("button").last().text("快速注册").removeAttr("data-design-handler").addClass("text-primary border-b-2 border-primary").removeClass("text-on-surface-variant");
+      main.find("span").filter((_,el)=>/新用户登录自动开启/.test(text($(el)))).parent().html('<span>已有账号？</span><a class="text-primary hover:underline font-label-sm" href="/login">返回账号登录</a>');
+    }
   }
   if (name === "home") {
     main.find("aside").filter((_,el)=>/游客浏览模式已就绪/.test(text($(el)))).each((_,el)=>{
@@ -192,7 +210,7 @@ export async function DesignPage({ name }: { name: ScreenName }) {
     $(el).attr("data-favorite-key",card.find("h3").text().trim().slice(0,250)||name+"-"+index);
   });
   $("#poster-modal p").filter((_,el)=>/AI 正在全网/.test(text($(el)))).text("招募项目已保存，可复制链接邀请搭档加入。");
-  return <DesignScreen name={name} html={$("body").html() || ""} loggedIn={!!user} />;
+  return <DesignScreen name={name} html={$("body").html() || ""} loggedIn={!!user} variant={variant} />;
 }
 
 function escapeHtml(value: string) { return value.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!)); }

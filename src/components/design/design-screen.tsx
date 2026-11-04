@@ -7,7 +7,7 @@ import { Info, X } from "lucide-react";
 import { screenAction } from "./actions";
 
 type Notice = { title: string; message: string; login?: boolean };
-export function DesignScreen({ name, html, loggedIn }: { name: string; html: string; loggedIn: boolean }) {
+export function DesignScreen({ name, html, loggedIn, variant }: { name: string; html: string; loggedIn: boolean; variant?: "register" }) {
   const root=useRef<HTMLDivElement>(null);
   const markup = useMemo(() => <div dangerouslySetInnerHTML={{__html:html}} />, [html]);
   const router=useRouter();
@@ -77,6 +77,27 @@ export function DesignScreen({ name, html, loggedIn }: { name: string; html: str
   };
   async function onAuthSubmit(event: React.FormEvent<HTMLDivElement>) {
     const form = event.target as HTMLFormElement;
+    if(form.id==="registerForm") {
+      event.preventDefault();
+      const data = new FormData(form);
+      const name = String(data.get("name") || "").trim();
+      const email = String(data.get("email") || "").trim().toLowerCase();
+      const password = String(data.get("password") || "");
+      const passwordConfirm = String(data.get("passwordConfirm") || "");
+      if(!name || !email || password.length < 8){toast("请填写昵称、有效邮箱和至少 8 位密码。","信息不完整");return;}
+      if(password !== passwordConfirm){toast("两次输入的密码不一致。","注册失败");return;}
+      const button=form.querySelector<HTMLButtonElement>("#registerSubmit");if(button)button.disabled=true;
+      try {
+        const response=await fetch("/api/register",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name,email,password})});
+        const result=await response.json() as {ok?:boolean;message?:string};
+        if(!response.ok||!result.ok){toast(result.message||"注册未完成，请稍后重试。","注册失败");return;}
+        const signed=await signIn("credentials",{email,password,redirect:false});
+        if(!signed?.ok||signed.error){toast("账号已创建，请返回登录。","注册完成");return;}
+        router.push("/profile");router.refresh();
+      } catch {toast("注册服务暂时不可用，请稍后重试。","注册失败");}
+      finally {if(button)button.disabled=false;}
+      return;
+    }
     if(form.id!=="authForm")return;
     event.preventDefault();
     if(loginPending.current)return;
@@ -101,7 +122,7 @@ export function DesignScreen({ name, html, loggedIn }: { name: string; html: str
     const el=raw.closest<HTMLElement>('button,a,[data-route],[data-action],[data-competition-id]');if(!el||!root.current?.contains(el))return;
     const button=el.tagName==="BUTTON"?el as HTMLButtonElement:undefined;
     const id=el.id;const action=el.dataset.action;
-    if(id==="btnSubmit")return;
+    if(id==="btnSubmit"||id==="registerSubmit")return;
     const label=el.textContent?.replace(/\s+/g," ").trim()||"";
     const route=el.dataset.route;
     if(route){event.preventDefault();if(["/profile","/teams/create","/projects","/dashboard"].some(p=>route.startsWith(p))&&!guard())return;router.push(route.startsWith("/teams/create")?"/teams?create=1":route);return;}
@@ -177,7 +198,7 @@ export function DesignScreen({ name, html, loggedIn }: { name: string; html: str
     if(/导出项目报告/.test(label)){router.push("/projects/tasks");return;}
     if(action==="unavailable"||button){toast("此功能尚在完善中，当前操作未修改数据。","功能说明");}
   }
-  return <div className="design-screen" data-screen={name}>
+  return <div className="design-screen" data-screen={name} data-variant={variant}>
     <div ref={root} onSubmit={onAuthSubmit} onClick={onClick} onInput={filterCompetitions} onChange={filterCompetitions} onKeyDown={event=>{const el=event.target as HTMLElement;if(event.key==="Enter"&&el.hasAttribute('data-global-search')){router.push('/competitions?q='+encodeURIComponent((el as HTMLInputElement).value));}}} >{markup}</div>
     {notice&&<div className="fixed top-20 right-6 z-[100] w-80 max-w-[calc(100vw-2rem)] flex gap-3 p-4 bg-white rounded-xl shadow-xl border-l-4 border-primary" role="status" aria-live="polite"><Info className="text-primary shrink-0" size={20}/><div className="flex-1"><p className="text-label-md font-semibold">{notice.title}</p><p className="text-body-sm text-on-surface-variant mt-1">{notice.message}</p>{notice.login&&<a href="/login" className="inline-block text-label-sm text-primary mt-2 font-bold">去登录 →</a>}</div><button aria-label="关闭通知" onClick={()=>setNotice(null)}><X size={16}/></button></div>}
   </div>;
