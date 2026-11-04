@@ -5,8 +5,9 @@ import { sqlite } from "@/lib/db/client";
 import { normalizeCompetition } from "./normalize";
 import { SaikrAdapter } from "./adapters/saikr";
 import { BoxueguAdapter } from "./adapters/boxuegu";
+import { Xiaoyuan172Adapter } from "./adapters/xiaoyuan172";
 
-const adapters = [new SaikrAdapter(), new BoxueguAdapter()];
+const adapters = [new SaikrAdapter(), new BoxueguAdapter(), new Xiaoyuan172Adapter()];
 
 export async function syncCompetitions(): Promise<RawCompetition[]> {
   initializeDatabase();
@@ -17,6 +18,8 @@ export async function syncCompetitions(): Promise<RawCompetition[]> {
     try {
       const sourceUrl = adapter instanceof BoxueguAdapter
         ? (process.env.BOXUEGU_CONTESTS_URL ?? "https://www.boxuegu.com/matchTrack/")
+        : adapter instanceof Xiaoyuan172Adapter
+          ? (process.env.XIAOYUAN172_CONTESTS_URL ?? "http://bisai.172xiaoyuan.com/kaifayingyong/")
         : (process.env.SAIKR_CONTESTS_URL ?? "https://www.saikr.com/contests");
       const items = await adapter.fetchAndParse(sourceUrl);
       all.push(...items);
