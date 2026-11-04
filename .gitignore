@@ -51,3 +51,5 @@ docker-compose.override.yml
 /.next-ui-qa/
 /.next-register-qa/
 /.next-motion-qa/
+/.next-filter-qa/
+/.next-role-qa/

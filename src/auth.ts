@@ -4,6 +4,7 @@ import { sqlite } from "@/lib/db/client";
 import { initializeDatabase } from "@/lib/db/initialize";
 import { seedDatabase } from "@/lib/db/seed";
 import { verifyPassword } from "@/lib/auth/password";
+import { syncConfiguredUserRole } from "@/lib/auth/permissions";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET ?? "projectmate-development-secret",
@@ -33,6 +34,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           "SELECT id, email, name, password_hash AS passwordHash FROM users WHERE email = ?",
         ).get(email) as { id: string; email: string; name: string | null; passwordHash: string } | undefined;
         if (!user || !verifyPassword(password, user.passwordHash)) return null;
+        syncConfiguredUserRole(user.id, user.email);
         return { id: user.id, email: user.email, name: user.name };
       },
     }),
