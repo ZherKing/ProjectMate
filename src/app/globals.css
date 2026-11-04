@@ -46,10 +46,6 @@ button { cursor: pointer; }
 .pm-nav a { padding: 8px 12px; border-radius: 8px; color: #464555; font-weight: 500; transition: color .15s, background .15s; }
 .pm-nav a:hover { color: var(--primary); background: var(--surface-soft); }
 .pm-nav a[data-active="true"] { color: var(--primary); background: var(--surface-mid); font-weight: 650; }
-.pm-search { min-width: 180px; max-width: 320px; flex: 1; display: flex; align-items: center; gap: 8px; border-radius: 9px; padding: 8px 11px; color: #777587; background: var(--surface-soft); }
-.pm-search input { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 12px; }
-.pm-search input::placeholder { color: #777587; }
-.pm-search kbd { flex: none; border-radius: 4px; padding: 2px 5px; color: #53536a; background: var(--surface-strong); font: 11px "JetBrains Mono", monospace; }
 .pm-header-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 .pm-icon-button { position: relative; width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 9px; color: #595970; background: transparent; }
 .pm-icon-button:hover { background: var(--surface-soft); color: var(--primary); }

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Bell, Plus, Search, UserRound } from "lucide-react";
+import { Bell, Plus, UserRound } from "lucide-react";
 import { auth } from "@/auth";
 import { ToastNotice } from "./toast-notice";
 import { SiteNav } from "./site-nav";
@@ -20,7 +20,6 @@ export async function SiteShell({ children }: { children: ReactNode }) {
     <ScrollHeader className="pm-header"><div className="pm-header-inner">
       <a href="/" className="pm-brand"><span className="pm-brand-mark"><span className="pm-logo-glyph">P</span></span><span>ProjectMate</span></a>
       <SiteNav items={nav} />
-      <label className="pm-search"><Search size={17} strokeWidth={1.8} /><input placeholder="搜索比赛、赛道、技能、队伍" /><kbd>⌘K</kbd></label>
       <div className="pm-header-actions">
         {user ? <button className="pm-icon-button" aria-label="通知中心"><Bell size={18} strokeWidth={1.8} /><span className="pm-unread" /></button> : null}
         {user ? <a className="pm-header-cta" href="/teams/create"><Plus size={16} /><span className="pm-header-cta-label">发布项目</span></a> : null}

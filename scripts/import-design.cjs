@@ -28,6 +28,8 @@ for(const [name,dir] of Object.entries(sources)){
  $('button,a').filter((_,e)=>/游客态|登录态/.test($(e).text())).remove();
  const navMap={'competitions-hub':'/competitions','team-hall':'/teams','project-workspace':'/projects','product-overview':'/#workflow','guest-home':'/','dashboard':'/dashboard'};
  $('header [data-path="product-overview"]').remove();
+ $('header input[placeholder*="搜索比赛、赛道"]').closest('div.flex-1').remove();
+ $('header input[placeholder*="搜索比赛、赛道"]').remove();
  $('[data-path]').each((_,e)=>{const dest=navMap[$(e).attr('data-path')];if(dest)$(e).attr('href',dest);});
  $('header').attr('data-design-header','');
  $('body > main').attr('data-design-main',name);

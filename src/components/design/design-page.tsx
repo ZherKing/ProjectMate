@@ -3,7 +3,7 @@ import * as cheerio from "cheerio";
 import screens from "@/design/screens.json";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { listCompetitions } from "@/lib/db/queries";
+import { listCompetitionTracks, listCompetitions } from "@/lib/db/queries";
 import { listRecruitmentProjects } from "@/lib/db/projects";
 import { listProjectTasks, getLatestCoachReport } from "@/lib/db/tasks";
 import { DesignScreen } from "./design-screen";
@@ -70,8 +70,6 @@ export async function DesignPage({ name, variant }: { name: ScreenName; variant?
     else if(/优化.*画像/.test(label))e.attr("data-route","/profile");
     else if(/收藏/.test(label)||e.find('[data-icon="favorite_border"],[data-icon="bookmark_border"]').length)e.attr("data-action","favorite");
   });
-  $("input").filter((_,el)=>/搜索比赛、赛道/.test($(el).attr("placeholder")||"")).attr("data-global-search","");
-
   if (name === "login") {
     main.addClass("overflow-x-clip");
     $("#principalInput").attr("autocomplete","username").attr("maxlength","254").attr("type","email").attr("placeholder","请输入注册邮箱");
@@ -121,31 +119,76 @@ export async function DesignPage({ name, variant }: { name: ScreenName; variant?
     flow.closest("section").attr("id","workflow");
   }
   if (name === "competitions") {
-    // Keep each source card's complete geometry; bind titles and sources from SQLite.
     const headings=main.find("h3").slice(0,3);
-    headings.each((index,el)=>{
-      const item=competitions[index];if(!item)return;
-      $(el).text(item.name);
-      const card=$(el).parents().filter((_,p)=>!!$(p).attr("class")?.includes("rounded-2xl")).first();
-      card.attr("data-competition-id",item.id).attr("data-platform",item.platform).attr("data-status",item.status).attr("tabindex","0").attr("role","button");
-      card.find("button,a").attr("data-action","select-competition");
+    const listContainer=headings.first().closest("article").parent();
+    const template=headings.first().closest("article").clone();
+    const trackGroups=new Map(listCompetitionTracks().map(track=>[track.competitionId,track]));
+    listContainer.children("article").remove();
+    competitions.forEach((item,index)=>{
+      const card=template.clone();
+      card.find(".absolute,[class*=grid-cols-3]").remove();
+      card.find("div").filter((_,el)=>($(el).attr("class")||"").includes("flex flex-wrap gap-1.5")).remove();
+      const title=card.find("h3").first().text(item.name);
+      title.parent().find("p").first().text(item.platform);
+      title.parent().find("span").first().text(item.status);
+      title.parent().find("span").eq(1).remove();
+      const tracks=trackGroups.get(item.id);
+      const searchText=[item.name,item.platform,item.status,item.season,...(tracks?.names||[])].join(" ");
+      const deadline=tracks?.deadline ?? null;
+      card.attr("data-competition-id",item.id).attr("data-platform",item.platform).attr("data-status",item.status)
+        .attr("data-search-text",searchText).attr("data-updated-at",String(item.updatedAt)).attr("data-default-order",String(index))
+        .attr("data-deadline",deadline==null?"":String(deadline)).attr("data-source-url",item.sourceUrl)
+        .attr("tabindex","0").attr("role","button").attr("aria-label",item.name);
+      card.find("span").filter((_,el)=>/官方规约已校验/.test(text($(el)))).text("来源："+item.platform);
+      card.find("span").filter((_,el)=>/查看赛道专区/.test(text($(el)))).first().replaceWith('<a target="_blank" rel="noreferrer" class="font-label-md text-label-md text-primary" href="'+escapeHtml(item.sourceUrl)+'">查看赛事原文 →</a>');
+      card.find("p").first().after('<p class="mt-2 text-body-sm text-on-surface-variant">更新于 '+escapeHtml(new Date(item.updatedAt).toLocaleDateString("zh-CN"))+ (tracks?.names.length?' · '+tracks.names.length+' 个赛道':'')+'</p>');
+      listContainer.append(card);
     });
-    main.find('input[placeholder*="检索比赛名"]').attr("data-competition-search","");
-    const platforms = [...new Set(competitions.map(item => item.platform))];
-    main.find('input[type="checkbox"]').slice(0,5).each((index,el)=>{
-      const label = platforms[index] || ["传智杯", "华为 ICT", "赛氪"][Math.max(0,index-platforms.length)];
-      $(el).attr("data-platform-filter",label).prop("checked",true);
-      $(el).parent().find("span").first().text(label);
+    main.find('input[placeholder*="检索比赛名"]').attr("data-competition-search","").attr("aria-label","搜索比赛、平台或赛道").attr("placeholder","搜索比赛名称、平台或赛道…");
+    const platformInputs=main.find('input[type="checkbox"]').slice(0,5);
+    const platformTemplate=platformInputs.first().closest("label").clone();
+    const platformContainer=platformInputs.first().closest("label").parent();
+    platformInputs.each((_,el)=>{ $(el).closest("label").remove(); });
+    const platforms=[...new Set(competitions.map(item=>item.platform))];
+    platforms.forEach(platform=>{
+      const option=platformTemplate.clone();
+      option.find("input").attr("data-platform-filter",platform).attr("aria-label",platform).prop("checked",true);
+      option.find("input").next("span").text(platform);
+      option.children("span").last().text(String(competitions.filter(item=>item.platform===platform).length));
+      platformContainer.append(option);
     });
-    main.find('input[name="status"]').each((_,el)=>{ $(el).attr("data-status-filter",text($(el).parent())); });
-    main.find("h2,h3").filter((_,el)=>/赛事列表/.test(text($(el)))).first().attr("data-results-heading","");
+    main.find("span").filter((_,el)=>text($(el))==="5类").text(platforms.length+"类");
+    const statuses=[...new Set(competitions.map(item=>item.status))];
+    const statusInput=main.find('input[name="status"]').first();
+    const statusTemplate=statusInput.closest("label").clone();
+    const statusContainer=statusInput.closest("label").parent();
+    statusContainer.empty();
+    ["全部状态",...statuses].forEach((status,index)=>{
+      const option=statusTemplate.clone();
+      option.find("input").attr("data-status-filter",index===0?"":status).attr("value",index===0?"":status).prop("checked",index===0);
+      option.find("span").first().text(status);
+      statusContainer.append(option);
+    });
+    main.find("span").filter((_,el)=>["大模型/Agent","全栈应用","智能硬件/IoT","数据科学/ML","Web3与密码学"].includes(text($(el)))).each((_,el)=>{
+      $(el).removeAttr("role tabindex aria-pressed data-selected data-track-filter")
+        .attr("aria-disabled","true").attr("title","赛事来源未提供统一分类；可用上方关键词搜索真实赛道名称")
+        .removeClass("bg-primary-fixed text-primary").addClass("bg-surface-container-low text-on-surface-variant opacity-60 cursor-default");
+    });
+    main.find("button").filter((_,el)=>/团队 \(1-5人\)|个人挑战/.test(text($(el)))).prop("disabled",true).attr("title","来源未提供统一参赛模式，暂不可筛选").addClass("opacity-50 cursor-not-allowed");
+    main.find("span").filter((_,el)=>["仅本科","硕博不限","全员无门槛"].includes(text($(el)))).attr("title","来源未提供统一资格信息，暂不可筛选").addClass("opacity-50");
+    const sortOptions=new Map([["AI 匹配优先",["默认顺序","default"]],["截止最近",["截止最近","deadline"]],["热度优先",["名称排序","name"]],["最新发布",["最近更新","updated"]]]);
+    main.find("button").each((_,el)=>{const option=sortOptions.get(text($(el)));if(option)$(el).text(option[0]).attr("data-sort-filter",option[1]);});
+    const count=main.find("span").filter((_,el)=>/^共匹配 /.test(text($(el)))).first().attr("data-results-heading","").text("共匹配 "+competitions.length+" 项赛事");
+    count.parent().after('<p class="hidden rounded-xl bg-surface-container-low p-5 text-body-md text-on-surface-variant" data-no-competitions role="status">没有匹配的赛事，请调整关键词或筛选条件。</p>');
     main.find("button").filter((_,el)=>/重置条件/.test(text($(el)))).attr("data-action","reset-filters");
+    main.find("button").filter((_,el)=>/精准筛选/.test(text($(el)))).attr("data-action","apply-filters");
+    main.find("#filter-tabs button").first().find("span").last().text(String(competitions.length));
     main.find("h2").filter((_,el)=>/生产力智能体赛道/.test(text($(el)))).attr("data-selected-competition-title","");
-    const original=main.find("a").filter((_,el)=>/组委会官方原文/.test(text($(el))));
+    const original=main.find("a").filter((_,el)=>/组委会官方原文/.test(text($(el)))).attr("data-selected-source","").text("查看来源原文");
     if(competitions[0])original.attr("href",competitions[0].sourceUrl).attr("target","_blank").attr("rel","noreferrer");
     main.find("button").filter((_,el)=>/发起组队/.test(text($(el)))).attr("data-route","/teams/create");
     main.find("button").filter((_,el)=>/AI 生成参赛方案/.test(text($(el)))).attr("data-action","unavailable");
-    main.find("[data-selected-competition-title]").text((competitions[0]?.name || "比赛") + " · 赛道分析示例");
+    main.find("[data-selected-competition-title]").text((competitions[0]?.name||"暂无赛事")+" · 分析示例");
   }
   if (name === "dashboard") {
     const h=main.find("h1");h.text("下午好，"+(user?.name || "项目成员")+"！");

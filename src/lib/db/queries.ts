@@ -19,3 +19,18 @@ export function listCompetitions(): CompetitionListItem[] {
     "SELECT id, platform, name, season, status, source_url AS sourceUrl, updated_at AS updatedAt FROM competitions ORDER BY updated_at DESC, name ASC",
   ).all() as CompetitionListItem[];
 }
+
+export function listCompetitionTracks(): { competitionId: string; names: string[]; deadline: number | null }[] {
+  initializeDatabase();
+  const rows = sqlite.prepare(
+    "SELECT competition_id AS competitionId, name, deadline FROM competition_tracks ORDER BY name",
+  ).all() as { competitionId: string; name: string; deadline: number | null }[];
+  const grouped = new Map<string, { names: string[]; deadline: number | null }>();
+  for (const row of rows) {
+    const item = grouped.get(row.competitionId) ?? { names: [], deadline: null };
+    item.names.push(row.name);
+    if (row.deadline != null && (item.deadline == null || row.deadline < item.deadline)) item.deadline = row.deadline;
+    grouped.set(row.competitionId, item);
+  }
+  return [...grouped].map(([competitionId, item]) => ({ competitionId, ...item }));
+}

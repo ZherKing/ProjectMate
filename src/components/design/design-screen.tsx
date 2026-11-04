@@ -28,11 +28,26 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     if(name==="teams"&&query.get("create")==="1"&&loggedIn){
       const el=root.current?.querySelector("#creator-modal");el?.classList.remove("hidden");el?.setAttribute("role","dialog");
     }
-    if(name==="competitions"&&query.get("q")){
-      const input=root.current?.querySelector<HTMLInputElement>('[data-competition-search]');
-      if(input){input.value=query.get("q")||"";input.dispatchEvent(new Event("input",{bubbles:true}));}
-    }
-  },[name,loggedIn]);
+    if(name!=="competitions")return;
+    const restore=()=>{
+      const params=new URLSearchParams(location.search);
+      const scope=root.current;if(!scope)return;
+      const input=scope.querySelector<HTMLInputElement>('[data-competition-search]');
+      if(input)input.value=params.get("q")||"";
+      const platforms=params.getAll("platform");
+      scope.querySelectorAll<HTMLInputElement>('[data-platform-filter]').forEach(i=>i.checked=platforms.length?platforms.includes(i.dataset.platformFilter||""):true);
+      const status=params.get("status")||"";
+      scope.querySelectorAll<HTMLInputElement>('[data-status-filter]').forEach(i=>i.checked=i.dataset.statusFilter===status);
+      const sort=params.get("sort")||"default";
+      scope.querySelectorAll<HTMLElement>('[data-sort-filter]').forEach(i=>{
+        const on=i.dataset.sortFilter===sort;i.dataset.selected=String(on);
+        i.classList.toggle("bg-surface-container-lowest",on);i.classList.toggle("text-primary",on);i.classList.toggle("font-semibold",on);
+      });
+      filterCompetitions(false);
+    };
+    restore();window.addEventListener("popstate",restore);
+    return()=>window.removeEventListener("popstate",restore);
+  },[name,loggedIn,html]);
   useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(null),notice.login?7000:5000);return()=>clearTimeout(timer);},[notice]);
   useEffect(()=>{const onKey=(event:KeyboardEvent)=>{if(event.key==="Escape")root.current?.querySelectorAll('[role="dialog"],#creator-modal,#ai-synergy-modal,#demo-modal,#poster-modal').forEach(el=>el.classList.add("hidden"));};document.addEventListener("keydown",onKey);return()=>document.removeEventListener("keydown",onKey);},[]);
   useEffect(()=>{
@@ -64,18 +79,40 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     catch{toast("请求未完成，请稍后重试。","连接失败");return null;}
     finally{if(button)button.disabled=false;}
   };
-  const filterCompetitions=()=>{
-    const scope=root.current;if(!scope)return;
-    const q=(scope.querySelector('[data-competition-search]') as HTMLInputElement|null)?.value.toLowerCase()||"";
-    const platformInputs=Array.from(scope.querySelectorAll<HTMLInputElement>('[data-platform-filter]'));
-    const platforms=platformInputs.filter(i=>i.checked).map(i=>i.dataset.platformFilter);
-    const state=scope.querySelector<HTMLInputElement>('[data-status-filter]:checked')?.dataset.statusFilter || "";
+  const filterCompetitions=(syncUrl=true)=>{
+    const scope=root.current;if(name!=="competitions"||!scope)return;
+    const q=scope.querySelector<HTMLInputElement>('[data-competition-search]')?.value.trim()||"";
+    const terms=q.normalize("NFKC").toLowerCase().split(/\s+/).filter(Boolean);
+    const inputs=[...scope.querySelectorAll<HTMLInputElement>('[data-platform-filter]')];
+    const platforms=inputs.filter(i=>i.checked).map(i=>i.dataset.platformFilter||"");
+    const status=scope.querySelector<HTMLInputElement>('[data-status-filter]:checked')?.dataset.statusFilter||"";
+    const cards=[...scope.querySelectorAll<HTMLElement>('[data-competition-id]')];
     let count=0;
-    scope.querySelectorAll<HTMLElement>('[data-competition-id]').forEach(el=>{
-      const visible=!!el.textContent?.toLowerCase().includes(q) && (!platformInputs.length||platforms.includes(el.dataset.platform)) && (!state||el.dataset.status===state);
-      el.classList.toggle("hidden",!visible);if(visible)count++;
+    cards.forEach(card=>{
+      const text=(card.dataset.searchText||"").normalize("NFKC").toLowerCase();
+      const visible=terms.every(term=>text.includes(term)) && platforms.includes(card.dataset.platform||"")
+        && (!status||card.dataset.status===status);
+      card.classList.toggle("hidden",!visible);if(visible)count++;
     });
-    const heading=scope.querySelector('[data-results-heading]');if(heading)heading.textContent="赛事列表 · 共匹配 "+count+" 项赛事";
+    const sort=scope.querySelector<HTMLElement>('[data-sort-filter][data-selected="true"]')?.dataset.sortFilter||"default";
+    const deadline=(card:HTMLElement)=>card.dataset.deadline?Number(card.dataset.deadline):Infinity;
+    cards.sort((a,b)=>sort==="name"?(a.querySelector("h3")?.textContent||"").localeCompare(b.querySelector("h3")?.textContent||"","zh-CN"):
+      sort==="updated"?Number(b.dataset.updatedAt)-Number(a.dataset.updatedAt):
+      sort==="deadline"?(deadline(a)-deadline(b)||Number(a.dataset.defaultOrder)-Number(b.dataset.defaultOrder)):
+      Number(a.dataset.defaultOrder)-Number(b.dataset.defaultOrder));
+    const parent=cards[0]?.parentElement;cards.forEach(card=>parent?.append(card));
+    const heading=scope.querySelector('[data-results-heading]');if(heading)heading.textContent="共匹配 "+count+" 项赛事";
+    scope.querySelector('[data-no-competitions]')?.classList.toggle("hidden",count>0);
+    if(syncUrl){
+      const params=new URLSearchParams(location.search);
+      for(const key of ["q","platform","status","track","sort"])params.delete(key);
+      if(q)params.set("q",q);
+      if(!platforms.length)params.append("platform","__none__");
+      else if(platforms.length!==inputs.length)platforms.forEach(item=>params.append("platform",item));
+      if(status)params.set("status",status);
+      if(sort!=="default")params.set("sort",sort);
+      const query=params.toString();window.history.replaceState(window.history.state,"",location.pathname+(query?"?"+query:"")+location.hash);
+    }
   };
   const filterTeams=()=>{
     const scope=root.current;if(!scope)return;
@@ -126,7 +163,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
   }
   async function onClick(event:React.MouseEvent<HTMLDivElement>){
     const raw=event.target as Element;
-    const el=raw.closest<HTMLElement>('button,a,[data-route],[data-action],[data-competition-id]');if(!el||!root.current?.contains(el))return;
+    const el=raw.closest<HTMLElement>('button,a,[data-route],[data-action],[data-track-filter],[data-competition-id]');if(!el||!root.current?.contains(el))return;
     const button=el.tagName==="BUTTON"?el as HTMLButtonElement:undefined;
     const id=el.id;const action=el.dataset.action;
     if(id==="btnSubmit"||id==="registerSubmit")return;
@@ -193,11 +230,23 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     }
     if(action==="apply-advice"){toast("请在任务看板选择具体任务进行调整，当前建议不会自动修改数据。","排期建议");router.push("/projects/tasks");return;}
     if(action==="dismiss-advice"||id==="btn-dismiss-suggestion"){const card=root.current.querySelector<HTMLElement>('#ai-suggestion-card');if(card)card.style.opacity="0.55";toast("已忽略当前建议。","建议已忽略");return;}
-    if(action==="reset-filters"){root.current.querySelectorAll<HTMLInputElement>('input[type="checkbox"],input[type="radio"]').forEach(i=>i.checked=i.hasAttribute("data-platform-filter"));const i=root.current.querySelector<HTMLInputElement>('[data-competition-search]');if(i)i.value="";filterCompetitions();return;}
+    if(action==="reset-filters"){
+      root.current.querySelectorAll<HTMLInputElement>('[data-platform-filter]').forEach(i=>i.checked=true);
+      root.current.querySelectorAll<HTMLInputElement>('[data-status-filter]').forEach(i=>i.checked=i.dataset.statusFilter==="");
+      root.current.querySelectorAll<HTMLElement>('[data-sort-filter]').forEach(i=>{const on=i.dataset.sortFilter==="default";i.dataset.selected=String(on);i.classList.toggle("bg-surface-container-lowest",on);i.classList.toggle("text-primary",on);i.classList.toggle("font-semibold",on);});
+      const input=root.current.querySelector<HTMLInputElement>('[data-competition-search]');if(input)input.value="";
+      filterCompetitions();return;
+    }
+    if(action==="apply-filters"){filterCompetitions();root.current.querySelector('[data-results-heading]')?.scrollIntoView({behavior:"smooth",block:"center"});return;}
     if(action==="select-competition"||el.dataset.competitionId){
+      if(el.tagName==="A"&&el.getAttribute("target")==="_blank")return;
       const card=el.closest<HTMLElement>('[data-competition-id]')||el;
-      const h=root.current.querySelector('[data-selected-competition-title]');if(h)h.textContent=(card.querySelector('h3')?.textContent||"")+" · 赛道详情";
+      const h=root.current.querySelector('[data-selected-competition-title]');if(h)h.textContent=(card.querySelector('h3')?.textContent||"")+" · 分析示例";
+      const source=root.current.querySelector<HTMLAnchorElement>('[data-selected-source]');if(source&&card.dataset.sourceUrl)source.href=card.dataset.sourceUrl;
       root.current.querySelectorAll('[data-competition-id]').forEach(c=>c.classList.remove('ring-2','ring-primary'));card.classList.add('ring-2','ring-primary');return;
+    }
+    if(el.hasAttribute("data-sort-filter")){
+      root.current.querySelectorAll<HTMLElement>("[data-sort-filter]").forEach(item=>{const on=item===el;item.dataset.selected=String(on);item.classList.toggle("bg-surface-container-lowest",on);item.classList.toggle("text-primary",on);item.classList.toggle("font-semibold",on);});filterCompetitions();return;
     }
     if(el.classList.contains('filter-pill')||el.classList.contains('role-chip')){el.dataset.selected=el.dataset.selected==="true"?"false":"true";el.classList.toggle('bg-primary');el.classList.toggle('text-on-primary');filterTeams();return;}
     if(el.closest('#filter-tabs')){el.parentElement?.querySelectorAll('button').forEach(b=>b.classList.remove('bg-primary','text-on-primary'));el.classList.add('bg-primary','text-on-primary');if(/收藏/.test(label)&&!guard())return;toast("当前展示已收录赛事；个性化推荐仍在完善。","赛事列表");return;}
@@ -206,7 +255,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     if(action==="unavailable"||button){toast("此功能尚在完善中，当前操作未修改数据。","功能说明");}
   }
   return <div className="design-screen" data-screen={name} data-variant={variant}>
-    <div ref={root} onSubmit={onAuthSubmit} onClick={onClick} onInput={filterCompetitions} onChange={filterCompetitions} onKeyDown={event=>{const el=event.target as HTMLElement;if(event.key==="Enter"&&el.hasAttribute('data-global-search')){router.push('/competitions?q='+encodeURIComponent((el as HTMLInputElement).value));}}} >{markup}</div>
+    <div ref={root} onSubmit={onAuthSubmit} onClick={onClick} onInput={event=>{if((event.target as HTMLElement).matches('[data-competition-search],[data-platform-filter],[data-status-filter]'))filterCompetitions();}} onChange={event=>{if((event.target as HTMLElement).matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}}>{markup}</div>
     {notice&&<div className="fixed top-20 right-6 z-[100] w-80 max-w-[calc(100vw-2rem)] flex gap-3 p-4 bg-white rounded-xl shadow-xl border-l-4 border-primary" role="status" aria-live="polite"><Info className="text-primary shrink-0" size={20}/><div className="flex-1"><p className="text-label-md font-semibold">{notice.title}</p><p className="text-body-sm text-on-surface-variant mt-1">{notice.message}</p>{notice.login&&<a href="/login" className="inline-block text-label-sm text-primary mt-2 font-bold">去登录 →</a>}</div><button aria-label="关闭通知" onClick={()=>setNotice(null)}><X size={16}/></button></div>}
   </div>;
 }
