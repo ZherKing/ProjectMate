@@ -30,6 +30,12 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     main.find("button").filter((_,el)=>/立即接入 OAuth 认证|接入新 MCP 协议|更新密码|重置密钥|注销 Token|申请永久注销/.test(text($(el)))).attr("data-action","unavailable");
     main.find("button").filter((_,el)=>/退出当前登录会话/.test(text($(el)))).attr("data-action","logout");
   }
+  if (name === "admin") {
+    main.find("tbody tr").remove();
+    main.find("tbody").append('<tr><td colspan="6" class="py-12 text-center text-body-md text-on-surface-variant">当前没有可审核赛事。赛事来源尚未提供审核状态字段。</td></tr>');
+    main.find("span").filter((_,el)=>/共 3 条待审/.test(text($(el)))).text("共 0 条待审");
+    main.find("button").filter((_,el)=>/^通过$|^退回$/.test(text($(el)))).prop("disabled",true).attr("title","审核数据接口尚未接入").addClass("opacity-50 cursor-not-allowed");
+  }
   if (name === "competitionDetail") {
     const rawId = query?.id;
     const selectedId = (Array.isArray(rawId) ? rawId[0] : rawId) || listCompetitions()[0]?.id || "";

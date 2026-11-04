@@ -7,6 +7,7 @@ import { sqlite } from "@/lib/db/client";
 import { createRecruitmentProject, applyToRecruitmentProject } from "@/lib/db/projects";
 import { runProjectCoach } from "@/lib/ai/project-coach";
 import { updateProjectTaskStatus } from "@/lib/db/tasks";
+import { saveProfile } from "@/lib/db/profile";
 
 type Payload = Record<string, string>;
 export type ScreenResult = { ok: boolean; message: string; href?: string; summary?: string; id?: string };
@@ -58,6 +59,18 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         updateProjectTaskStatus(data.taskId, "已完成");
         revalidatePath("/projects"); revalidatePath("/projects/tasks");
         return { ok: true, message: "任务已标记为完成。" };
+      }
+      case "save-profile": {
+        saveProfile(userId, {
+          school: (data.school || "").slice(0, 120),
+          education: (data.education || "").slice(0, 120),
+          roles: (data.roles || "").slice(0, 300),
+          skills: (data.skills || "").slice(0, 1000),
+          interests: (data.interests || "").slice(0, 1000),
+          weeklyHours: Math.max(0, Math.min(168, Number(data.weeklyHours) || 0)),
+        });
+        revalidatePath("/settings"); revalidatePath("/profile");
+        return { ok: true, message: "个人资料已保存。" };
       }
       default: return { ok: false, message: "此功能尚在完善中，当前操作未修改数据。" };
     }

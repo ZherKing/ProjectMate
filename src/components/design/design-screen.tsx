@@ -254,7 +254,13 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       filterCompetitions();return;
     }
     if(action==="logout"){toast("正在退出当前登录会话。","退出登录");setTimeout(()=>router.push("/api/auth/signout?callbackUrl=/"),800);return;}
-    if(action==="save-settings"){toast("设置页面已接入真实资料读取；MCP、安全凭证和头像保存仍待服务端接口。","保存说明");return;}
+    if(action==="save-settings"){
+      const inputs=[...root.current.querySelectorAll<HTMLInputElement>("input")].filter(input=>!input.placeholder?.includes("搜索"));
+      const areas=[...root.current.querySelectorAll<HTMLTextAreaElement>("textarea")];
+      const result=await run("save-profile",{school:inputs[0]?.value||"",education:inputs[1]?.value||"",roles:"",skills:inputs.at(-1)?.value||"",interests:"",weeklyHours:"0"},button);
+      if(result?.ok)router.refresh();
+      return;
+    }
     if(action==="apply-filters"){filterCompetitions();root.current.querySelector('[data-results-heading]')?.scrollIntoView({behavior:"smooth",block:"center"});return;}
     if(action==="select-competition"||el.dataset.competitionId){
       if(el.tagName==="A"&&el.getAttribute("target")==="_blank")return;
