@@ -7,6 +7,14 @@ export type RawCompetition = {
   status?: string;
   registrationEnd?: string;
   sourceUrl: string;
+  tracks?: RawCompetitionTrack[];
+};
+
+export type RawCompetitionTrack = {
+  externalId?: string;
+  name: string;
+  description?: string;
+  deadline?: string;
 };
 
 export interface CompetitionSourceAdapter {
