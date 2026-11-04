@@ -207,6 +207,32 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     }
     if(action==="auth-unavailable"){event.preventDefault();toast("此认证服务尚未配置，请使用已注册的账号密码登录。","暂不可用");return;}
     if(id==="open-ai-match-btn"){if(guard())modal("ai-synergy-modal",true);return;}
+    if(action==="open-competition-detail"){
+      const competitionId=el.dataset.competitionId||el.closest<HTMLElement>('[data-competition-id]')?.dataset.competitionId||"";
+      const card=root.current.querySelector<HTMLElement>('#competition-detail-modal');
+      if(card){
+        card.dataset.competitionId=competitionId;
+        const source=root.current.querySelector<HTMLElement>(`[data-competition-id="${CSS.escape(competitionId)}"]`);
+        const title=source?.querySelector("h3")?.textContent?.trim()||"赛事详情";
+        const modalTitle=card.querySelector("#modal-title");if(modalTitle)modalTitle.textContent=title;
+        const status=source?.querySelector("span")?.textContent?.trim();const statusEl=card.querySelector("[data-modal-status]");if(statusEl&&status)statusEl.textContent=status;
+        const sourceLink=card.querySelector<HTMLAnchorElement>('[data-action="view-competition-source"]');if(sourceLink)sourceLink.href=source?.dataset.sourceUrl||"#";
+        const trackData=JSON.parse(card.dataset.trackData||"{}");
+        const tracks=(trackData[competitionId]||[]) as string[];
+        const trackButtons=[...card.querySelectorAll<HTMLButtonElement>('button[data-track-id]')];
+        trackButtons.forEach((trackButton,index)=>{const name=tracks[index];trackButton.classList.toggle("hidden",!name);if(name){const strong=trackButton.querySelector("strong");if(strong)strong.textContent=name;}});
+        const firstTrack=tracks[0];const detailHeading=card.querySelector("h1");if(detailHeading&&firstTrack)detailHeading.textContent=firstTrack;
+        card.classList.remove("hidden");
+      }
+      return;
+    }
+    if(action==="close-competition-detail"){root.current.querySelector<HTMLElement>('#competition-detail-modal')?.classList.add("hidden");return;}
+    if(action==="view-competition-source"){return;}
+    if(action==="start-team"){if(guard("/teams/create"))router.push("/teams/create?competition="+encodeURIComponent(el.closest<HTMLElement>('[data-competition-modal]')?.dataset.competitionId||""));return;}
+    if(action==="detail-favorite"){
+      const modalCard=el.closest<HTMLElement>('[data-competition-modal]');const key=modalCard?.dataset.competitionId||"";
+      const result=await run("favorite",{key},button);if(result?.ok){el.classList.toggle("text-error");el.setAttribute("aria-pressed",String(el.getAttribute("aria-pressed")!=="true"));}return;
+    }
     if(id==="open-creator-btn"){if(guard()){updateStep(1);modal("creator-modal",true);}return;}
     if(["close-ai-synergy","close-ai-synergy-action","close-creator-btn","close-poster-btn"].includes(id)){modal(id.includes("synergy")?"ai-synergy-modal":id.includes("poster")?"poster-modal":"creator-modal",false);if(id==="close-poster-btn"){posterVisible.current=false;router.refresh();}return;}
     if(id==="fill-example-idea"){setValue("idea-input-field","我们想做一个面向大学生的 AI 项目搭档，帮助发现比赛、找到队友并推进项目。");return;}

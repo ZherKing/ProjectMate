@@ -190,12 +190,12 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
       const tracks=trackGroups.get(item.id);
       const searchText=[item.name,item.platform,item.status,item.season,...(tracks?.names||[])].join(" ");
       const deadline=tracks?.deadline ?? null;
-      card.attr("data-competition-id",item.id).attr("data-platform",item.platform).attr("data-status",item.status).attr("data-favorite",String(favoriteKeys.has(item.id)||favoriteKeys.has(item.name)))
+      card.attr("data-competition-id",item.id).attr("data-action","open-competition-detail").attr("data-platform",item.platform).attr("data-status",item.status).attr("data-favorite",String(favoriteKeys.has(item.id)||favoriteKeys.has(item.name)))
         .attr("data-search-text",searchText).attr("data-updated-at",String(item.updatedAt)).attr("data-default-order",String(index))
         .attr("data-deadline",deadline==null?"":String(deadline)).attr("data-source-url",item.sourceUrl)
         .attr("tabindex","0").attr("role","button").attr("aria-label",item.name);
       card.find("span").filter((_,el)=>/官方规约已校验/.test(text($(el)))).text("来源："+item.platform);
-      card.find("span").filter((_,el)=>/查看赛道专区/.test(text($(el)))).first().replaceWith('<button type="button" data-route="/competitions/detail?id='+encodeURIComponent(item.id)+'" class="font-label-md text-label-md text-primary">详情</button>');
+      card.find("span").filter((_,el)=>/查看赛道专区/.test(text($(el)))).first().replaceWith('<button type="button" data-action="open-competition-detail" data-competition-id="'+escapeHtml(item.id)+'" class="font-label-md text-label-md text-primary">详情</button>');
       card.find("p").first().after('<p class="mt-2 text-body-sm text-on-surface-variant">更新于 '+escapeHtml(new Date(item.updatedAt).toLocaleDateString("zh-CN"))+ (tracks?.names.length?' · '+tracks.names.length+' 个赛道':'')+'</p>');
       listContainer.append(card);
     });
@@ -240,6 +240,19 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     main.find("#filter-tabs button").first().find("span").last().text(String(competitions.length));
     main.find("button").filter((_,el)=>/发起组队/.test(text($(el)))).attr("data-route","/teams/create");
     main.find("h2").filter((_,el)=>/生产力智能体赛道/.test(text($(el)))).closest("section").remove();
+    const detailDoc=cheerio.load(screens.competitionDetail);
+    const detailCard=detailDoc("#competition-detail-card").clone();
+    detailCard.attr("id","competition-detail-modal-card");
+    detailCard.find("footer button").remove();
+    detailCard.find("footer").find("div").last().append('<a class="px-4 py-2 rounded-lg bg-surface-container text-primary font-label-md text-label-md" data-action="view-competition-source" target="_blank" rel="noreferrer">查看赛事页面</a><button class="px-4 py-2 rounded-lg bg-primary text-on-primary font-label-md text-label-md" type="button" data-action="start-team">开始组队</button>');
+    detailCard.find("header button").filter((_,el)=>/closeModal/.test($(el).attr("data-design-handler")||"")).attr("data-action","close-competition-detail").removeAttr("data-design-handler");
+    detailCard.find("#fav-btn").attr("data-action","detail-favorite").removeAttr("data-design-handler");
+    detailCard.find("span").filter((_,el)=>/报名进行中|待核验/.test(text($(el)))).first().attr("data-modal-status","");
+    detailCard.find("button").filter((_,el)=>/赛题 Track-/.test(text($(el)))).each((index,el)=>{ $(el).attr("data-track-id",String(index)); });
+    detailCard.find("[data-design-handler]").removeAttr("data-design-handler");
+    const trackData=Object.fromEntries(competitions.map((item)=>[item.id,(trackGroups.get(item.id)?.names||[])]));
+    const modalHtml='<div id="competition-detail-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-inverse-surface/45 p-3 sm:p-6 backdrop-blur-[6px]" data-competition-modal data-track-data="'+escapeHtml(JSON.stringify(trackData))+'">'+detailCard.toString()+"</div>";
+    main.append(modalHtml);
   }
   if (name === "dashboard") {
     const h=main.find("h1");h.text("下午好，"+(user?.name || "项目成员")+"！");
