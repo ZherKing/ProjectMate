@@ -21,6 +21,13 @@ export function listCompetitions(): CompetitionListItem[] {
   ).all() as CompetitionListItem[];
 }
 
+export function listFavoriteCompetitionIds(userId: string): Set<string> {
+  initializeDatabase();
+  sqlite.exec("CREATE TABLE IF NOT EXISTS favorites (user_id TEXT NOT NULL, item_key TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(user_id, item_key))");
+  const rows = sqlite.prepare("SELECT item_key AS itemKey FROM favorites WHERE user_id = ?").all(userId) as Array<{ itemKey: string }>;
+  return new Set(rows.map((row) => row.itemKey));
+}
+
 export function listCompetitionTracks(): { competitionId: string; names: string[]; deadline: number | null }[] {
   initializeDatabase();
   const rows = sqlite.prepare(

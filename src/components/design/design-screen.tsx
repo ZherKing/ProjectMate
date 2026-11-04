@@ -234,7 +234,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     if(action==="access-details"){root.current.querySelector('[data-access-details]')?.scrollIntoView({behavior:"smooth"});return;}
     if(action==="favorite"){
       const key=el.dataset.favoriteKey||el.closest('article,[data-competition-id]')?.querySelector('h3')?.textContent||"selected-track";
-      const result=await run("favorite",{key},button);if(result?.ok)el.classList.toggle("text-error");return;
+      const result=await run("favorite",{key},button);if(result?.ok){el.classList.toggle("text-error");const card=el.closest<HTMLElement>('[data-competition-id]');if(card)card.dataset.favorite=String(card.dataset.favorite!=="true");}return;
     }
     if(action==="apply"||el.classList.contains("apply-team-btn")){const card=el.closest<HTMLElement>('[data-project-id]');await run("apply",{projectId:el.dataset.projectId||card?.dataset.projectId||"design-sample"},button);return;}
     if(action==="team-details"||el.classList.contains("view-detail-btn")){toast(el.closest('[data-project-id]')?.querySelector('h3')?.textContent||"此卡片为设计示例，发布真实项目后可申请加入。","项目详情");return;}
@@ -295,7 +295,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       root.current.querySelectorAll<HTMLElement>("[data-sort-filter]").forEach(item=>{const on=item===el;item.dataset.selected=String(on);item.classList.toggle("bg-surface-container-lowest",on);item.classList.toggle("text-primary",on);item.classList.toggle("font-semibold",on);});filterCompetitions();return;
     }
     if(el.classList.contains('filter-pill')||el.classList.contains('role-chip')){el.dataset.selected=el.dataset.selected==="true"?"false":"true";el.classList.toggle('bg-primary');el.classList.toggle('text-on-primary');filterTeams();return;}
-    if(el.closest('#filter-tabs')){el.parentElement?.querySelectorAll('button').forEach(b=>b.classList.remove('bg-primary','text-on-primary'));el.classList.add('bg-primary','text-on-primary');if(/收藏/.test(label)&&!guard())return;toast("当前展示已收录赛事；个性化推荐仍在完善。","赛事列表");return;}
+    if(el.closest('#filter-tabs')){el.parentElement?.querySelectorAll('button').forEach(b=>b.classList.remove('bg-primary','text-on-primary'));el.classList.add('bg-primary','text-on-primary');if(/收藏/.test(label)){if(!guard())return;const cards=[...root.current.querySelectorAll<HTMLElement>('[data-competition-id]')];const favorites=cards.filter(card=>card.dataset.favorite==="true");cards.forEach(card=>card.classList.toggle('hidden',!favorites.includes(card)));root.current.querySelector('[data-results-heading]')?.replaceChildren(document.createTextNode(`共匹配 ${favorites.length} 项收藏赛事`));root.current.querySelector('[data-no-competitions]')?.classList.toggle('hidden',favorites.length>0);return;}root.current.querySelectorAll<HTMLElement>('[data-competition-id]').forEach(card=>card.classList.remove('hidden'));toast("当前展示已收录赛事。","赛事列表");return;}
     if(/新建任务|任务看板|更新任务看板/.test(label)){router.push("/projects/tasks");return;}
     if(/导出项目报告/.test(label)){router.push("/projects/tasks");return;}
     if(action==="unavailable"||button){toast("此功能尚在完善中，当前操作未修改数据。","功能说明");}

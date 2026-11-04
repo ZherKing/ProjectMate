@@ -3,7 +3,7 @@ import * as cheerio from "cheerio";
 import screens from "@/design/screens.json";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { getCompetition, getCompetitionTrackDetails, listCompetitionTracks, listCompetitions, listPendingCompetitions, listAdminUsers, listAdminAuditLogs } from "@/lib/db/queries";
+import { getCompetition, getCompetitionTrackDetails, listCompetitionTracks, listCompetitions, listFavoriteCompetitionIds, listPendingCompetitions, listAdminUsers, listAdminAuditLogs } from "@/lib/db/queries";
 import { getProfile } from "@/lib/db/profile";
 import { requireAdmin } from "@/lib/auth/guards";
 import { listRecruitmentProjects } from "@/lib/db/projects";
@@ -72,7 +72,7 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
   // Header uses the source layout but real authentication state.
   const actions = $("header > div").children().last();
   if (user) {
-    actions.html('<a href="/teams/create" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:bg-primary-container transition-colors shadow-sm">＋ 发布项目</a><a href="/profile" class="flex items-center gap-2.5 pl-2"><span class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center">'+escapeHtml((user.name || "我").slice(0,1))+'</span><span class="hidden lg:flex flex-col text-left"><strong class="text-label-md">'+escapeHtml(user.name || "项目成员")+'</strong><span class="text-label-sm text-on-surface-variant">能力画像 · 个人工作台</span></span></a><a href="/dashboard" class="text-label-sm text-primary">工作台</a>');
+    actions.html('<a href="/teams/create" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:bg-primary-container transition-colors shadow-sm">＋ 发布项目</a><details class="pm-user-menu"><summary class="flex items-center gap-2.5 pl-2 cursor-pointer list-none"><span class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center">'+escapeHtml((user.name || "我").slice(0,1))+'</span><span class="hidden lg:flex flex-col text-left"><strong class="text-label-md">'+escapeHtml(user.name || "项目成员")+'</strong></span></summary><div class="pm-user-menu-panel"><a href="/settings">个人设置</a><a href="/api/auth/signout?callbackUrl=/">退出登录</a></div></details>');
   } else {
     actions.html('<a href="/login" class="px-3 py-1.5 text-primary rounded-lg text-label-md font-semibold">登录</a><a href="/register" class="px-3 py-1.5 bg-primary text-on-primary rounded-lg text-label-md font-semibold">免费注册</a>');
   }
@@ -173,6 +173,7 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     listColumn.removeClass("xl:col-span-5").addClass("xl:col-span-12");
     const template=headings.first().closest("article").clone();
     const trackGroups=new Map(listCompetitionTracks().map(track=>[track.competitionId,track]));
+    const favoriteKeys=user?.id ? listFavoriteCompetitionIds(user.id) : new Set<string>();
     const articleGrid=$('<div class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>');
     listColumn.children("article").appendTo(articleGrid);
     listColumn.append(articleGrid);
@@ -189,7 +190,7 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
       const tracks=trackGroups.get(item.id);
       const searchText=[item.name,item.platform,item.status,item.season,...(tracks?.names||[])].join(" ");
       const deadline=tracks?.deadline ?? null;
-      card.attr("data-competition-id",item.id).attr("data-platform",item.platform).attr("data-status",item.status)
+      card.attr("data-competition-id",item.id).attr("data-platform",item.platform).attr("data-status",item.status).attr("data-favorite",String(favoriteKeys.has(item.id)||favoriteKeys.has(item.name)))
         .attr("data-search-text",searchText).attr("data-updated-at",String(item.updatedAt)).attr("data-default-order",String(index))
         .attr("data-deadline",deadline==null?"":String(deadline)).attr("data-source-url",item.sourceUrl)
         .attr("tabindex","0").attr("role","button").attr("aria-label",item.name);
@@ -300,7 +301,7 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
   }
   $("[data-action='favorite']").each((index,el)=>{
     const card=$(el).parents().filter((_,parent)=>$(parent).find("h3").length===1).first();
-    $(el).attr("data-favorite-key",card.find("h3").text().trim().slice(0,250)||name+"-"+index);
+    $(el).attr("data-favorite-key",card.attr("data-competition-id")||card.find("h3").text().trim().slice(0,250)||name+"-"+index);
   });
   $("#poster-modal p").filter((_,el)=>/AI 正在全网/.test(text($(el)))).text("招募项目已保存，可复制链接邀请搭档加入。");
   return <DesignScreen name={name} html={$("body").html() || ""} loggedIn={!!user} variant={variant} />;

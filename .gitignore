@@ -57,3 +57,4 @@ docker-compose.override.yml
 /.next-competition-layout-qa/
 /.next-admin-roles-qa/
 /.next-detail-card-qa/
+/.next-shell-favorites-qa/
