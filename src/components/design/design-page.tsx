@@ -34,6 +34,7 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     main.find('input[type="text"]').filter((_,el)=>$(el).attr("value")==="林星宇").attr("value", profile?.school || user.name || "");
     main.find('input[type="email"]').attr("value", user.email || "");
     main.find("button").filter((_,el)=>/保存个人设置/.test(text($(el)))).attr("data-action","save-settings");
+    main.find("#save-settings-btn").closest("div.sticky").attr("data-settings-save-bar","").addClass("hidden");
     main.find("button").filter((_,el)=>/立即接入 OAuth 认证|接入新 MCP 协议|更新密码|重置密钥|注销 Token|申请永久注销/.test(text($(el)))).attr("data-action","unavailable");
     main.find("button").filter((_,el)=>/退出当前登录会话/.test(text($(el)))).attr("data-action","logout");
   }
@@ -177,6 +178,7 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     const articleGrid=$('<div class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>');
     listColumn.children("article").appendTo(articleGrid);
     listColumn.append(articleGrid);
+    listColumn.attr("data-competition-list-panel","");
     const listContainer=articleGrid;
     listContainer.children("article").remove();
     competitions.forEach((item,index)=>{
