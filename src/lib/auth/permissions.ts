@@ -3,6 +3,14 @@ import { sqlite } from "@/lib/db/client";
 
 export type UserRole = "user" | "admin";
 
+export function isConfiguredAdminEmail(email: string) {
+  return new Set((process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean))
+    .has(email.trim().toLowerCase());
+}
+
 function configuredAdminEmails() {
   return new Set((process.env.ADMIN_EMAILS ?? "")
     .split(",")

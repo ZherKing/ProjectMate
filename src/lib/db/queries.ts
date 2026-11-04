@@ -10,13 +10,14 @@ export type CompetitionListItem = {
   status: string;
   sourceUrl: string;
   updatedAt: number;
+  reviewStatus?: string;
 };
 
 export function listCompetitions(): CompetitionListItem[] {
   initializeDatabase();
   seedDatabase();
   return sqlite.prepare(
-    "SELECT id, platform, name, season, status, source_url AS sourceUrl, updated_at AS updatedAt FROM competitions ORDER BY updated_at DESC, name ASC",
+    "SELECT id, platform, name, season, status, source_url AS sourceUrl, updated_at AS updatedAt, review_status AS reviewStatus FROM competitions WHERE review_status = 'approved' ORDER BY updated_at DESC, name ASC",
   ).all() as CompetitionListItem[];
 }
 
@@ -37,7 +38,14 @@ export function listCompetitionTracks(): { competitionId: string; names: string[
 
 export function getCompetition(id: string) {
   initializeDatabase();
-  return sqlite.prepare("SELECT id, platform, name, season, status, source_url AS sourceUrl, updated_at AS updatedAt FROM competitions WHERE id = ?").get(id) as CompetitionListItem | undefined;
+  return sqlite.prepare("SELECT id, platform, name, season, status, source_url AS sourceUrl, updated_at AS updatedAt, review_status AS reviewStatus FROM competitions WHERE id = ? AND review_status = 'approved'").get(id) as CompetitionListItem | undefined;
+}
+
+export type PendingCompetition = CompetitionListItem & { reviewStatus: string; reviewedBy: string | null; reviewedAt: number | null; reviewNote: string | null };
+
+export function listPendingCompetitions(): PendingCompetition[] {
+  initializeDatabase();
+  return sqlite.prepare("SELECT id, platform, name, season, status, source_url AS sourceUrl, updated_at AS updatedAt, review_status AS reviewStatus, reviewed_by AS reviewedBy, reviewed_at AS reviewedAt, review_note AS reviewNote FROM competitions WHERE review_status = 'pending' ORDER BY updated_at DESC, name ASC").all() as PendingCompetition[];
 }
 
 export function getCompetitionTrackDetails(competitionId: string) {

@@ -28,6 +28,20 @@ export const competitions = sqliteTable("competitions", {
   status: text("status").notNull(),
   sourceUrl: text("source_url").notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  reviewStatus: text("review_status").notNull().default("approved"),
+  reviewedBy: text("reviewed_by"),
+  reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
+  reviewNote: text("review_note"),
+});
+
+export const adminAuditLogs = sqliteTable("admin_audit_logs", {
+  id: text("id").primaryKey(),
+  actorId: text("actor_id").notNull(),
+  action: text("action").notNull(),
+  targetType: text("target_type").notNull(),
+  targetId: text("target_id").notNull(),
+  details: text("details").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
 export const competitionTracks = sqliteTable("competition_tracks", {

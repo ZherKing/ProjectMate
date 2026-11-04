@@ -24,7 +24,7 @@ export async function syncCompetitions(): Promise<RawCompetition[]> {
       const items = await adapter.fetchAndParse(sourceUrl);
       all.push(...items);
       const upsert = sqlite.prepare(
-        "INSERT INTO competitions (id, platform, name, season, status, source_url, updated_at) VALUES (@id, @platform, @name, @season, @status, @sourceUrl, @updatedAt) ON CONFLICT(id) DO UPDATE SET name=excluded.name, status=excluded.status, updated_at=excluded.updated_at",
+        "INSERT INTO competitions (id, platform, name, season, status, source_url, updated_at, review_status) VALUES (@id, @platform, @name, @season, @status, @sourceUrl, @updatedAt, 'pending') ON CONFLICT(id) DO UPDATE SET name=excluded.name, status=excluded.status, updated_at=excluded.updated_at",
       );
       const write = sqlite.transaction(() => {
         for (const item of items) {

@@ -3,7 +3,7 @@ import * as cheerio from "cheerio";
 import screens from "@/design/screens.json";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { getCompetition, getCompetitionTrackDetails, listCompetitionTracks, listCompetitions } from "@/lib/db/queries";
+import { getCompetition, getCompetitionTrackDetails, listCompetitionTracks, listCompetitions, listPendingCompetitions } from "@/lib/db/queries";
 import { getProfile } from "@/lib/db/profile";
 import { requireAdmin } from "@/lib/auth/guards";
 import { listRecruitmentProjects } from "@/lib/db/projects";
@@ -31,10 +31,13 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     main.find("button").filter((_,el)=>/退出当前登录会话/.test(text($(el)))).attr("data-action","logout");
   }
   if (name === "admin") {
+    const pending = listPendingCompetitions();
     main.find("tbody tr").remove();
-    main.find("tbody").append('<tr><td colspan="6" class="py-12 text-center text-body-md text-on-surface-variant">当前没有可审核赛事。赛事来源尚未提供审核状态字段。</td></tr>');
-    main.find("span").filter((_,el)=>/共 3 条待审/.test(text($(el)))).text("共 0 条待审");
-    main.find("button").filter((_,el)=>/^通过$|^退回$/.test(text($(el)))).prop("disabled",true).attr("title","审核数据接口尚未接入").addClass("opacity-50 cursor-not-allowed");
+    if (!pending.length) main.find("tbody").append('<tr><td colspan="6" class="py-12 text-center text-body-md text-on-surface-variant">当前没有待审核赛事。</td></tr>');
+    pending.forEach((item) => main.find("tbody").append(`<tr data-review-id="${escapeHtml(item.id)}"><td class="py-4 px-4"><strong>${escapeHtml(item.name)}</strong><span class="block text-on-surface-variant">${escapeHtml(item.platform)} · ${escapeHtml(item.season || "")}</span></td><td class="py-4 px-4">${escapeHtml(item.platform)}</td><td class="py-4 px-4">${new Date(item.updatedAt).toLocaleString("zh-CN")}</td><td class="py-4 px-4">待校验</td><td class="py-4 px-4">待人工初审</td><td class="py-4 px-4 text-right"><a class="mr-2" href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noreferrer">原文</a><button type="button" data-review-action="approve" data-review-id="${escapeHtml(item.id)}">通过</button><button type="button" data-review-action="reject" data-review-id="${escapeHtml(item.id)}">退回</button></td></tr>`));
+    main.find("span").filter((_,el)=>/共 3 条待审/.test(text($(el)))).text(`共 ${pending.length} 条待审`);
+    main.find("button").filter((_,el)=>/^通过$/.test(text($(el)))).attr("data-action", "review-approve");
+    main.find("button").filter((_,el)=>/^退回$/.test(text($(el)))).attr("data-action", "review-reject");
   }
   if (name === "competitionDetail") {
     const rawId = query?.id;

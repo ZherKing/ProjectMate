@@ -8,6 +8,8 @@ import { createRecruitmentProject, applyToRecruitmentProject } from "@/lib/db/pr
 import { runProjectCoach } from "@/lib/ai/project-coach";
 import { updateProjectTaskStatus } from "@/lib/db/tasks";
 import { saveProfile } from "@/lib/db/profile";
+import { requireAdmin } from "@/lib/auth/guards";
+import { randomUUID } from "node:crypto";
 
 type Payload = Record<string, string>;
 export type ScreenResult = { ok: boolean; message: string; href?: string; summary?: string; id?: string };
@@ -71,6 +73,22 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         });
         revalidatePath("/settings"); revalidatePath("/profile");
         return { ok: true, message: "个人资料已保存。" };
+      }
+      case "review-competition": {
+        const admin = await requireAdmin();
+        if (!admin) return { ok: false, message: "没有管理员权限。", href: "/login?next=/admin" };
+        const competitionId = (data.competitionId || "").trim();
+        const decision = data.decision === "approved" ? "approved" : data.decision === "rejected" ? "rejected" : "";
+        if (!competitionId || !decision) return { ok: false, message: "审核参数不完整。" };
+        initializeDatabase();
+        const competition = sqlite.prepare("SELECT id FROM competitions WHERE id = ? AND review_status = 'pending'").get(competitionId);
+        if (!competition) return { ok: false, message: "赛事不存在或已被处理。" };
+        const note = (data.note || "").slice(0, 500);
+        const now = Date.now();
+        sqlite.prepare("UPDATE competitions SET review_status = ?, reviewed_by = ?, reviewed_at = ?, review_note = ? WHERE id = ?").run(decision, admin.userId, now, note || null, competitionId);
+        sqlite.prepare("INSERT INTO admin_audit_logs (id, actor_id, action, target_type, target_id, details, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(randomUUID(), admin.userId, decision === "approved" ? "competition.approve" : "competition.reject", "competition", competitionId, note || "", now);
+        revalidatePath("/admin"); revalidatePath("/competitions"); revalidatePath("/");
+        return { ok: true, message: decision === "approved" ? "赛事已通过审核。" : "赛事已退回。" };
       }
       default: return { ok: false, message: "此功能尚在完善中，当前操作未修改数据。" };
     }

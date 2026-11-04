@@ -261,6 +261,13 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       if(result?.ok)router.refresh();
       return;
     }
+    if(action==="review-approve"||action==="review-reject"){
+      const competitionId=el.dataset.reviewId||el.closest<HTMLElement>('[data-review-id]')?.dataset.reviewId||"";
+      const decision=action==="review-approve"?"approved":"rejected";
+      const result=await run("review-competition",{competitionId,decision},button);
+      if(result?.ok){el.closest("tr")?.remove();router.refresh();}
+      return;
+    }
     if(action==="apply-filters"){filterCompetitions();root.current.querySelector('[data-results-heading]')?.scrollIntoView({behavior:"smooth",block:"center"});return;}
     if(action==="select-competition"||el.dataset.competitionId){
       if(el.tagName==="A"&&el.getAttribute("target")==="_blank")return;
