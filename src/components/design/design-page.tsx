@@ -3,7 +3,7 @@ import * as cheerio from "cheerio";
 import screens from "@/design/screens.json";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { getCompetition, getCompetitionTrackDetails, listCompetitionTracks, listCompetitions, listPendingCompetitions } from "@/lib/db/queries";
+import { getCompetition, getCompetitionTrackDetails, listCompetitionTracks, listCompetitions, listPendingCompetitions, listAdminUsers, listAdminAuditLogs } from "@/lib/db/queries";
 import { getProfile } from "@/lib/db/profile";
 import { requireAdmin } from "@/lib/auth/guards";
 import { listRecruitmentProjects } from "@/lib/db/projects";
@@ -32,12 +32,18 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
   }
   if (name === "admin") {
     const pending = listPendingCompetitions();
+    const adminUsers = listAdminUsers();
+    const auditLogs = listAdminAuditLogs();
     main.find("tbody tr").remove();
     if (!pending.length) main.find("tbody").append('<tr><td colspan="6" class="py-12 text-center text-body-md text-on-surface-variant">当前没有待审核赛事。</td></tr>');
     pending.forEach((item) => main.find("tbody").append(`<tr data-review-id="${escapeHtml(item.id)}"><td class="py-4 px-4"><strong>${escapeHtml(item.name)}</strong><span class="block text-on-surface-variant">${escapeHtml(item.platform)} · ${escapeHtml(item.season || "")}</span></td><td class="py-4 px-4">${escapeHtml(item.platform)}</td><td class="py-4 px-4">${new Date(item.updatedAt).toLocaleString("zh-CN")}</td><td class="py-4 px-4">待校验</td><td class="py-4 px-4">待人工初审</td><td class="py-4 px-4 text-right"><a class="mr-2" href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noreferrer">原文</a><button type="button" data-review-action="approve" data-review-id="${escapeHtml(item.id)}">通过</button><button type="button" data-review-action="reject" data-review-id="${escapeHtml(item.id)}">退回</button></td></tr>`));
     main.find("span").filter((_,el)=>/共 3 条待审/.test(text($(el)))).text(`共 ${pending.length} 条待审`);
     main.find("button").filter((_,el)=>/^通过$/.test(text($(el)))).attr("data-action", "review-approve");
     main.find("button").filter((_,el)=>/^退回$/.test(text($(el)))).attr("data-action", "review-reject");
+    main.find("button").filter((_,el)=>/用户与角色管理/.test(text($(el)))).attr("data-action", "admin-users");
+    main.find("button").filter((_,el)=>/操作审计日志/.test(text($(el)))).attr("data-action", "admin-audit");
+    main.append(`<section id="admin-users-panel" class="hidden mt-6 p-6 rounded-xl bg-surface-container-lowest shadow-sm"><div class="flex items-center justify-between mb-4"><h2 class="font-title-md text-title-md text-on-surface">用户与角色管理</h2><span class="font-body-sm text-body-sm text-on-surface-variant">${adminUsers.length} 位用户</span></div><div class="space-y-3">${adminUsers.map((item)=>`<div class="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3 rounded-lg bg-surface-container-low" data-admin-user-id="${escapeHtml(item.id)}"><div><strong>${escapeHtml(item.name || "未设置昵称")}</strong><span class="block text-body-sm text-on-surface-variant">${escapeHtml(item.email)}</span></div><div class="flex items-center gap-2"><select class="rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-body-sm" data-admin-role><option value="user"${item.role === "user" ? " selected" : ""}>普通用户</option><option value="admin"${item.role === "admin" ? " selected" : ""}>管理员</option></select><button type="button" data-action="admin-role" class="rounded-lg bg-primary px-3 py-2 text-label-sm text-on-primary">保存角色</button></div></div>`).join("")}</div></section>`);
+    main.append(`<section id="admin-audit-panel" class="hidden mt-6 p-6 rounded-xl bg-surface-container-lowest shadow-sm"><div class="flex items-center justify-between mb-4"><h2 class="font-title-md text-title-md text-on-surface">操作审计日志</h2><span class="font-body-sm text-body-sm text-on-surface-variant">最近 ${auditLogs.length} 条</span></div><div class="space-y-2">${auditLogs.length ? auditLogs.map((item)=>`<div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 p-3 rounded-lg bg-surface-container-low"><div><strong>${escapeHtml(item.action)}</strong><span class="block text-body-sm text-on-surface-variant">${escapeHtml(item.actorEmail || item.actorId)} · ${escapeHtml(item.targetType)}:${escapeHtml(item.targetId)}</span></div><time class="text-body-sm text-on-surface-variant">${new Date(item.createdAt).toLocaleString("zh-CN")}</time></div>`).join("") : '<p class="text-body-sm text-on-surface-variant">暂无审计记录。</p>'}</div></section>`);
   }
   if (name === "competitionDetail") {
     const rawId = query?.id;

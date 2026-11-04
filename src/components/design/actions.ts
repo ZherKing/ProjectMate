@@ -10,6 +10,7 @@ import { updateProjectTaskStatus } from "@/lib/db/tasks";
 import { saveProfile } from "@/lib/db/profile";
 import { requireAdmin } from "@/lib/auth/guards";
 import { randomUUID } from "node:crypto";
+import { isConfiguredAdminEmail } from "@/lib/auth/permissions";
 
 type Payload = Record<string, string>;
 export type ScreenResult = { ok: boolean; message: string; href?: string; summary?: string; id?: string };
@@ -89,6 +90,22 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         sqlite.prepare("INSERT INTO admin_audit_logs (id, actor_id, action, target_type, target_id, details, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(randomUUID(), admin.userId, decision === "approved" ? "competition.approve" : "competition.reject", "competition", competitionId, note || "", now);
         revalidatePath("/admin"); revalidatePath("/competitions"); revalidatePath("/");
         return { ok: true, message: decision === "approved" ? "赛事已通过审核。" : "赛事已退回。" };
+      }
+      case "admin-set-role": {
+        const admin = await requireAdmin();
+        if (!admin) return { ok: false, message: "没有管理员权限。", href: "/login?next=/admin" };
+        const targetId = (data.userId || "").trim();
+        const role = data.role === "admin" ? "admin" : data.role === "user" ? "user" : "";
+        if (!targetId || !role) return { ok: false, message: "角色参数不完整。" };
+        const target = sqlite.prepare("SELECT id, email, role FROM users WHERE id = ?").get(targetId) as { id: string; email: string; role: string } | undefined;
+        if (!target) return { ok: false, message: "用户不存在。" };
+        if (role === "admin" && !isConfiguredAdminEmail(target.email)) return { ok: false, message: "只有 ADMIN_EMAILS 白名单账号可以设为管理员。" };
+        if (target.id === admin.userId && role === "user") return { ok: false, message: "不能撤销当前登录管理员自己的权限。" };
+        sqlite.prepare("UPDATE users SET role = ? WHERE id = ?").run(role, target.id);
+        const now = Date.now();
+        sqlite.prepare("INSERT INTO admin_audit_logs (id, actor_id, action, target_type, target_id, details, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(randomUUID(), admin.userId, "user.role.update", "user", target.id, `${target.role} -> ${role}`, now);
+        revalidatePath("/admin");
+        return { ok: true, message: "用户角色已更新。" };
       }
       default: return { ok: false, message: "此功能尚在完善中，当前操作未修改数据。" };
     }

@@ -48,6 +48,20 @@ export function listPendingCompetitions(): PendingCompetition[] {
   return sqlite.prepare("SELECT id, platform, name, season, status, source_url AS sourceUrl, updated_at AS updatedAt, review_status AS reviewStatus, reviewed_by AS reviewedBy, reviewed_at AS reviewedAt, review_note AS reviewNote FROM competitions WHERE review_status = 'pending' ORDER BY updated_at DESC, name ASC").all() as PendingCompetition[];
 }
 
+export type AdminUser = { id: string; email: string; name: string | null; role: string; createdAt: number };
+
+export function listAdminUsers(): AdminUser[] {
+  initializeDatabase();
+  return sqlite.prepare("SELECT id, email, name, role, created_at AS createdAt FROM users ORDER BY created_at DESC").all() as AdminUser[];
+}
+
+export type AdminAuditLog = { id: string; actorId: string; actorEmail: string | null; action: string; targetType: string; targetId: string; details: string; createdAt: number };
+
+export function listAdminAuditLogs(limit = 50): AdminAuditLog[] {
+  initializeDatabase();
+  return sqlite.prepare("SELECT logs.id, logs.actor_id AS actorId, users.email AS actorEmail, logs.action, logs.target_type AS targetType, logs.target_id AS targetId, logs.details, logs.created_at AS createdAt FROM admin_audit_logs logs LEFT JOIN users ON users.id = logs.actor_id ORDER BY logs.created_at DESC LIMIT ?").all(Math.max(1, Math.min(100, limit))) as AdminAuditLog[];
+}
+
 export function getCompetitionTrackDetails(competitionId: string) {
   initializeDatabase();
   return sqlite.prepare("SELECT id, name, description, deadline FROM competition_tracks WHERE competition_id = ? ORDER BY name").all(competitionId) as Array<{ id: string; name: string; description: string | null; deadline: number | null }>;

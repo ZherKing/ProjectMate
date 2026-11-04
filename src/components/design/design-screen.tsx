@@ -268,6 +268,21 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       if(result?.ok){el.closest("tr")?.remove();router.refresh();}
       return;
     }
+    if(action==="admin-users"||action==="admin-audit"){
+      const users=root.current.querySelector<HTMLElement>("#admin-users-panel");
+      const audit=root.current.querySelector<HTMLElement>("#admin-audit-panel");
+      users?.classList.toggle("hidden",action!=="admin-users");
+      audit?.classList.toggle("hidden",action!=="admin-audit");
+      (action==="admin-users"?users:audit)?.scrollIntoView({behavior:"smooth",block:"start"});
+      return;
+    }
+    if(action==="admin-role"){
+      const row=el.closest<HTMLElement>("[data-admin-user-id]");
+      const role=row?.querySelector<HTMLSelectElement>("[data-admin-role]")?.value||"user";
+      const result=await run("admin-set-role",{userId:row?.dataset.adminUserId||"",role},button);
+      if(result?.ok)router.refresh();
+      return;
+    }
     if(action==="apply-filters"){filterCompetitions();root.current.querySelector('[data-results-heading]')?.scrollIntoView({behavior:"smooth",block:"center"});return;}
     if(action==="select-competition"||el.dataset.competitionId){
       if(el.tagName==="A"&&el.getAttribute("target")==="_blank")return;
