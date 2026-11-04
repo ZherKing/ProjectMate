@@ -59,3 +59,4 @@ docker-compose.override.yml
 /.next-detail-card-qa/
 /.next-shell-favorites-qa/
 /.next-competition-modal-qa/
+/.next-settings-favorites-qa/
