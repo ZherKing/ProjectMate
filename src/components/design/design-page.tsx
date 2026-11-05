@@ -274,7 +274,16 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     detailCard.find("span").filter((_,el)=>/^共 3 个赛题$/.test(text($(el)))).attr("data-modal-track-count","");
     detailCard.find("span").filter((_,el)=>/^报名截止时间$/.test(text($(el)))).next().attr("data-modal-deadline","");
     detailCard.find("h4").eq(0).closest("section").find("p").first().attr("data-modal-track-description","");
+    detailCard.find("h4").eq(0).closest("section").find("p").eq(1).attr("data-modal-track-objective","");
     detailCard.find("h4").eq(1).closest("section").find("p").first().attr("data-modal-requirements","");
+    detailCard.find("h4").eq(1).closest("section").find("p").attr("data-modal-requirement-item","");
+    detailCard.find("h4").eq(1).closest("section").find("h5,h6").attr("data-modal-requirement-title","");
+    detailCard.find("a").filter((_,el)=>/^ccf.org.cn/.test(text($(el)))).attr("data-modal-authority-source","");
+    detailCard.find("a").filter((_,el)=>/下载官方赛题说明书/.test(text($(el)))).attr("data-modal-spec-link","");
+    detailCard.find("a").filter((_,el)=>/样例开发集/.test(text($(el)))).attr("data-modal-sample-link","");
+    detailCard.find("span").filter((_,el)=>/^TRACK-A/.test(text($(el)))).attr("data-modal-track-label","");
+    detailCard.find("span").filter((_,el)=>/^作品提交截止：$/.test(text($(el)))).next().attr("data-modal-track-deadline","");
+    detailCard.find("span").filter((_,el)=>/^信息来源已通过/.test(text($(el)))).attr("data-modal-source-note","");
     detailCard.find("span").filter((_,el)=>/报名进行中|待核验/.test(text($(el)))).first().attr("data-modal-status","");
     detailCard.find("button").filter((_,el)=>/赛题 Track-/.test(text($(el)))).each((index,el)=>{ $(el).attr("data-track-id",String(index)); });
     detailCard.find("[data-design-handler]").removeAttr("data-design-handler");

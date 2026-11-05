@@ -220,6 +220,9 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
         const modalTitle=card.querySelector("#modal-title");if(modalTitle)modalTitle.textContent=title;
         const status=competition?.status||source?.querySelector("span")?.textContent?.trim();const statusEl=card.querySelector("[data-modal-status]");if(statusEl&&status)statusEl.textContent=status;
         const sourceLink=card.querySelector<HTMLAnchorElement>('[data-action="view-competition-source"]');if(sourceLink)sourceLink.href=competition?.sourceUrl||source?.dataset.sourceUrl||"#";
+        const authorityLink=card.querySelector<HTMLAnchorElement>('[data-modal-authority-source]');if(authorityLink){authorityLink.href=competition?.sourceUrl||"#";authorityLink.textContent=competition?.sourceUrl?new URL(competition.sourceUrl).hostname+new URL(competition.sourceUrl).pathname:"暂无官方来源";}
+        const specLink=card.querySelector<HTMLAnchorElement>('[data-modal-spec-link]');if(specLink){specLink.href=competition?.sourceUrl||"#";specLink.textContent=competition?.sourceUrl?"打开官方赛事页面":"暂无官方赛题说明";}
+        const sampleLink=card.querySelector<HTMLAnchorElement>('[data-modal-sample-link]');if(sampleLink){sampleLink.href=competition?.sourceUrl||"#";sampleLink.textContent=competition?.sourceUrl?"查看赛事原文":"暂无样例数据";}
         const seasonEl=card.querySelector("[data-modal-season]");if(seasonEl)seasonEl.textContent=competition?.season||"赛事信息";
         const platformEl=card.querySelector("[data-modal-platform]");if(platformEl)platformEl.textContent="来源平台："+(competition?.platform||"暂无");
         const deadline=competition?.tracks?.map(track=>track.deadline).filter((value):value is number=>Boolean(value)).sort((a,b)=>a-b)[0];const deadlineEl=card.querySelector("[data-modal-deadline]");if(deadlineEl)deadlineEl.textContent=deadline?new Date(deadline).toLocaleString("zh-CN"):"暂无截止时间";
@@ -230,7 +233,13 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
         trackButtons.forEach((trackButton,index)=>{const track=tracks[index];trackButton.classList.toggle("hidden",!track);if(track){const titleEl=trackButton.querySelector("p");if(titleEl)titleEl.textContent=track.name;const label=trackButton.querySelector("span");if(label)label.textContent=`赛道 ${index+1}`;}});
         const firstTrack=tracks[0];const detailHeading=card.querySelector("h1");if(detailHeading)detailHeading.textContent=firstTrack?.name||title;
         const description=card.querySelector("[data-modal-track-description]");if(description)description.textContent=firstTrack?.description||"赛事来源未提供赛道任务说明。";
+        const objective=card.querySelector("[data-modal-track-objective]");if(objective)objective.textContent="赛事来源未提供任务目标，请以官方赛事页面为准。";
         const requirements=card.querySelector("[data-modal-requirements]");if(requirements)requirements.textContent="赛事来源未提供统一提交格式和评测要求，请以官方赛事页面为准。";
+        card.querySelectorAll("[data-modal-requirement-item]").forEach(item=>{item.textContent="赛事来源未提供该项提交要求。";});
+        card.querySelectorAll("[data-modal-requirement-title]").forEach(item=>{item.textContent="提交要求";});
+        const trackLabel=card.querySelector("[data-modal-track-label]");if(trackLabel)trackLabel.textContent=firstTrack?`赛道 1 · ${firstTrack.name}`:"暂无赛道信息";
+        const trackDeadline=card.querySelector("[data-modal-track-deadline]");if(trackDeadline)trackDeadline.textContent=firstTrack?.deadline?new Date(firstTrack.deadline).toLocaleString("zh-CN"):"暂无提交截止时间";
+        const sourceNote=card.querySelector("[data-modal-source-note]");if(sourceNote)sourceNote.textContent=competition?.sourceUrl?"信息来源已通过赛事官方公开页面校验":"赛事官方来源尚未提供";
         card.classList.remove("hidden");
       }
       return;
