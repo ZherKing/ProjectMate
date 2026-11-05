@@ -212,6 +212,9 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
         card.dataset.competitionId=competitionId;
         const source=root.current.querySelector<HTMLElement>(`[data-competition-id="${CSS.escape(competitionId)}"]`);
         const title=source?.querySelector("h3")?.textContent?.trim()||"赛事详情";
+        const detailFavorite=source?.dataset.favorite==="true";
+        const favoriteButton=card.querySelector<HTMLButtonElement>('[data-action="detail-favorite"]');
+        if(favoriteButton){favoriteButton.setAttribute("aria-pressed",String(detailFavorite));const favoriteText=favoriteButton.querySelector("#fav-text");if(favoriteText)favoriteText.textContent=detailFavorite?"已收藏":"收藏赛事";const favoriteIcon=favoriteButton.querySelector("svg");if(favoriteIcon)favoriteIcon.setAttribute("fill",detailFavorite?"currentColor":"none");favoriteButton.classList.toggle("text-error",detailFavorite);}
         const modalTitle=card.querySelector("#modal-title");if(modalTitle)modalTitle.textContent=title;
         const status=source?.querySelector("span")?.textContent?.trim();const statusEl=card.querySelector("[data-modal-status]");if(statusEl&&status)statusEl.textContent=status;
         const sourceLink=card.querySelector<HTMLAnchorElement>('[data-action="view-competition-source"]');if(sourceLink)sourceLink.href=source?.dataset.sourceUrl||"#";
@@ -229,7 +232,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     if(action==="start-team"){if(guard("/teams/create"))router.push("/teams/create?competition="+encodeURIComponent(el.closest<HTMLElement>('[data-competition-modal]')?.dataset.competitionId||""));return;}
     if(action==="detail-favorite"){
       const modalCard=el.closest<HTMLElement>('[data-competition-modal]');const key=modalCard?.dataset.competitionId||"";
-      const result=await run("favorite",{key},button);if(result?.ok){el.classList.toggle("text-error");el.setAttribute("aria-pressed",String(el.getAttribute("aria-pressed")!=="true"));}return;
+      const result=await run("favorite",{key},button);if(result?.ok){const active=el.getAttribute("aria-pressed")!=="true";el.classList.toggle("text-error",active);el.setAttribute("aria-pressed",String(active));const favoriteText=el.querySelector("#fav-text");if(favoriteText)favoriteText.textContent=active?"已收藏":"收藏赛事";const favoriteIcon=el.querySelector("svg");if(favoriteIcon)favoriteIcon.setAttribute("fill",active?"currentColor":"none");const source=root.current.querySelector<HTMLElement>(`[data-competition-id="${CSS.escape(key)}"]`);if(source){source.dataset.favorite=String(active);const sourceButton=source.querySelector<HTMLElement>('[data-action="favorite"]');sourceButton?.classList.toggle("text-error",active);}}return;
     }
     if(id==="open-creator-btn"){if(guard()){updateStep(1);modal("creator-modal",true);}return;}
     if(["close-ai-synergy","close-ai-synergy-action","close-creator-btn","close-poster-btn"].includes(id)){modal(id.includes("synergy")?"ai-synergy-modal":id.includes("poster")?"poster-modal":"creator-modal",false);if(id==="close-poster-btn"){posterVisible.current=false;router.refresh();}return;}
