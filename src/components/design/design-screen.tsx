@@ -7,6 +7,7 @@ import { signIn } from "next-auth/react";
 import { Info, X } from "lucide-react";
 import { screenAction } from "./actions";
 import { useSettingsEditor } from "./use-settings-editor";
+import { useAdminWorkspace } from "./use-admin-workspace";
 
 type Notice = { title: string; message: string; login?: boolean };
 export function DesignScreen({ name, html, loggedIn, variant }: { name: string; html: string; loggedIn: boolean; variant?: "register" }) {
@@ -81,6 +82,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
   },[]);
   const toast=(message:string,title="操作提示",login=false)=>setNotice({title,message,login});
   useSettingsEditor(root,name==="settings",html,toast);
+  useAdminWorkspace(root,name==="admin",html,toast);
   const guard=(returnTo?:string)=>{if(loggedIn)return true;loginReturnTo.current=returnTo||location.pathname+location.search;toast("正在前往登录页面，登录后可继续当前操作。","需要登录",true);return false;};
   const modal=(id:string,open:boolean)=>{const el=root.current?.querySelector("#"+id);if(el){el.classList.toggle("hidden",!open);el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");if(open)(el.querySelector('button,input') as HTMLElement|null)?.focus();}};
   const value=(id:string)=>(root.current?.querySelector("#"+id) as HTMLInputElement|HTMLTextAreaElement|null)?.value||"";
@@ -315,7 +317,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       const competitionId=el.dataset.reviewId||el.closest<HTMLElement>('[data-review-id]')?.dataset.reviewId||"";
       const decision=action==="review-approve"?"approved":"rejected";
       const result=await run("review-competition",{competitionId,decision},button);
-      if(result?.ok){el.closest("tr")?.remove();router.refresh();}
+      if(result?.ok){el.closest("tr, article[data-review-id]")?.remove();router.refresh();}
       return;
     }
     if(action==="admin-users"||action==="admin-audit"){

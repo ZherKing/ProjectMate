@@ -19,7 +19,7 @@ for(const [name,html] of Object.entries(screens)){
  console.log(name+': local assets, SVG icons, layout and script removal verified');
 }
 assert.equal(icons,manifest.svgOccurrences);
-assert.equal(Object.keys(screens).length,9);
+assert.equal(Object.keys(screens).length,10);
 for(const name of ['competitionDetail','settings','admin'])assert.ok(screens[name],name+': imported future screen');
 const fonts=fs.readFileSync('src/design/fonts.css','utf8');
 for(const m of fonts.matchAll(/url\(([^)]+)\)/g))assert.ok(fs.existsSync('public'+m[1]),'local font missing');
