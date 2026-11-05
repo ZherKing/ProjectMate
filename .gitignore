@@ -64,3 +64,4 @@ docker-compose.override.yml
 /.next-favorites-page-qa/
 /.next-detail-dynamic-qa/
 /.next-detail-content-qa/
+/.next-new-favorites-ui-qa/

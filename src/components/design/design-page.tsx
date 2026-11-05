@@ -15,7 +15,7 @@ export type ScreenName = keyof typeof screens;
 export async function DesignPage({ name, variant, query }: { name: ScreenName; variant?: "register"; query?: Record<string, string | string[] | undefined> }) {
   const session = await auth();
   const user = session?.user;
-  const favoritesView = name === "competitions" && query?.tab === "favorites";
+  const favoritesView = name === "favorites" || (name === "competitions" && query?.tab === "favorites");
   if ((name === "dashboard" || name === "projects" || name === "settings" || name === "competitionDetail") && !user) redirect("/login");
   if (favoritesView && !user) redirect("/login?next=/competitions/favorites");
   if (name === "admin" && !(await requireAdmin())) redirect("/login?next=/admin");
@@ -23,7 +23,7 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
   const text = (el: cheerio.Cheerio<AnyNode>) => el.text().replace(/\s+/g, " ").trim();
   const main = $("main");
   $("[data-action=\"favorite\"]").each((index,el)=>{ $(el).attr("data-favorite-key",name+"-"+index); });
-  const allCompetitions = name === "competitions" || name === "home" || name === "teams" ? listCompetitions() : [];
+  const allCompetitions = name === "competitions" || name === "favorites" || name === "home" || name === "teams" ? listCompetitions() : [];
   const favoriteIds = favoritesView && user?.id ? listFavoriteCompetitionIds(user.id) : null;
   const competitions = favoriteIds
     ? allCompetitions.filter((item) => favoriteIds.has(item.id) || favoriteIds.has(item.name))
@@ -45,6 +45,30 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     main.find("#save-settings-btn").closest("div.sticky").attr("data-settings-save-bar","").addClass("hidden");
     main.find("button").filter((_,el)=>/立即接入 OAuth 认证|接入新 MCP 协议|更新密码|重置密钥|注销 Token|申请永久注销/.test(text($(el)))).attr("data-action","unavailable");
     main.find("button").filter((_,el)=>/退出当前登录会话/.test(text($(el)))).attr("data-action","logout");
+  }
+  if (name === "favorites" && user?.id) {
+    const firstHeading=main.find("h3").first();
+    const template=firstHeading.parent().clone();
+    const cardSection=firstHeading.parent().parent();
+    cardSection.children().remove();
+    const favoriteIds=listFavoriteCompetitionIds(user.id);
+    competitions.forEach((item,index)=>{
+      const card=template.clone();
+      const track=listCompetitionTracks().find((group)=>group.competitionId===item.id);
+      card.attr("data-competition-id",item.id).attr("data-source-url",item.sourceUrl).attr("data-favorite","true").attr("data-action","open-competition-detail");
+      card.find("h3").first().text(item.name);
+      card.find("p").first().text(item.platform+" · "+(item.status||"状态未知"));
+      card.find("span").filter((_,el)=>/报名中|进行中|已截止|收藏于/.test(text($(el)))).first().text(item.status);
+      card.find("span").filter((_,el)=>/收藏于/.test(text($(el)))).text("收藏于最近更新");
+      card.find("button").filter((_,el)=>/取消收藏/.test($(el).attr("title")||"")).attr("data-action","favorite").attr("data-favorite-key",item.id).removeAttr("data-design-handler");
+      card.find("button").filter((_,el)=>/立即发起组队/.test(text($(el)))).attr("data-route","/teams/create").removeAttr("data-design-handler");
+      card.find("button").filter((_,el)=>/官方赛题|查看赛道/.test(text($(el)))).attr("data-route","/competitions").removeAttr("data-design-handler");
+      card.find("span").filter((_,el)=>/奖池|推荐 \d/.test(text($(el)))).each((_,el)=>{ $(el).text("来源："+item.platform); });
+      cardSection.append(card);
+    });
+    if (!competitions.length) cardSection.append('<p class="rounded-xl bg-surface-container-low p-6 text-body-md text-on-surface-variant" role="status">还没有收藏赛事，返回比赛中心收藏你感兴趣的比赛。</p>');
+    main.find("h1").first().text("我的赛事收藏");
+    main.find("button").filter((_,el)=>/返回比赛中心|浏览更多/.test(text($(el)))).attr("data-route","/competitions");
   }
   if (name === "admin") {
     const pending = listPendingCompetitions();
