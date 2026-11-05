@@ -1,5 +1,6 @@
 import { DesignPage } from "@/components/design/design-page";
 
+export const metadata = { title: "赛事详情" };
 export const dynamic = "force-dynamic";
 
 export default async function CompetitionDetailPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {

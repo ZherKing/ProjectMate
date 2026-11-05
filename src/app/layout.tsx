@@ -5,7 +5,10 @@ import { SignoutDialog } from "@/components/layout/signout-dialog";
 import { UserMenuBehavior } from "@/components/layout/user-menu-behavior";
 
 export const metadata: Metadata = {
-  title: "ProjectMate",
+  title: {
+    default: "ProjectMate｜首页",
+    template: "ProjectMate｜%s",
+  },
   description: "面向年轻开发者的 AI 比赛与项目协作平台",
 };
 

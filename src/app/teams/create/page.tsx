@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import { SiteShell } from "@/components/layout/site-shell";
 import { createRecruitmentProject } from "@/lib/db/projects";
 
+export const metadata = { title: "发布组队项目" };
+
 async function createProjectAction(formData: FormData) {
   "use server";
   const session = await auth();

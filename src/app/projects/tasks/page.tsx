@@ -3,6 +3,7 @@ import { SiteShell, ToastNotice } from "@/components/layout/site-shell";
 import { getLatestCoachReport, listProjectTasks, updateProjectTaskStatus } from "@/lib/db/tasks";
 import { runProjectCoach } from "@/lib/ai/project-coach";
 
+export const metadata = { title: "项目任务看板" };
 export const dynamic = "force-dynamic";
 
 async function coachAction() {
