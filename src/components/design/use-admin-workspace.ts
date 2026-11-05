@@ -12,6 +12,15 @@ export function useAdminWorkspace(root: RefObject<HTMLDivElement | null>, enable
     const pageSize = 5;
     const search = scope.querySelector<HTMLInputElement>("[data-admin-queue-search]");
     const source = scope.querySelector<HTMLSelectElement>("[data-admin-source-filter]");
+    const settingFields = [...scope.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-admin-setting]")];
+    const settingInitial = settingFields.map(field => field.type === "checkbox" ? String((field as HTMLInputElement).checked) : field.value);
+    let settingDirty = false;
+    const updateSettingsBar = () => {
+      const dirty = settingFields.some((field, index) => (field.type === "checkbox" ? String((field as HTMLInputElement).checked) : field.value) !== settingInitial[index]);
+      const bar = scope.querySelector<HTMLElement>("[data-admin-settings-bar]");
+      if (bar) { bar.classList.toggle("hidden", !dirty); if (dirty && !settingDirty) { bar.classList.remove("settings-save-bar-enter"); void bar.offsetWidth; bar.classList.add("settings-save-bar-enter"); } }
+      settingDirty = dirty;
+    };
     const cards = [...scope.querySelectorAll<HTMLElement>("article[data-review-id]")];
     const filter = () => {
       const terms = (search?.value || "").normalize("NFKC").toLowerCase().trim().split(/\s+/).filter(Boolean);
@@ -33,9 +42,10 @@ export function useAdminWorkspace(root: RefObject<HTMLDivElement | null>, enable
       if (!(event.target instanceof Element)) return;
       const button = event.target.closest<HTMLButtonElement>("button[data-admin-queue-page], button[data-admin-refresh]");
       const settingsButton = event.target.closest<HTMLButtonElement>("button[data-admin-settings-save], button[data-admin-settings-test]");
+      if (event.target.closest("[data-admin-settings-cancel]")) { settingFields.forEach((field, index) => { if (field.type === "checkbox") (field as HTMLInputElement).checked = settingInitial[index] === "true"; else field.value = settingInitial[index]; }); updateSettingsBar(); return; }
       if (settingsButton) {
         event.preventDefault();
-        const values = Object.fromEntries([...scope.querySelectorAll<HTMLInputElement>("[data-admin-setting]")].map(input => [input.name, input.type === "checkbox" ? input.checked : input.value]));
+        const values = Object.fromEntries(settingFields.map(input => [input.name, input.type === "checkbox" ? (input as HTMLInputElement).checked : input.value]));
         const message = scope.querySelector<HTMLElement>("[data-admin-settings-message]");
         const endpoint = settingsButton.hasAttribute("data-admin-settings-test") ? "/api/admin/settings/test" : "/api/admin/settings";
         const payload = settingsButton.hasAttribute("data-admin-settings-test") ? { ...values, to: values.testTo } : values;
@@ -43,6 +53,7 @@ export function useAdminWorkspace(root: RefObject<HTMLDivElement | null>, enable
         fetch(endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) }).then(async response => {
           const result = await response.json();
           if (message) { message.textContent = result.message || "操作完成"; message.classList.remove("hidden"); }
+          if (response.ok && !settingsButton.hasAttribute("data-admin-settings-test")) { settingFields.forEach((field, index) => { settingInitial[index] = field.type === "checkbox" ? String((field as HTMLInputElement).checked) : field.value; }); updateSettingsBar(); }
           notify(result.message || "操作完成", response.ok ? "操作成功" : "操作未完成");
         }).catch(() => notify("请求未完成，请稍后重试。", "连接失败"));
         return;
@@ -78,6 +89,7 @@ export function useAdminWorkspace(root: RefObject<HTMLDivElement | null>, enable
     scope.addEventListener("click", clicked, true);
     search?.addEventListener("input", changed);
     source?.addEventListener("change", changed);
+    settingFields.forEach(field => { field.addEventListener("input", updateSettingsBar); field.addEventListener("change", updateSettingsBar); });
     window.addEventListener("scroll", scroll, { passive: true });
     filter();
     updateActive();
@@ -85,6 +97,7 @@ export function useAdminWorkspace(root: RefObject<HTMLDivElement | null>, enable
       scope.removeEventListener("click", clicked, true);
       search?.removeEventListener("input", changed);
       source?.removeEventListener("change", changed);
+      settingFields.forEach(field => { field.removeEventListener("input", updateSettingsBar); field.removeEventListener("change", updateSettingsBar); });
       window.removeEventListener("scroll", scroll);
       if (frame) cancelAnimationFrame(frame);
     };

@@ -94,6 +94,7 @@ export function populateAdminContent($: CheerioAPI, currentUserId: string, secti
     const base = panel.find("div.rounded-xl.bg-surface-container-low").first();
     base.append(`<label class="font-body-sm text-body-sm">网站副标题<input name="siteSubtitle" data-admin-setting class="mt-2 w-full rounded-lg border-0 bg-surface-container-lowest px-3 py-2" value="${escapeHtml(getSiteSetting("site.subtitle"))}" placeholder="面向高校学生的赛事协作平台" /></label>`);
     base.append(`<label class="font-body-sm text-body-sm">网站 Logo 地址<input name="siteLogo" data-admin-setting class="mt-2 w-full rounded-lg border-0 bg-surface-container-lowest px-3 py-2" value="${escapeHtml(getSiteSetting("site.logo"))}" placeholder="/assets/logo.svg" /></label>`);
+    panel.append('<div data-admin-settings-bar class="hidden bg-surface-container-low rounded-xl p-4 flex flex-wrap items-center justify-between gap-3"><span class="font-body-sm text-body-sm text-on-surface-variant">你有尚未保存的网站设置修改</span><button type="button" data-admin-settings-cancel class="rounded-lg bg-surface-container-lowest px-4 py-2 text-label-md text-on-surface">取消修改</button></div>');
     $(".flex.flex-col.lg\\:flex-row").first().find("> main").append(panel);
   }
   const visibleSection = sections[sectionIndex];
