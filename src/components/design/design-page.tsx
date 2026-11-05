@@ -29,6 +29,9 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     $("body > header").remove();
     $("body > footer").remove();
     main.removeClass("pt-16").attr("data-design-main", "favorites");
+    main.find("#toastNotification").remove();
+    const content=main.children("div").first().children("div").filter((_,el)=>($(el).attr("class")||"").includes("max-w-[1240px]")).first();
+    content.attr("class", "w-full max-w-[1240px] mx-auto px-6 py-8");
   }
   const allCompetitions = name === "competitions" || name === "favorites" || name === "home" || name === "teams" ? listCompetitions() : [];
   const favoriteIds = favoritesView && user?.id ? listFavoriteCompetitionIds(user.id) : null;
