@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { auth } from "@/auth";
 import { SignoutDialog } from "@/components/layout/signout-dialog";
+import { UserMenuBehavior } from "@/components/layout/user-menu-behavior";
 
 export const metadata: Metadata = {
   title: "ProjectMate",
@@ -14,7 +15,7 @@ export default async function RootLayout({
   const session = await auth();
   return (
     <html lang="zh-CN">
-      <body>{children}<SignoutDialog account={session?.user ? { name: session.user.name, email: session.user.email } : null} /></body>
+      <body>{children}<UserMenuBehavior /><SignoutDialog account={session?.user ? { name: session.user.name, email: session.user.email } : null} /></body>
     </html>
   );
 }
