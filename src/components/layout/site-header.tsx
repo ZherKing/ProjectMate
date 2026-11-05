@@ -5,16 +5,19 @@ import { hasAdminRole } from "@/lib/auth/permissions";
 import { ScrollHeader } from "./scroll-header";
 import { SiteNav } from "./site-nav";
 import styles from "./site-header.module.css";
+import { getSiteSetting } from "@/lib/site-settings";
 
 const nav = [["比赛中心", "/competitions"], ["组队大厅", "/teams"], ["项目空间", "/projects"]] as const;
 
 export async function SiteHeader() {
   const user = (await auth())?.user;
   const isAdmin = !!user?.id && hasAdminRole(user.id);
+  const siteName = getSiteSetting("site.name") || "ProjectMate";
+  const siteIcon = getSiteSetting("site.icon") || "/assets/logo.svg";
   return <ScrollHeader className={styles.header}>
     <div className={styles.inner}>
       <div className={styles.left}>
-        <Link href="/" aria-label="ProjectMate 首页" className={styles.brand}><img src="/assets/logo.svg" alt="" width={32} height={32} /><span>ProjectMate</span></Link>
+        <Link href="/" aria-label={`${siteName} 首页`} className={styles.brand}><img src={siteIcon} alt="" width={32} height={32} /><span>{siteName}</span></Link>
         <SiteNav items={nav} className={styles.nav} />
       </div>
       <div className={styles.actions}>

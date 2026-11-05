@@ -73,6 +73,9 @@ export function populateAdminContent($: CheerioAPI, currentUserId: string, secti
     else link.removeAttr("aria-current");
     link.find("span.truncate").text(labels[index]);
   });
+  if (!$('nav[aria-label="治理模块分类"] a[href="/admin/settings"]').length) {
+    $("nav[aria-label='治理模块分类']").append('<a href="/admin/settings" class="flex items-center justify-between p-2.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all"><span class="font-body-md text-body-md">网站设置</span></a>');
+  }
   const pageTitles = ["赛事审核", "数据源与爬虫", "用户管理", "操作日志"];
   const descriptions = [
     "审核新抓取赛事，确认来源与信息后再发布到比赛中心。",

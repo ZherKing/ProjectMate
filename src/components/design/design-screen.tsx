@@ -313,6 +313,10 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       filterCompetitions();return;
     }
     if(action==="logout"){toast("正在退出当前登录会话。","退出登录");setTimeout(()=>router.push("/api/auth/signout?callbackUrl=/"),800);return;}
+    if(action==="password-modal"){root.current.querySelector<HTMLElement>('#password-modal')?.classList.remove('hidden');return;}
+    if(action==="password-close"){root.current.querySelector<HTMLElement>('#password-modal')?.classList.add('hidden');return;}
+    if(action==="password-send"){const result=await fetch('/api/settings/password-code',{method:'POST'});const data=await result.json();toast(data.message||'验证码请求完成',result.ok?'验证码已发送':'发送失败');return;}
+    if(action==="password-submit"){const scope=root.current;const code=scope.querySelector<HTMLInputElement>('[data-password-code]')?.value||'';const password=scope.querySelector<HTMLInputElement>('[data-password-new]')?.value||'';const confirm=scope.querySelector<HTMLInputElement>('[data-password-confirm]')?.value||'';const result=await fetch('/api/settings/password',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code,password,confirm})});const data=await result.json();toast(data.message||'密码修改完成',result.ok?'修改成功':'修改失败');if(result.ok)scope.querySelector<HTMLElement>('#password-modal')?.classList.add('hidden');return;}
     if(action==="review-approve"||action==="review-reject"){
       const competitionId=el.dataset.reviewId||el.closest<HTMLElement>('[data-review-id]')?.dataset.reviewId||"";
       const decision=action==="review-approve"?"approved":"rejected";
