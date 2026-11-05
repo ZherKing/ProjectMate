@@ -361,13 +361,25 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
   }
   if (name === "projects") {
     const metricSection=main.find("section").filter((_,el)=>/整体完成度/.test(text($(el)))).first();
-    const metricCards=metricSection.find("[class*='bg-surface-container-low']").filter((_,el)=>/整体完成度|决赛作品提交倒计时/.test(text($(el))));
+    const metricGrid=metricSection.children("div.grid").first();
+    const metricCards=metricGrid.children("div").filter((_,el)=>/整体完成度|决赛作品提交倒计时/.test(text($(el))));
     const leftColumn=main.find("h3").filter((_,el)=>/当前冲刺目标/.test(text($(el)))).first().closest("div.xl\\:col-span-3");
     if(metricSection.length&&leftColumn.length){
-      metricCards.each((_,el)=>{leftColumn.prepend($(el).clone());});
-      metricSection.remove();
+      leftColumn.prepend(metricCards);
+      metricGrid.remove();
+      metricSection.children("div").first().removeClass("pb-6");
     }
     main.find("h4").filter((_,el)=>/赛道评审偏好对应/.test(text($(el)))).closest("div.bg-surface-container-lowest").remove();
+    const coachColumn=main.find("div.xl\\:col-span-6").first();
+    const suggestion=main.find("#ai-suggestion-card");
+    const rightColumn=suggestion.parent();
+    const conversation=coachColumn.children("div").first().children("div.flex-1").first();
+    if(coachColumn.length&&suggestion.length&&conversation.length){
+      suggestion.attr("class","rounded-xl bg-surface-container-low p-5 mt-5");
+      conversation.children("div").last().children("div").last().append(suggestion);
+      coachColumn.removeClass("xl:col-span-6").addClass("xl:col-span-9");
+      rightColumn.remove();
+    }
     const report = getLatestCoachReport("demo-project");
     const liveTasks = listProjectTasks("demo-project");
     if(report){
