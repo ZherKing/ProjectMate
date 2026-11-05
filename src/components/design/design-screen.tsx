@@ -211,18 +211,26 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       if(card){
         card.dataset.competitionId=competitionId;
         const source=root.current.querySelector<HTMLElement>(`[data-competition-id="${CSS.escape(competitionId)}"]`);
-        const title=source?.querySelector("h3")?.textContent?.trim()||"赛事详情";
+        const competitionData=JSON.parse(card.dataset.competitionData||"{}");
+        const competition=competitionData[competitionId] as { name?: string; platform?: string; status?: string; season?: string; sourceUrl?: string; tracks?: Array<{ name:string; description:string|null; deadline:number|null }> }|undefined;
+        const title=competition?.name||source?.querySelector("h3")?.textContent?.trim()||"赛事详情";
         const detailFavorite=source?.dataset.favorite==="true";
         const favoriteButton=card.querySelector<HTMLButtonElement>('[data-action="detail-favorite"]');
         if(favoriteButton){favoriteButton.setAttribute("aria-pressed",String(detailFavorite));const favoriteText=favoriteButton.querySelector("#fav-text");if(favoriteText)favoriteText.textContent=detailFavorite?"已收藏":"收藏赛事";const favoriteIcon=favoriteButton.querySelector("svg");if(favoriteIcon)favoriteIcon.setAttribute("fill",detailFavorite?"currentColor":"none");favoriteButton.classList.toggle("text-error",detailFavorite);}
         const modalTitle=card.querySelector("#modal-title");if(modalTitle)modalTitle.textContent=title;
-        const status=source?.querySelector("span")?.textContent?.trim();const statusEl=card.querySelector("[data-modal-status]");if(statusEl&&status)statusEl.textContent=status;
-        const sourceLink=card.querySelector<HTMLAnchorElement>('[data-action="view-competition-source"]');if(sourceLink)sourceLink.href=source?.dataset.sourceUrl||"#";
+        const status=competition?.status||source?.querySelector("span")?.textContent?.trim();const statusEl=card.querySelector("[data-modal-status]");if(statusEl&&status)statusEl.textContent=status;
+        const sourceLink=card.querySelector<HTMLAnchorElement>('[data-action="view-competition-source"]');if(sourceLink)sourceLink.href=competition?.sourceUrl||source?.dataset.sourceUrl||"#";
+        const seasonEl=card.querySelector("[data-modal-season]");if(seasonEl)seasonEl.textContent=competition?.season||"赛事信息";
+        const platformEl=card.querySelector("[data-modal-platform]");if(platformEl)platformEl.textContent="来源平台："+(competition?.platform||"暂无");
+        const deadline=competition?.tracks?.map(track=>track.deadline).filter((value):value is number=>Boolean(value)).sort((a,b)=>a-b)[0];const deadlineEl=card.querySelector("[data-modal-deadline]");if(deadlineEl)deadlineEl.textContent=deadline?new Date(deadline).toLocaleString("zh-CN"):"暂无截止时间";
+        const trackCount=card.querySelector("[data-modal-track-count]");if(trackCount)trackCount.textContent=`共 ${(competition?.tracks||[]).length} 个赛道`;
         const trackData=JSON.parse(card.dataset.trackData||"{}");
-        const tracks=(trackData[competitionId]||[]) as string[];
+        const tracks=(competition?.tracks||[]);
         const trackButtons=[...card.querySelectorAll<HTMLButtonElement>('button[data-track-id]')];
-        trackButtons.forEach((trackButton,index)=>{const name=tracks[index];trackButton.classList.toggle("hidden",!name);if(name){const strong=trackButton.querySelector("strong");if(strong)strong.textContent=name;}});
-        const firstTrack=tracks[0];const detailHeading=card.querySelector("h1");if(detailHeading&&firstTrack)detailHeading.textContent=firstTrack;
+        trackButtons.forEach((trackButton,index)=>{const track=tracks[index];trackButton.classList.toggle("hidden",!track);if(track){const titleEl=trackButton.querySelector("p");if(titleEl)titleEl.textContent=track.name;const label=trackButton.querySelector("span");if(label)label.textContent=`赛道 ${index+1}`;}});
+        const firstTrack=tracks[0];const detailHeading=card.querySelector("h1");if(detailHeading)detailHeading.textContent=firstTrack?.name||title;
+        const description=card.querySelector("[data-modal-track-description]");if(description)description.textContent=firstTrack?.description||"赛事来源未提供赛道任务说明。";
+        const requirements=card.querySelector("[data-modal-requirements]");if(requirements)requirements.textContent="赛事来源未提供统一提交格式和评测要求，请以官方赛事页面为准。";
         card.classList.remove("hidden");
       }
       return;

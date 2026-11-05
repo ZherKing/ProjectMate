@@ -268,11 +268,19 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     detailCard.find("header button").filter((_,el)=>/closeModal/.test($(el).attr("data-design-handler")||"")).attr("data-action","close-competition-detail").removeAttr("data-design-handler");
     detailCard.find("span").filter((_,el)=>/ESC 可关闭/.test(text($(el)))).remove();
     detailCard.find("#fav-btn").attr("data-action","detail-favorite").removeAttr("data-design-handler");
+    detailCard.find("h1").attr("data-modal-name","");
+    detailCard.find("span").filter((_,el)=>/^第十二届$/.test(text($(el)))).attr("data-modal-season","");
+    detailCard.find("span").filter((_,el)=>/^主办单位：/.test(text($(el)))).attr("data-modal-platform","");
+    detailCard.find("span").filter((_,el)=>/^共 3 个赛题$/.test(text($(el)))).attr("data-modal-track-count","");
+    detailCard.find("span").filter((_,el)=>/^报名截止时间$/.test(text($(el)))).next().attr("data-modal-deadline","");
+    detailCard.find("h4").eq(0).closest("section").find("p").first().attr("data-modal-track-description","");
+    detailCard.find("h4").eq(1).closest("section").find("p").first().attr("data-modal-requirements","");
     detailCard.find("span").filter((_,el)=>/报名进行中|待核验/.test(text($(el)))).first().attr("data-modal-status","");
     detailCard.find("button").filter((_,el)=>/赛题 Track-/.test(text($(el)))).each((index,el)=>{ $(el).attr("data-track-id",String(index)); });
     detailCard.find("[data-design-handler]").removeAttr("data-design-handler");
     const trackData=Object.fromEntries(competitions.map((item)=>[item.id,(trackGroups.get(item.id)?.names||[])]));
-    const modalHtml='<div id="competition-detail-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-inverse-surface/45 p-3 sm:p-6 backdrop-blur-[6px]" data-competition-modal data-track-data="'+escapeHtml(JSON.stringify(trackData))+'">'+detailCard.toString()+"</div>";
+    const competitionData=Object.fromEntries(competitions.map((item)=>[item.id,{name:item.name,platform:item.platform,status:item.status,season:item.season,sourceUrl:item.sourceUrl,tracks:getCompetitionTrackDetails(item.id)}]));
+    const modalHtml='<div id="competition-detail-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-inverse-surface/45 p-3 sm:p-6 backdrop-blur-[6px]" data-competition-modal data-track-data="'+escapeHtml(JSON.stringify(trackData))+'" data-competition-data="'+escapeHtml(JSON.stringify(competitionData))+'">'+detailCard.toString()+"</div>";
     main.append(modalHtml);
   }
   if (name === "dashboard") {
