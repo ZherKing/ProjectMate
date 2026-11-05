@@ -15,13 +15,19 @@ export type ScreenName = keyof typeof screens;
 export async function DesignPage({ name, variant, query }: { name: ScreenName; variant?: "register"; query?: Record<string, string | string[] | undefined> }) {
   const session = await auth();
   const user = session?.user;
+  const favoritesView = name === "competitions" && query?.tab === "favorites";
   if ((name === "dashboard" || name === "projects" || name === "settings" || name === "competitionDetail") && !user) redirect("/login");
+  if (favoritesView && !user) redirect("/login?next=/competitions/favorites");
   if (name === "admin" && !(await requireAdmin())) redirect("/login?next=/admin");
   const $ = cheerio.load(screens[name]);
   const text = (el: cheerio.Cheerio<AnyNode>) => el.text().replace(/\s+/g, " ").trim();
   const main = $("main");
   $("[data-action=\"favorite\"]").each((index,el)=>{ $(el).attr("data-favorite-key",name+"-"+index); });
-  const competitions = name === "competitions" || name === "home" || name === "teams" ? listCompetitions() : [];
+  const allCompetitions = name === "competitions" || name === "home" || name === "teams" ? listCompetitions() : [];
+  const favoriteIds = favoritesView && user?.id ? listFavoriteCompetitionIds(user.id) : null;
+  const competitions = favoriteIds
+    ? allCompetitions.filter((item) => favoriteIds.has(item.id) || favoriteIds.has(item.name))
+    : allCompetitions;
   if (name === "competitionDetail") {
     // 详情页只呈现设计稿中的卡片，不重复渲染站点导航、页脚和背景模拟列表。
     $("body > header").remove();
@@ -174,6 +180,12 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     const headings=main.find("h3").slice(0,3);
     const listColumn=headings.first().closest("article").parent();
     listColumn.removeClass("xl:col-span-5").addClass("xl:col-span-12");
+    if (favoritesView) {
+      main.find("h1").first().text("我收藏的赛事");
+      main.find("h1").first().next("p").text("集中查看你保存的比赛，继续了解赛道并开始组队。");
+      main.find("h2").filter((_,el)=>/多维筛选/.test(text($(el)))).closest("aside").remove();
+      main.find("#filter-tabs").remove();
+    }
     const template=headings.first().closest("article").clone();
     const trackGroups=new Map(listCompetitionTracks().map(track=>[track.competitionId,track]));
     const favoriteKeys=user?.id ? listFavoriteCompetitionIds(user.id) : new Set<string>();
@@ -245,6 +257,7 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     main.find("[data-page-prev]").attr("data-action","page-prev");
     main.find("[data-page-next]").attr("data-action","page-next");
     main.find("#filter-tabs button").first().find("span").last().text(String(competitions.length));
+    main.find("#filter-tabs button").filter((_,el)=>/我收藏的/.test(text($(el)))).attr("data-route","/competitions/favorites");
     main.find("button").filter((_,el)=>/发起组队/.test(text($(el)))).attr("data-route","/teams/create");
     main.find("h2").filter((_,el)=>/生产力智能体赛道/.test(text($(el)))).closest("section").remove();
     const detailDoc=cheerio.load(screens.competitionDetail);

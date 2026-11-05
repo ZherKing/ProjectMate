@@ -183,7 +183,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     if(id==="btnSubmit"||id==="registerSubmit")return;
     const label=el.textContent?.replace(/\s+/g," ").trim()||"";
     const route=el.dataset.route;
-    if(route){event.preventDefault();const destination=route.startsWith("/teams/create")?"/teams?create=1":route;if(["/profile","/teams/create","/projects","/dashboard","/settings","/competitions/detail"].some(p=>route.startsWith(p))&&!guard(destination))return;router.push(destination);return;}
+    if(route){event.preventDefault();const destination=route.startsWith("/teams/create")?"/teams?create=1":route;if(["/profile","/teams/create","/projects","/dashboard","/settings","/competitions/detail","/competitions/favorites"].some(p=>route.startsWith(p))&&!guard(destination))return;router.push(destination);return;}
     if(el.tagName==="A"){
       const href=el.getAttribute("href")||"";
       if(href.startsWith("/")){event.preventDefault();const destination=href.startsWith("/teams/create")?"/teams?create=1":href;if(href.startsWith("/teams/create")&&!guard(destination))return;router.push(destination);return;}
