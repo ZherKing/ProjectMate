@@ -17,9 +17,16 @@ export function useSettingsEditor(root: RefObject<HTMLDivElement | null>, enable
     let file: File | null = null;
     let preview = "";
     let busy = false;
+    let wasDirty = false;
     const update = () => {
       const dirty = !!file || fields.some((field,index) => field.value !== initial[index]);
       bar?.classList.toggle("hidden", !dirty);
+      if (dirty && !wasDirty) {
+        bar?.classList.remove("settings-save-bar-enter");
+        if (bar) void bar.offsetWidth;
+        bar?.classList.add("settings-save-bar-enter");
+      }
+      wasDirty = dirty;
       if (bar) { bar.style.position = "fixed"; bar.style.bottom = "24px"; bar.style.left = "24px"; bar.style.right = "24px"; bar.style.zIndex = "45"; bar.style.maxWidth = "1192px"; bar.style.marginInline = "auto"; }
     };
     const changed = async (event: Event) => {

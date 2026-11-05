@@ -95,8 +95,10 @@ button { cursor: pointer; }
 .design-screen [data-design-header] { transition: background-color .28s ease, border-color .28s ease, box-shadow .28s ease, backdrop-filter .28s ease; }
 .design-screen [data-design-header].is-scrolled { background-color: rgba(255,255,255,.78) !important; border-color: rgba(226,226,239,.42); box-shadow: 0 8px 24px rgba(39,30,111,.08); backdrop-filter: blur(20px) saturate(1.15); }
 .design-screen [role="status"] { animation: pm-toast-in .28s cubic-bezier(.22,1,.36,1) both; }
+@keyframes settings-save-bar-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.settings-save-bar-enter { animation: settings-save-bar-enter .22s cubic-bezier(.22,1,.36,1) both; }
 @media (prefers-reduced-motion: reduce) {
-  .pm-header, .design-screen [data-design-header], .pm-toast, .design-screen [role="status"] { animation: none; transition: none; }
+  .pm-header, .design-screen [data-design-header], .pm-toast, .design-screen [role="status"], .settings-save-bar-enter { animation: none; transition: none; }
   .pm-toast-progress { animation: none; }
 }
 .pm-panel { border: 1px solid var(--line); border-radius: 16px; background: white; box-shadow: 0 2px 7px rgba(19,27,46,.025); }
