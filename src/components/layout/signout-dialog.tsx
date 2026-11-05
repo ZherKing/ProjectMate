@@ -56,7 +56,7 @@ export function SignoutDialog({ account }: { account: Account | null }) {
   }
 
   if (!account) return null;
-  return <dialog ref={dialog} className={styles.dialog} aria-labelledby="signout-title" aria-describedby="signout-description" onKeyDown={event => event.stopPropagation()} onCancel={event => { event.preventDefault(); close(); }}>
+  return <dialog ref={dialog} className={styles.dialog} aria-labelledby="signout-title" aria-describedby="signout-description" onKeyDown={event => event.stopPropagation()} onCancel={event => event.preventDefault()}>
     <div className={styles.accent} aria-hidden="true" />
     <div className={styles.body}>
       <div className={styles.header}>
@@ -64,7 +64,7 @@ export function SignoutDialog({ account }: { account: Account | null }) {
           <span className={styles.logoutIcon}><LogOut size={22} /></span>
           <div><h2 id="signout-title">确认退出当前账号？</h2><p id="signout-description">结束本设备上的登录会话</p></div>
         </div>
-        <button type="button" className={styles.close} aria-label="关闭退出登录确认" disabled={pending} onClick={close}><X size={18} /><kbd>ESC</kbd></button>
+        <button type="button" className={styles.close} aria-label="关闭退出登录确认" disabled={pending} onClick={close}><X size={18} /></button>
       </div>
       <div className={styles.identity}>
         <div className={styles.account}><span className={styles.avatar}>{(account.name || account.email || "我").slice(0, 1)}<i /></span><div><strong>{account.name || "项目成员"}</strong><p>{account.email}</p></div></div>

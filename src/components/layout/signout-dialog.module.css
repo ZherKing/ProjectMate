@@ -10,9 +10,8 @@
 .dialog h2 { margin: 0; font-size: 18px; font-weight: 600; line-height: 26px; }
 .dialog p { margin: 0; font-size: 12px; line-height: 18px; color: var(--muted); }
 .heading p { margin-top: 2px; }
-.close { display: flex; align-items: center; gap: 4px; padding: 4px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); }
+.close { display: grid; place-items: center; width: 30px; height: 30px; padding: 4px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); }
 .close:hover { background: var(--surface-soft); }
-.close kbd { padding: 2px 4px; border-radius: 3px; background: var(--surface-strong); font-size: 10px; }
 .identity { margin-top: 20px; padding: 14px; border-radius: 8px; background: var(--surface-soft); }
 .account { gap: 12px; min-width: 0; }
 .account > div { min-width: 0; }
@@ -38,4 +37,4 @@
 .dialog .error { margin-top: 12px; color: var(--red); }
 @keyframes appear { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .dialog[open] { animation: none; } }
-@media (max-width: 420px) { .body { padding: 18px; } .close kbd { display: none; } .actions { gap: 8px; } .cancel,.confirm { padding: 8px 12px; } .footer { padding: 10px 18px; } }
+@media (max-width: 420px) { .body { padding: 18px; } .actions { gap: 8px; } .cancel,.confirm { padding: 8px 12px; } .footer { padding: 10px 18px; } }

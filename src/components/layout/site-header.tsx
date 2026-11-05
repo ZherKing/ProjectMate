@@ -6,6 +6,7 @@ import { ScrollHeader } from "./scroll-header";
 import { SiteNav } from "./site-nav";
 import styles from "./site-header.module.css";
 import { getSiteSetting } from "@/lib/site-settings";
+import { NavigationProgress } from "./navigation-progress";
 
 const nav = [["比赛中心", "/competitions"], ["组队大厅", "/teams"], ["项目空间", "/projects"]] as const;
 
@@ -14,7 +15,7 @@ export async function SiteHeader() {
   const isAdmin = !!user?.id && hasAdminRole(user.id);
   const siteName = getSiteSetting("site.name") || "ProjectMate";
   const siteIcon = getSiteSetting("site.icon") || "/assets/logo.svg";
-  return <ScrollHeader className={styles.header}>
+  return <><ScrollHeader className={styles.header}>
     <div className={styles.inner}>
       <div className={styles.left}>
         <Link href="/" aria-label={`${siteName} 首页`} className={styles.brand}><img src={siteIcon} alt="" width={32} height={32} /><span>{siteName}</span></Link>
@@ -33,5 +34,5 @@ export async function SiteHeader() {
         </> : <><Link href="/login" className={styles.login}>登录</Link><Link href="/register" className={styles.primary}>免费注册</Link></>}
       </div>
     </div>
-  </ScrollHeader>;
+  </ScrollHeader><NavigationProgress /></>;
 }
