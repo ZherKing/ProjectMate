@@ -63,6 +63,9 @@ button { cursor: pointer; }
 .pm-user-menu:hover > .pm-user-menu-panel,
 .pm-user-menu:focus-within > .pm-user-menu-panel,
 .pm-user-menu[open] > .pm-user-menu-panel { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0); }
+.pm-user-menu:hover > .pm-user-menu-panel,
+.pm-user-menu:focus-within > .pm-user-menu-panel,
+.pm-user-menu[open] > .pm-user-menu-panel { display: block; }
 .pm-user-menu-panel a { display: block; padding: 9px 10px; border-radius: 7px; color: var(--ink); font-size: 12px; }
 .pm-user-menu-panel a:hover { background: var(--surface-soft); color: var(--primary); }
 .pm-header-cta { display: inline-flex; align-items: center; gap: 6px; height: 34px; border: 0; border-radius: 8px; padding: 0 12px; color: white; background: var(--primary); font-size: 12px; font-weight: 650; box-shadow: 0 2px 5px rgba(53,37,205,.14); }
