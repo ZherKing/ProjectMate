@@ -35,5 +35,6 @@ export function initializeDatabase() {
       if (!columnsAfterMigration.some((column) => column.name === "role")) throw error;
     }
   }
+  sqlite.exec("CREATE TABLE IF NOT EXISTS user_avatars (user_id TEXT PRIMARY KEY NOT NULL, content BLOB NOT NULL, content_type TEXT NOT NULL, updated_at INTEGER NOT NULL)");
   initialized = true;
 }

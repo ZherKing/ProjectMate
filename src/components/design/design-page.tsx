@@ -50,6 +50,22 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     main.find('input[type="text"]').filter((_,el)=>$(el).attr("value")==="计算机科学与软件学院 (2022级本硕)").attr("value", profile?.school || "");
     main.find('input[type="text"]').filter((_,el)=>$(el).attr("value")==="林星宇").attr("value", user.name || "");
     main.find('input').eq(3).attr("value", profile?.skills || "");
+    main.find('input').eq(0).attr("data-settings-field","name").attr("maxlength","40");
+    main.find('input').eq(1).attr("data-settings-field","school").attr("maxlength","120").removeAttr("readonly").removeClass("cursor-not-allowed select-none");
+    const skillInput=main.find('input').eq(3).attr("data-settings-field","skills").attr("maxlength","500").attr("placeholder","输入技能，用逗号分隔");
+    skillInput.parent().children("span").remove();
+    const upload=main.find("button").filter((_,el)=>/更换头像/.test(text($(el)))).attr("data-action","upload-avatar");
+    upload.after('<input type="file" accept="image/png,image/jpeg,image/webp" data-avatar-file class="hidden" aria-label="选择头像图片" />');
+    const avatarArea=upload.parent().parent();
+    avatarArea.find("img").attr("src",user.image||"/assets/logo.svg").attr("alt","个人头像").attr("data-settings-avatar","");
+    avatarArea.find("span").filter((_,el)=>/林星宇 \(StarSky\)/.test(text($(el)))).text(user.name||"项目成员");
+    avatarArea.find("span").filter((_,el)=>/认证高校学生/.test(text($(el)))).remove();
+    main.find("span").filter((_,el)=>/^已核验$|ENTERPRISE SSO BOUND/.test(text($(el)))).text("账号资料");
+    main.find("p").filter((_,el)=>/全国大学生计算机系统与算法竞赛参赛资格已同步/.test(text($(el)))).text("填写你的学校或所在组织。");
+    main.find("p").filter((_,el)=>/绑定后不可直接修改/.test(text($(el)))).text("邮箱用于账号登录，当前页面不支持变更登录邮箱。");
+    main.find("span").filter((_,el)=>/草稿配置已实时写入客户端本地缓存/.test(text($(el)))).text("你有尚未保存的个人资料修改");
+    main.find("span").filter((_,el)=>/^MAX 5 TAGS$/.test(text($(el)))).text("用逗号分隔");
+    main.find("button").filter((_,el)=>/放弃未保存修改/.test(text($(el)))).attr("data-action","discard-settings");
     main.find('input[type="email"]').attr("value", user.email || "");
     main.find("button").filter((_,el)=>/保存个人设置/.test(text($(el)))).attr("data-action","save-settings");
     main.find("#save-settings-btn").closest("div.sticky").attr("data-settings-save-bar","").addClass("hidden");
@@ -119,6 +135,7 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
   } else {
     actions.html('<a href="/login" class="px-3 py-1.5 text-primary rounded-lg text-label-md font-semibold">登录</a><a href="/register" class="px-3 py-1.5 bg-primary text-on-primary rounded-lg text-label-md font-semibold">免费注册</a>');
   }
+  if(user?.image) actions.find("summary > span").first().html('<img src="'+escapeHtml(user.image)+'" alt="个人头像" class="w-8 h-8 rounded-full object-cover" />');
   $('header img[alt="ProjectMate Brand Logo"]').parent().wrap('<a href="/" aria-label="ProjectMate 首页"></a>');
   // Preserve the source navigation and route semantics.
   $("a[data-path]").each((_, el) => { if ($(el).attr("href") === "#") $(el).attr("href", "/"); });

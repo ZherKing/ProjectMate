@@ -15,7 +15,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     session({ session, token }) {
-      if (session.user && token.sub) session.user.id = token.sub;
+      if (session.user && token.sub) {
+        session.user.id = token.sub;
+        initializeDatabase();
+        const account = sqlite.prepare("SELECT name FROM users WHERE id = ?").get(token.sub) as { name: string | null } | undefined;
+        if (account) session.user.name = account.name;
+        const avatar = sqlite.prepare("SELECT updated_at AS version FROM user_avatars WHERE user_id = ?").get(token.sub) as { version: number } | undefined;
+        session.user.image = avatar ? `/api/avatars/${encodeURIComponent(token.sub)}?v=${avatar.version}` : null;
+      }
       return session;
     },
   },

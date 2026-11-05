@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Info, X } from "lucide-react";
 import { screenAction } from "./actions";
+import { useSettingsEditor } from "./use-settings-editor";
 
 type Notice = { title: string; message: string; login?: boolean };
 export function DesignScreen({ name, html, loggedIn, variant }: { name: string; html: string; loggedIn: boolean; variant?: "register" }) {
@@ -77,6 +78,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     return()=>window.removeEventListener("scroll",onScroll);
   },[]);
   const toast=(message:string,title="操作提示",login=false)=>setNotice({title,message,login});
+  useSettingsEditor(root,name==="settings",html,toast);
   const guard=(returnTo?:string)=>{if(loggedIn)return true;loginReturnTo.current=returnTo||location.pathname+location.search;toast("正在前往登录页面，登录后可继续当前操作。","需要登录",true);return false;};
   const modal=(id:string,open:boolean)=>{const el=root.current?.querySelector("#"+id);if(el){el.classList.toggle("hidden",!open);el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");if(open)(el.querySelector('button,input') as HTMLElement|null)?.focus();}};
   const value=(id:string)=>(root.current?.querySelector("#"+id) as HTMLInputElement|HTMLTextAreaElement|null)?.value||"";
@@ -299,13 +301,6 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       filterCompetitions();return;
     }
     if(action==="logout"){toast("正在退出当前登录会话。","退出登录");setTimeout(()=>router.push("/api/auth/signout?callbackUrl=/"),800);return;}
-    if(action==="save-settings"){
-      const inputs=[...root.current.querySelectorAll<HTMLInputElement>("input")].filter(input=>!input.placeholder?.includes("搜索"));
-      const areas=[...root.current.querySelectorAll<HTMLTextAreaElement>("textarea")];
-      const result=await run("save-profile",{school:inputs[1]?.value||"",education:"",roles:"",skills:inputs[3]?.value||areas.at(-1)?.value||"",interests:"",weeklyHours:"0"},button);
-      if(result?.ok)router.refresh();
-      return;
-    }
     if(action==="review-approve"||action==="review-reject"){
       const competitionId=el.dataset.reviewId||el.closest<HTMLElement>('[data-review-id]')?.dataset.reviewId||"";
       const decision=action==="review-approve"?"approved":"rejected";
@@ -347,7 +342,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     if(action==="unavailable"||button){toast("此功能尚在完善中，当前操作未修改数据。","功能说明");}
   }
   return <div className="design-screen" data-screen={name} data-variant={variant}>
-    <div ref={root} onSubmit={onAuthSubmit} onClick={onClick} onInput={event=>{const target=event.target as HTMLElement;if(name==="settings"&&(target.matches("input,textarea")||target.closest("[data-settings-save-bar]")))root.current?.querySelector<HTMLElement>("[data-settings-save-bar]")?.classList.remove("hidden");if(target.matches('[data-competition-search],[data-platform-filter],[data-status-filter]'))filterCompetitions();}} onChange={event=>{const target=event.target as HTMLElement;if(name==="settings"&&target.matches("input,textarea"))root.current?.querySelector<HTMLElement>("[data-settings-save-bar]")?.classList.remove("hidden");if(target.matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}}>{markup}</div>
+    <div ref={root} onSubmit={onAuthSubmit} onClick={onClick} onInput={event=>{if((event.target as HTMLElement).matches('[data-competition-search],[data-platform-filter],[data-status-filter]'))filterCompetitions();}} onChange={event=>{if((event.target as HTMLElement).matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}}>{markup}</div>
     {notice&&<div className={`fixed top-20 right-6 z-[100] w-80 max-w-[calc(100vw-2rem)] flex gap-3 overflow-hidden p-4 pb-5 bg-white rounded-xl shadow-xl border-l-4 border-primary ${noticeClosing?"pm-toast-closing":""}`} role="status" aria-live="polite" style={{"--pm-toast-duration":`${notice.login?1200:5000}ms`} as CSSProperties}><Info className="text-primary shrink-0" size={20}/><div className="flex-1"><p className="text-label-md font-semibold">{notice.title}</p><p className="text-body-sm text-on-surface-variant mt-1">{notice.message}</p></div>{!notice.login&&<button aria-label="关闭通知" onClick={()=>{setNoticeClosing(true);setTimeout(()=>setNotice(null),220);}}><X size={16}/></button>}<span className="pm-toast-progress absolute bottom-0 left-0 h-[3px] w-full origin-left bg-primary" aria-hidden="true"/></div>}
   </div>;
 }

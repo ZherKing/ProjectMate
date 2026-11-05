@@ -1,4 +1,11 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { blob, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+
+export const userAvatars = sqliteTable("user_avatars", {
+  userId: text("user_id").primaryKey(),
+  content: blob("content", { mode: "buffer" }).notNull(),
+  contentType: text("content_type").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
