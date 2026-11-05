@@ -11,6 +11,8 @@ import { useSettingsEditor } from "./use-settings-editor";
 type Notice = { title: string; message: string; login?: boolean };
 export function DesignScreen({ name, html, loggedIn, variant }: { name: string; html: string; loggedIn: boolean; variant?: "register" }) {
   const root=useRef<HTMLDivElement>(null);
+  const detailCloseTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  useEffect(()=>()=>{if(detailCloseTimer.current)clearTimeout(detailCloseTimer.current);},[]);
   const markup = useMemo(() => <div dangerouslySetInnerHTML={{__html:html}} />, [html]);
   const router=useRouter();
   const [notice,setNotice]=useState<Notice|null>(null);
@@ -242,12 +244,20 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
         const trackLabel=card.querySelector("[data-modal-track-label]");if(trackLabel)trackLabel.textContent=firstTrack?`赛道 1 · ${firstTrack.name}`:"暂无赛道信息";
         const trackDeadline=card.querySelector("[data-modal-track-deadline]");if(trackDeadline)trackDeadline.textContent=firstTrack?.deadline?new Date(firstTrack.deadline).toLocaleString("zh-CN"):"暂无提交截止时间";
         const sourceNote=card.querySelector("[data-modal-source-note]");if(sourceNote)sourceNote.textContent=competition?.sourceUrl?"信息来源已通过赛事官方公开页面校验":"赛事官方来源尚未提供";
-        card.classList.remove("hidden");
+        if(detailCloseTimer.current){clearTimeout(detailCloseTimer.current);detailCloseTimer.current=null;}
+        card.classList.remove("hidden","pm-detail-closing");
       }
       return;
     }
     if(action==="favorites-unavailable"){toast("收藏页面正在重新设计，当前入口已保留。","功能调整");return;}
-    if(action==="close-competition-detail"){root.current.querySelector<HTMLElement>('#competition-detail-modal')?.classList.add("hidden");return;}
+    if(action==="close-competition-detail"){
+      const detail=root.current.querySelector<HTMLElement>('#competition-detail-modal');
+      if(!detail||detail.classList.contains("pm-detail-closing"))return;
+      if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){detail.classList.add("hidden");return;}
+      detail.classList.add("pm-detail-closing");
+      detailCloseTimer.current=setTimeout(()=>{detail.classList.add("hidden");detail.classList.remove("pm-detail-closing");detailCloseTimer.current=null;},180);
+      return;
+    }
     if(action==="view-competition-source"){return;}
     if(action==="start-team"){if(guard("/teams/create"))router.push("/teams/create?competition="+encodeURIComponent(el.closest<HTMLElement>('[data-competition-modal]')?.dataset.competitionId||""));return;}
     if(action==="detail-favorite"){
