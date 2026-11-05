@@ -32,6 +32,21 @@ export function useAdminWorkspace(root: RefObject<HTMLDivElement | null>, enable
     const clicked = (event: MouseEvent) => {
       if (!(event.target instanceof Element)) return;
       const button = event.target.closest<HTMLButtonElement>("button[data-admin-queue-page], button[data-admin-refresh]");
+      const settingsButton = event.target.closest<HTMLButtonElement>("button[data-admin-settings-save], button[data-admin-settings-test]");
+      if (settingsButton) {
+        event.preventDefault();
+        const values = Object.fromEntries([...scope.querySelectorAll<HTMLInputElement>("[data-admin-setting]")].map(input => [input.name, input.type === "checkbox" ? input.checked : input.value]));
+        const message = scope.querySelector<HTMLElement>("[data-admin-settings-message]");
+        const endpoint = settingsButton.hasAttribute("data-admin-settings-test") ? "/api/admin/settings/test" : "/api/admin/settings";
+        const payload = settingsButton.hasAttribute("data-admin-settings-test") ? { ...values, to: values.testTo } : values;
+        if (settingsButton.hasAttribute("data-admin-settings-test")) delete payload.testTo;
+        fetch(endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) }).then(async response => {
+          const result = await response.json();
+          if (message) { message.textContent = result.message || "操作完成"; message.classList.remove("hidden"); }
+          notify(result.message || "操作完成", response.ok ? "操作成功" : "操作未完成");
+        }).catch(() => notify("请求未完成，请稍后重试。", "连接失败"));
+        return;
+      }
       if (!button) return;
       event.preventDefault();
       event.stopPropagation();

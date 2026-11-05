@@ -2,11 +2,12 @@ import type { CheerioAPI } from "cheerio";
 import { sqlite } from "@/lib/db/client";
 import { listAdminAuditLogs, listAdminUsers, listPendingCompetitions } from "@/lib/db/queries";
 import { isConfiguredAdminEmail } from "@/lib/auth/permissions";
+import { getSiteSetting } from "@/lib/site-settings";
 
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]!);
 const dateLabel = (value: number | null) => value ? new Date(value).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false }) : "暂无入库记录";
 
-export function populateAdminContent($: CheerioAPI, currentUserId: string, section: "review" | "sources" | "users" | "logs") {
+export function populateAdminContent($: CheerioAPI, currentUserId: string, section: "review" | "sources" | "users" | "logs" | "settings") {
   const pending = listPendingCompetitions();
   const users = listAdminUsers();
   const logs = section === "logs" ? listAdminAuditLogs() : [];
@@ -57,10 +58,10 @@ export function populateAdminContent($: CheerioAPI, currentUserId: string, secti
   $("[data-admin-audit]").addClass("space-y-3").html(logs.length ? logs.map(log => `<article class="p-4 rounded-xl bg-surface"><div class="flex flex-wrap items-center justify-between gap-2"><h3 class="font-label-md text-label-md text-on-surface">${escapeHtml(actionNames[log.action] || log.action)}</h3><time class="font-mono-metric text-mono-metric text-on-surface-variant">${dateLabel(log.createdAt)}</time></div><p class="mt-2 font-body-sm text-body-sm text-on-surface-variant break-all">操作人：${escapeHtml(log.actorEmail || log.actorId)}</p><p class="mt-1 font-body-sm text-body-sm text-on-surface-variant break-all">${log.targetType === "competition" ? "赛事" : "用户"}：${escapeHtml(log.targetId)}</p>${log.details ? `<p class="mt-2 font-body-sm text-body-sm text-on-surface-variant break-words">记录：${escapeHtml(log.details)}</p>` : ""}</article>`).join("") : '<p class="py-8 text-center font-body-md text-body-md text-on-surface-variant">暂无操作记录，赛事审核与角色变更后会自动记录。</p>');
   $("[data-admin-audit-status]").text(logs.length ? `最近操作：${dateLabel(logs[0].createdAt)} · 审计记录保存在本站数据库` : "审计记录保存在本站数据库，当前暂无管理操作");
 
-  const routes = ["/admin", "/admin/sources", "/admin/users", "/admin/logs"];
-  const sections = ["#moderation-queue", "#data-sources", "#rbac-permissions", "#audit-trail"];
-  const labels = ["赛事审核", "数据源与爬虫", "用户管理", "操作日志"];
-  const sectionNames = ["review", "sources", "users", "logs"];
+  const routes = ["/admin", "/admin/sources", "/admin/users", "/admin/logs", "/admin/settings"];
+  const sections = ["#moderation-queue", "#data-sources", "#rbac-permissions", "#audit-trail", "#site-settings"];
+  const labels = ["赛事审核", "数据源与爬虫", "用户管理", "操作日志", "网站设置"];
+  const sectionNames = ["review", "sources", "users", "logs", "settings"];
   const sectionIndex = sectionNames.indexOf(section);
   $("nav[aria-label='治理模块分类'] a").each((index, element) => {
     const link = $(element);
@@ -73,18 +74,25 @@ export function populateAdminContent($: CheerioAPI, currentUserId: string, secti
     else link.removeAttr("aria-current");
     link.find("span.truncate").text(labels[index]);
   });
-  if (!$('nav[aria-label="治理模块分类"] a[href="/admin/settings"]').length) {
-    $("nav[aria-label='治理模块分类']").append('<a href="/admin/settings" class="flex items-center justify-between p-2.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all"><span class="font-body-md text-body-md">网站设置</span></a>');
-  }
-  const pageTitles = ["赛事审核", "数据源与爬虫", "用户管理", "操作日志"];
+  const settingsLink = $("nav[aria-label='治理模块分类'] a").eq(4);
+  if (!settingsLink.length) $("nav[aria-label='治理模块分类']").append('<a href="/admin/settings" class="flex items-center justify-between p-2.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all"><span class="flex items-center gap-3"><span class="font-mono-metric text-mono-metric">05</span><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="design-icon text-[20px]" data-icon="settings" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.41 1.41-.06-.06A1.7 1.7 0 0 0 16.45 18a1.7 1.7 0 0 0-1 .99V19a1.7 1.7 0 0 0-1.7 1.7h-2A1.7 1.7 0 0 0 10.05 19v-.01a1.7 1.7 0 0 0-1-.99 1.7 1.7 0 0 0-1.88.34l-.06.06-1.41-1.41.06-.06A1.7 1.7 0 0 0 6.1 15c.14-.48.52-.85 1-.99H7A1.7 1.7 0 0 0 8.7 12.3v-.6A1.7 1.7 0 0 0 7 10h-.1c-.48-.14-.86-.51-1-.99a1.7 1.7 0 0 0 .34-1.88l-.06-.06 1.41-1.41.06.06A1.7 1.7 0 0 0 9.53 6.1c.34-.34.52-.8.52-1.28V5A1.7 1.7 0 0 0 11.75 3.3h.5A1.7 1.7 0 0 0 13.95 5v.1c0 .48.18.94.52 1.28a1.7 1.7 0 0 0 1.88.34l.06-.06 1.41 1.41-.06.06A1.7 1.7 0 0 0 17.9 9c.14.48.52.85 1 .99H19A1.7 1.7 0 0 0 20.7 11.7v.6A1.7 1.7 0 0 0 19 14h-.1c-.48.14-.86.51-1 .99Z"></path></svg><span class="font-body-md text-body-md">网站设置</span></span></a>');
+  const currentSettingsLink = $("nav[aria-label='治理模块分类'] a[href='/admin/settings']");
+  currentSettingsLink.toggleClass("bg-surface-container-low", section === "settings").toggleClass("text-primary", section === "settings").toggleClass("text-on-surface-variant", section !== "settings");
+  if (section === "settings") currentSettingsLink.attr("aria-current", "page");
+  const pageTitles = ["赛事审核", "数据源与爬虫", "用户管理", "操作日志", "网站设置"];
   const descriptions = [
     "审核新抓取赛事，确认来源与信息后再发布到比赛中心。",
     "查看各抓取适配器状态和本站收录的数据。",
     "查看账号角色，并按邮箱白名单授予管理员权限。",
     "查看赛事审核与用户角色调整的操作记录。",
+    "管理网站品牌信息和 SMTP 邮件服务。",
   ];
   $("[data-admin-heading] h1").text(pageTitles[sectionIndex]);
   $("[data-admin-heading] p").text(descriptions[sectionIndex]);
+  if (section === "settings") {
+    const panel = $(`<section id="site-settings" class="bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col gap-5"><div><div class="flex items-center gap-2"><span class="font-mono-metric text-mono-metric px-2 py-0.5 rounded bg-surface-container-high text-primary font-bold">05</span><h2 class="font-title-lg text-title-lg text-on-surface">网站设置</h2></div><p class="mt-1 font-body-sm text-body-sm text-on-surface-variant">管理网站名称、图标和 SMTP 邮件服务。</p></div><div class="grid gap-6"><div class="rounded-xl bg-surface-container-low p-5"><h3 class="font-title-md text-title-md">网站基础信息</h3><div class="mt-4 grid gap-4 md:grid-cols-2"><label class="font-body-sm text-body-sm">网站名称<input name="siteName" data-admin-setting class="mt-2 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2" value="${escapeHtml(getSiteSetting("site.name") || "ProjectMate")}" /></label><label class="font-body-sm text-body-sm">网站 ICON 地址<input name="siteIcon" data-admin-setting class="mt-2 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2" value="${escapeHtml(getSiteSetting("site.icon"))}" placeholder="/assets/logo.svg" /></label></div></div><div class="rounded-xl bg-surface-container-low p-5"><h3 class="font-title-md text-title-md">SMTP 邮件服务</h3><div class="mt-4 grid gap-4 md:grid-cols-2"><label class="font-body-sm text-body-sm">服务器地址<input name="host" data-admin-setting class="mt-2 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2" value="${escapeHtml(getSiteSetting("smtp.host"))}" /></label><label class="font-body-sm text-body-sm">端口<input name="port" data-admin-setting class="mt-2 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2" value="${escapeHtml(getSiteSetting("smtp.port") || "587")}" /></label><label class="font-body-sm text-body-sm">SMTP 用户名<input name="user" data-admin-setting class="mt-2 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2" value="${escapeHtml(getSiteSetting("smtp.user"))}" /></label><label class="font-body-sm text-body-sm">SMTP 密码<input name="password" data-admin-setting type="password" class="mt-2 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2" placeholder="留空保持原密码" /></label><label class="font-body-sm text-body-sm">发件人名称<input name="fromName" data-admin-setting class="mt-2 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2" value="${escapeHtml(getSiteSetting("smtp.fromName") || "ProjectMate")}" /></label><label class="font-body-sm text-body-sm">发件人邮箱<input name="fromEmail" data-admin-setting class="mt-2 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2" value="${escapeHtml(getSiteSetting("smtp.fromEmail"))}" /></label></div><label class="mt-4 flex items-center gap-2 font-body-sm text-body-sm"><input name="secure" data-admin-setting type="checkbox" ${getSiteSetting("smtp.secure") === "true" ? "checked" : ""} />使用 SSL/TLS</label><div class="mt-5 flex flex-wrap gap-3"><input name="testTo" data-admin-setting class="rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 font-body-sm text-body-sm" placeholder="测试收件邮箱" /><button type="button" data-admin-settings-save class="rounded-lg bg-primary px-4 py-2 text-label-md text-on-primary">保存设置</button><button type="button" data-admin-settings-test class="rounded-lg bg-surface-container-high px-4 py-2 text-label-md text-on-surface">测试发送</button></div><p data-admin-settings-message class="hidden mt-3 font-body-sm text-body-sm text-on-surface-variant"></p></div></div></section>`);
+    $(".flex.flex-col.lg\\:flex-row").first().find("> main").append(panel);
+  }
   const visibleSection = sections[sectionIndex];
   sections.filter(selector => selector !== visibleSection).forEach(selector => $(selector).remove());
   $('a[data-admin-section-link][href="#audit-trail"]').attr("href", "/admin/logs").removeAttr("data-admin-section-link");

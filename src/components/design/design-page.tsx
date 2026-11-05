@@ -17,7 +17,7 @@ import { configureSettingsPage, type SettingsSection } from "./settings-content"
 
 export type ScreenName = keyof typeof screens;
 
-export async function DesignPage({ name, variant, query, adminSection = "review", settingsSection = "profile" }: { name: ScreenName; variant?: "register"; query?: Record<string, string | string[] | undefined>; adminSection?: "review" | "sources" | "users" | "logs"; settingsSection?: SettingsSection }) {
+export async function DesignPage({ name, variant, query, adminSection = "review", settingsSection = "profile" }: { name: ScreenName; variant?: "register"; query?: Record<string, string | string[] | undefined>; adminSection?: "review" | "sources" | "users" | "logs" | "settings"; settingsSection?: SettingsSection }) {
   const session = await auth();
   const user = session?.user;
   const favoritesView = name === "favorites" || (name === "competitions" && query?.tab === "favorites");
