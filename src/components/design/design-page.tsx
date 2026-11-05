@@ -12,10 +12,11 @@ import { DesignScreen } from "./design-screen";
 import { SiteShell } from "@/components/layout/site-shell";
 import { SiteHeader } from "@/components/layout/site-header";
 import { populateAdminContent } from "./admin-content";
+import { configureSettingsPage, type SettingsSection } from "./settings-content";
 
 export type ScreenName = keyof typeof screens;
 
-export async function DesignPage({ name, variant, query, adminSection = "review" }: { name: ScreenName; variant?: "register"; query?: Record<string, string | string[] | undefined>; adminSection?: "review" | "sources" | "users" | "logs" }) {
+export async function DesignPage({ name, variant, query, adminSection = "review", settingsSection = "profile" }: { name: ScreenName; variant?: "register"; query?: Record<string, string | string[] | undefined>; adminSection?: "review" | "sources" | "users" | "logs"; settingsSection?: SettingsSection }) {
   const session = await auth();
   const user = session?.user;
   const favoritesView = name === "favorites" || (name === "competitions" && query?.tab === "favorites");
@@ -78,6 +79,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     main.find("#save-settings-btn").closest("div.sticky").attr("data-settings-save-bar","").addClass("hidden");
     main.find("button").filter((_,el)=>/立即接入 OAuth 认证|接入新 MCP 协议|更新密码|重置密钥|注销 Token|申请永久注销/.test(text($(el)))).attr("data-action","unavailable");
     main.find("button").filter((_,el)=>/退出当前登录会话/.test(text($(el)))).attr("data-action","logout");
+    configureSettingsPage($, settingsSection);
   }
   if (name === "favorites" && user?.id) {
     const firstHeading=main.find("h3").first();
