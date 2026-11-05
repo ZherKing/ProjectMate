@@ -360,6 +360,14 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     const select=$("#creator-comp-select");select.empty();competitions.forEach(c=>select.append('<option value="'+escapeHtml(c.id)+'">'+escapeHtml(c.name)+'</option>'));
   }
   if (name === "projects") {
+    const metricSection=main.find("section").filter((_,el)=>/整体完成度/.test(text($(el)))).first();
+    const metricCards=metricSection.find("[class*='bg-surface-container-low']").filter((_,el)=>/整体完成度|决赛作品提交倒计时/.test(text($(el))));
+    const leftColumn=main.find("h3").filter((_,el)=>/当前冲刺目标/.test(text($(el)))).first().closest("div.xl\\:col-span-3");
+    if(metricSection.length&&leftColumn.length){
+      metricCards.each((_,el)=>{leftColumn.prepend($(el).clone());});
+      metricSection.remove();
+    }
+    main.find("h4").filter((_,el)=>/赛道评审偏好对应/.test(text($(el)))).closest("div.bg-surface-container-lowest").remove();
     const report = getLatestCoachReport("demo-project");
     const liveTasks = listProjectTasks("demo-project");
     if(report){
