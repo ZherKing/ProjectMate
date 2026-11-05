@@ -42,10 +42,13 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       const status=params.get("status")||"";
       scope.querySelectorAll<HTMLInputElement>('[data-status-filter]').forEach(i=>i.checked=i.dataset.statusFilter===status);
       const sort=params.get("sort")||"default";
+      scope.dataset.competitionPage=params.get("page")||"1";
+      scope.dataset.favoritesMode=params.get("tab")==="favorites"?"true":"false";
       scope.querySelectorAll<HTMLElement>('[data-sort-filter]').forEach(i=>{
         const on=i.dataset.sortFilter===sort;i.dataset.selected=String(on);
         i.classList.toggle("bg-surface-container-lowest",on);i.classList.toggle("text-primary",on);i.classList.toggle("font-semibold",on);
       });
+      const heading=scope.querySelector("h1");if(heading)heading.textContent=scope.dataset.favoritesMode==="true"?"我收藏的赛事":"发现比赛";
       filterCompetitions(false);
     };
     restore();window.addEventListener("popstate",restore);
@@ -65,7 +68,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     },duration+220);
     return()=>{clearTimeout(closeTimer);clearTimeout(removeTimer);};
   },[notice,router]);
-  useEffect(()=>{const onKey=(event:KeyboardEvent)=>{if(event.key==="Escape")root.current?.querySelectorAll('[role="dialog"],#creator-modal,#ai-synergy-modal,#demo-modal,#poster-modal').forEach(el=>el.classList.add("hidden"));};document.addEventListener("keydown",onKey);return()=>document.removeEventListener("keydown",onKey);},[]);
+  useEffect(()=>{const onKey=(event:KeyboardEvent)=>{if(event.key==="Escape")root.current?.querySelectorAll('[role="dialog"]:not(#competition-detail-modal-card),#creator-modal,#ai-synergy-modal,#demo-modal,#poster-modal').forEach(el=>el.classList.add("hidden"));};document.addEventListener("keydown",onKey);return()=>document.removeEventListener("keydown",onKey);},[]);
   useEffect(()=>{
     const header=root.current?.querySelector<HTMLElement>('[data-design-header]');
     if(!header)return;
@@ -103,25 +106,20 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     const platforms=inputs.filter(i=>i.checked).map(i=>i.dataset.platformFilter||"");
     const status=scope.querySelector<HTMLInputElement>('[data-status-filter]:checked')?.dataset.statusFilter||"";
     const cards=[...scope.querySelectorAll<HTMLElement>('[data-competition-id]')];
-    let count=0;
-    cards.forEach(card=>{
-      const text=(card.dataset.searchText||"").normalize("NFKC").toLowerCase();
-      const visible=terms.every(term=>text.includes(term)) && platforms.includes(card.dataset.platform||"")
-        && (!status||card.dataset.status===status);
-      card.classList.toggle("hidden",!visible);if(visible)count++;
-    });
+    const favoritesMode=scope.dataset.favoritesMode==="true";
+    const matched=cards.filter(card=>{const text=(card.dataset.searchText||"").normalize("NFKC").toLowerCase();return (!favoritesMode||card.dataset.favorite==="true")&&terms.every(term=>text.includes(term))&&platforms.includes(card.dataset.platform||"")&&(!status||card.dataset.status===status);});
     const sort=scope.querySelector<HTMLElement>('[data-sort-filter][data-selected="true"]')?.dataset.sortFilter||"default";
     const deadline=(card:HTMLElement)=>card.dataset.deadline?Number(card.dataset.deadline):Infinity;
-    cards.sort((a,b)=>sort==="name"?(a.querySelector("h3")?.textContent||"").localeCompare(b.querySelector("h3")?.textContent||"","zh-CN"):
-      sort==="updated"?Number(b.dataset.updatedAt)-Number(a.dataset.updatedAt):
-      sort==="deadline"?(deadline(a)-deadline(b)||Number(a.dataset.defaultOrder)-Number(b.dataset.defaultOrder)):
-      Number(a.dataset.defaultOrder)-Number(b.dataset.defaultOrder));
-    const parent=cards[0]?.parentElement;cards.forEach(card=>parent?.append(card));
-    const heading=scope.querySelector('[data-results-heading]');if(heading)heading.textContent="共匹配 "+count+" 项赛事";
-    scope.querySelector('[data-no-competitions]')?.classList.toggle("hidden",count>0);
+    matched.sort((a,b)=>sort==="name"?(a.querySelector("h3")?.textContent||"").localeCompare(b.querySelector("h3")?.textContent||"","zh-CN"):sort==="updated"?Number(b.dataset.updatedAt)-Number(a.dataset.updatedAt):sort==="deadline"?(deadline(a)-deadline(b)||Number(a.dataset.defaultOrder)-Number(b.dataset.defaultOrder)):Number(a.dataset.defaultOrder)-Number(b.dataset.defaultOrder));
+    const parent=cards[0]?.parentElement;matched.forEach(card=>parent?.append(card));
+    const pageSize=6;const totalPages=Math.max(1,Math.ceil(matched.length/pageSize));let page=syncUrl?1:Math.min(Math.max(Number(scope.dataset.competitionPage||1),1),totalPages);scope.dataset.competitionPage=String(page);
+    const visible=new Set(matched.slice((page-1)*pageSize,page*pageSize));cards.forEach(card=>card.classList.toggle("hidden",!visible.has(card)));
+    const heading=scope.querySelector('[data-results-heading]');if(heading)heading.textContent="共匹配 "+matched.length+" 项赛事";
+    scope.querySelector('[data-no-competitions]')?.classList.toggle("hidden",matched.length>0);
+    const pagination=scope.querySelector<HTMLElement>('[data-pagination]');if(pagination){const label=pagination.querySelector('[data-page-label]');if(label)label.textContent=`第 ${page} / ${totalPages} 页`;const prev=pagination.querySelector<HTMLButtonElement>('[data-page-prev]');const next=pagination.querySelector<HTMLButtonElement>('[data-page-next]');if(prev)prev.disabled=page<=1;if(next)next.disabled=page>=totalPages;}
     if(syncUrl){
       const params=new URLSearchParams(location.search);
-      for(const key of ["q","platform","status","track","sort"])params.delete(key);
+      for(const key of ["q","platform","status","track","sort","page"])params.delete(key);
       if(q)params.set("q",q);
       if(!platforms.length)params.append("platform","__none__");
       else if(platforms.length!==inputs.length)platforms.forEach(item=>params.append("platform",item));
@@ -321,7 +319,8 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       root.current.querySelectorAll<HTMLElement>("[data-sort-filter]").forEach(item=>{const on=item===el;item.dataset.selected=String(on);item.classList.toggle("bg-surface-container-lowest",on);item.classList.toggle("text-primary",on);item.classList.toggle("font-semibold",on);});filterCompetitions();return;
     }
     if(el.classList.contains('filter-pill')||el.classList.contains('role-chip')){el.dataset.selected=el.dataset.selected==="true"?"false":"true";el.classList.toggle('bg-primary');el.classList.toggle('text-on-primary');filterTeams();return;}
-    if(el.closest('#filter-tabs')){el.parentElement?.querySelectorAll('button').forEach(b=>b.classList.remove('bg-primary','text-on-primary'));el.classList.add('bg-primary','text-on-primary');const heading=root.current.querySelector('h1');const cards=[...root.current.querySelectorAll<HTMLElement>('[data-competition-id]')];if(/收藏/.test(label)){if(!guard())return;const favorites=cards.filter(card=>card.dataset.favorite==="true");cards.forEach(card=>card.classList.toggle('hidden',!favorites.includes(card)));if(heading)heading.textContent="我收藏的赛事";root.current.querySelector('[data-results-heading]')?.replaceChildren(document.createTextNode(`共收藏 ${favorites.length} 项赛事`));root.current.querySelector('[data-no-competitions]')?.replaceChildren(document.createTextNode(favorites.length?"":"还没有收藏赛事，点击赛事卡片上的收藏按钮即可添加。"));root.current.querySelector('[data-no-competitions]')?.classList.toggle('hidden',favorites.length>0);history.replaceState(history.state,"",location.pathname+"?tab=favorites");return;}cards.forEach(card=>card.classList.remove('hidden'));if(heading)heading.textContent="发现比赛";root.current.querySelector('[data-results-heading]')?.replaceChildren(document.createTextNode(`共匹配 ${cards.length} 项赛事`));root.current.querySelector('[data-no-competitions]')?.classList.add('hidden');history.replaceState(history.state,"",location.pathname);toast("已返回全部赛事。","赛事列表");return;}
+    if(el.closest('#filter-tabs')){el.parentElement?.querySelectorAll('button').forEach(b=>b.classList.remove('bg-primary','text-on-primary'));el.classList.add('bg-primary','text-on-primary');const heading=root.current.querySelector('h1');if(/收藏/.test(label)){if(!guard())return;root.current.dataset.favoritesMode="true";root.current.dataset.competitionPage="1";if(heading)heading.textContent="我收藏的赛事";filterCompetitions(false);history.replaceState(history.state,"",location.pathname+"?tab=favorites");return;}root.current.dataset.favoritesMode="false";root.current.dataset.competitionPage="1";if(heading)heading.textContent="发现比赛";filterCompetitions(false);history.replaceState(history.state,"",location.pathname);toast("已返回全部赛事。","赛事列表");return;}
+    if(action==="page-prev"||action==="page-next"){const current=Number(root.current.dataset.competitionPage||1);root.current.dataset.competitionPage=String(Math.max(1,current+(action==="page-next"?1:-1)));filterCompetitions(false);return;}
     if(/新建任务|任务看板|更新任务看板/.test(label)){router.push("/projects/tasks");return;}
     if(/导出项目报告/.test(label)){router.push("/projects/tasks");return;}
     if(action==="unavailable"||button){toast("此功能尚在完善中，当前操作未修改数据。","功能说明");}

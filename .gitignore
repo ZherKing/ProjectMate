@@ -60,3 +60,4 @@ docker-compose.override.yml
 /.next-shell-favorites-qa/
 /.next-competition-modal-qa/
 /.next-settings-favorites-qa/
+/.next-pagination-qa/

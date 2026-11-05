@@ -181,6 +181,7 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     listColumn.children("article").appendTo(articleGrid);
     listColumn.append(articleGrid);
     listColumn.attr("data-competition-list-panel","");
+    listColumn.append('<div class="flex items-center justify-between gap-3 pt-2" data-pagination><button type="button" class="px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant text-label-sm disabled:opacity-40" data-page-prev disabled>上一页</button><span class="font-mono-metric text-mono-metric text-on-surface-variant" data-page-label>第 1 页</span><button type="button" class="px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant text-label-sm disabled:opacity-40" data-page-next>下一页</button></div>');
     const listContainer=articleGrid;
     listContainer.children("article").remove();
     competitions.forEach((item,index)=>{
@@ -241,6 +242,8 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     count.parent().after('<p class="hidden rounded-xl bg-surface-container-low p-5 text-body-md text-on-surface-variant" data-no-competitions role="status">没有匹配的赛事，请调整关键词或筛选条件。</p>');
     main.find("button").filter((_,el)=>/重置条件/.test(text($(el)))).attr("data-action","reset-filters");
     main.find("button").filter((_,el)=>/精准筛选/.test(text($(el)))).attr("data-action","apply-filters");
+    main.find("[data-page-prev]").attr("data-action","page-prev");
+    main.find("[data-page-next]").attr("data-action","page-next");
     main.find("#filter-tabs button").first().find("span").last().text(String(competitions.length));
     main.find("button").filter((_,el)=>/发起组队/.test(text($(el)))).attr("data-route","/teams/create");
     main.find("h2").filter((_,el)=>/生产力智能体赛道/.test(text($(el)))).closest("section").remove();
@@ -250,6 +253,7 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     detailCard.find("footer button").remove();
     detailCard.find("footer").find("div").last().append('<a class="px-4 py-2 rounded-lg bg-surface-container text-primary font-label-md text-label-md" data-action="view-competition-source" target="_blank" rel="noreferrer">查看赛事页面</a><button class="px-4 py-2 rounded-lg bg-primary text-on-primary font-label-md text-label-md" type="button" data-action="start-team">开始组队</button>');
     detailCard.find("header button").filter((_,el)=>/closeModal/.test($(el).attr("data-design-handler")||"")).attr("data-action","close-competition-detail").removeAttr("data-design-handler");
+    detailCard.find("span").filter((_,el)=>/ESC 可关闭/.test(text($(el)))).remove();
     detailCard.find("#fav-btn").attr("data-action","detail-favorite").removeAttr("data-design-handler");
     detailCard.find("span").filter((_,el)=>/报名进行中|待核验/.test(text($(el)))).first().attr("data-modal-status","");
     detailCard.find("button").filter((_,el)=>/赛题 Track-/.test(text($(el)))).each((index,el)=>{ $(el).attr("data-track-id",String(index)); });
