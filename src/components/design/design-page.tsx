@@ -106,6 +106,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   if (name === "admin" && user?.id) {
     populateAdminContent($, user.id, adminSection);
     main.find("[data-admin-heading] > nav[aria-label=\"Breadcrumb\"]").remove();
+    main.find("[data-admin-heading] > div > div.flex-wrap").remove();
   }
   if (name === "competitionDetail") {
     const rawId = query?.id;
