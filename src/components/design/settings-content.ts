@@ -15,6 +15,8 @@ export function configureSettingsPage($: CheerioAPI, section: SettingsSection) {
   main.find("span").filter((_, element) => $(element).text().trim() === "AUTH_CONTEXT:").parent().remove();
   const sidebar = main.find("aside").first();
   const content = sidebar.next();
+  sidebar.attr("class", "lg:w-[280px] shrink-0 flex flex-col gap-5 sticky top-24");
+  content.attr("class", "flex-1 min-w-0 flex flex-col gap-6");
   const cards = content.children("div");
   const profile = cards.eq(0);
   const connections = cards.eq(1);

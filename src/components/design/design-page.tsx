@@ -11,6 +11,7 @@ import { listProjectTasks, getLatestCoachReport } from "@/lib/db/tasks";
 import { DesignScreen } from "./design-screen";
 import { SiteShell } from "@/components/layout/site-shell";
 import { SiteHeader } from "@/components/layout/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { populateAdminContent } from "./admin-content";
 import { configureSettingsPage, type SettingsSection } from "./settings-content";
 
@@ -26,6 +27,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   const $ = cheerio.load(screens[name]);
   const hasHeader = $("body > header").length > 0;
   $("body > header").remove();
+  $("body > footer").remove();
   const text = (el: cheerio.Cheerio<AnyNode>) => el.text().replace(/\s+/g, " ").trim();
   const main = $("main");
   $("[data-action=\"favorite\"]").each((index,el)=>{ $(el).attr("data-favorite-key",name+"-"+index); });
@@ -418,7 +420,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   $("#poster-modal p").filter((_,el)=>/AI 正在全网/.test(text($(el)))).text("招募项目已保存，可复制链接邀请搭档加入。");
   const renderedHtml = sharedShell ? main.toString() : $("body").html() || "";
   const screen = <DesignScreen name={name} html={renderedHtml} loggedIn={!!user} variant={variant} />;
-  return sharedShell ? <SiteShell>{screen}</SiteShell> : <>{hasHeader && name !== "competitionDetail" && <SiteHeader />}{screen}</>;
+  return sharedShell ? <SiteShell>{screen}</SiteShell> : <>{hasHeader && name !== "competitionDetail" && <SiteHeader />}{screen}{name !== "competitionDetail" && <SiteFooter />}</>;
 }
 
 function escapeHtml(value: string) { return value.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!)); }
