@@ -291,7 +291,7 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     main.find("[data-page-prev]").attr("data-action","page-prev");
     main.find("[data-page-next]").attr("data-action","page-next");
     main.find("#filter-tabs button").first().find("span").last().text(String(competitions.length));
-    main.find("#filter-tabs button").filter((_,el)=>/我收藏的/.test(text($(el)))).attr("data-route","/competitions/favorites");
+    main.find("#filter-tabs button").filter((_,el)=>/我收藏的/.test(text($(el)))).attr("data-action","favorites-unavailable").removeAttr("data-route");
     main.find("button").filter((_,el)=>/发起组队/.test(text($(el)))).attr("data-route","/teams/create");
     main.find("h2").filter((_,el)=>/生产力智能体赛道/.test(text($(el)))).closest("section").remove();
     const detailDoc=cheerio.load(screens.competitionDetail);

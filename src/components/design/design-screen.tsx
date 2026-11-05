@@ -244,6 +244,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       }
       return;
     }
+    if(action==="favorites-unavailable"){toast("收藏页面正在重新设计，当前入口已保留。","功能调整");return;}
     if(action==="close-competition-detail"){root.current.querySelector<HTMLElement>('#competition-detail-modal')?.classList.add("hidden");return;}
     if(action==="view-competition-source"){return;}
     if(action==="start-team"){if(guard("/teams/create"))router.push("/teams/create?competition="+encodeURIComponent(el.closest<HTMLElement>('[data-competition-modal]')?.dataset.competitionId||""));return;}
