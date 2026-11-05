@@ -15,7 +15,7 @@ import { populateAdminContent } from "./admin-content";
 
 export type ScreenName = keyof typeof screens;
 
-export async function DesignPage({ name, variant, query }: { name: ScreenName; variant?: "register"; query?: Record<string, string | string[] | undefined> }) {
+export async function DesignPage({ name, variant, query, adminSection = "review" }: { name: ScreenName; variant?: "register"; query?: Record<string, string | string[] | undefined>; adminSection?: "review" | "sources" | "users" | "logs" }) {
   const session = await auth();
   const user = session?.user;
   const favoritesView = name === "favorites" || (name === "competitions" && query?.tab === "favorites");
@@ -102,7 +102,7 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     main.find("button").filter((_,el)=>/返回比赛中心|浏览更多/.test(text($(el)))).attr("data-route","/competitions");
   }
   if (name === "admin" && user?.id) {
-    populateAdminContent($, user.id);
+    populateAdminContent($, user.id, adminSection);
     main.find("[data-admin-heading] > nav[aria-label=\"Breadcrumb\"]").remove();
   }
   if (name === "competitionDetail") {

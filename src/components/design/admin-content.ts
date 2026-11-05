@@ -6,11 +6,11 @@ import { isConfiguredAdminEmail } from "@/lib/auth/permissions";
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]!);
 const dateLabel = (value: number | null) => value ? new Date(value).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false }) : "暂无入库记录";
 
-export function populateAdminContent($: CheerioAPI, currentUserId: string) {
+export function populateAdminContent($: CheerioAPI, currentUserId: string, section: "review" | "sources" | "users" | "logs") {
   const pending = listPendingCompetitions();
   const users = listAdminUsers();
-  const logs = listAdminAuditLogs();
-  const sourceStats = sqlite.prepare("SELECT platform, COUNT(*) AS total, SUM(CASE WHEN review_status = 'pending' THEN 1 ELSE 0 END) AS pending, MAX(updated_at) AS latest FROM competitions GROUP BY platform").all() as Array<{ platform: string; total: number; pending: number; latest: number }>;
+  const logs = section === "logs" ? listAdminAuditLogs() : [];
+  const sourceStats = section === "sources" ? sqlite.prepare("SELECT platform, COUNT(*) AS total, SUM(CASE WHEN review_status = 'pending' THEN 1 ELSE 0 END) AS pending, MAX(updated_at) AS latest FROM competitions GROUP BY platform").all() as Array<{ platform: string; total: number; pending: number; latest: number }> : [];
   const adapterSources = [
     { name: "传智杯", description: "赛事与赛道公开页面抓取适配器", configured: true },
     { name: "172校园赛事网", description: "开发应用分类公开赛事抓取适配器", configured: true },
@@ -56,4 +56,34 @@ export function populateAdminContent($: CheerioAPI, currentUserId: string) {
   const actionNames: Record<string, string> = { "competition.approve": "通过赛事审核", "competition.reject": "退回赛事", "user.role.update": "更新用户角色" };
   $("[data-admin-audit]").addClass("space-y-3").html(logs.length ? logs.map(log => `<article class="p-4 rounded-xl bg-surface"><div class="flex flex-wrap items-center justify-between gap-2"><h3 class="font-label-md text-label-md text-on-surface">${escapeHtml(actionNames[log.action] || log.action)}</h3><time class="font-mono-metric text-mono-metric text-on-surface-variant">${dateLabel(log.createdAt)}</time></div><p class="mt-2 font-body-sm text-body-sm text-on-surface-variant break-all">操作人：${escapeHtml(log.actorEmail || log.actorId)}</p><p class="mt-1 font-body-sm text-body-sm text-on-surface-variant break-all">${log.targetType === "competition" ? "赛事" : "用户"}：${escapeHtml(log.targetId)}</p>${log.details ? `<p class="mt-2 font-body-sm text-body-sm text-on-surface-variant break-words">记录：${escapeHtml(log.details)}</p>` : ""}</article>`).join("") : '<p class="py-8 text-center font-body-md text-body-md text-on-surface-variant">暂无操作记录，赛事审核与角色变更后会自动记录。</p>');
   $("[data-admin-audit-status]").text(logs.length ? `最近操作：${dateLabel(logs[0].createdAt)} · 审计记录保存在本站数据库` : "审计记录保存在本站数据库，当前暂无管理操作");
+
+  const routes = ["/admin", "/admin/sources", "/admin/users", "/admin/logs"];
+  const sections = ["#moderation-queue", "#data-sources", "#rbac-permissions", "#audit-trail"];
+  const labels = ["赛事审核", "数据源与爬虫", "用户管理", "操作日志"];
+  const sectionNames = ["review", "sources", "users", "logs"];
+  const sectionIndex = sectionNames.indexOf(section);
+  $("nav[aria-label='治理模块分类'] a").each((index, element) => {
+    const link = $(element);
+    link.attr("href", routes[index]).removeAttr("data-admin-section-link");
+    const selected = index === sectionIndex;
+    link.toggleClass("bg-surface-container-low", selected)
+      .toggleClass("text-primary", selected)
+      .toggleClass("text-on-surface-variant", !selected);
+    if (selected) link.attr("aria-current", "page");
+    else link.removeAttr("aria-current");
+    link.find("span.truncate").text(labels[index]);
+  });
+  const pageTitles = ["赛事审核", "数据源与爬虫", "用户管理", "操作日志"];
+  const descriptions = [
+    "审核新抓取赛事，确认来源与信息后再发布到比赛中心。",
+    "查看各抓取适配器状态和本站收录的数据。",
+    "查看账号角色，并按邮箱白名单授予管理员权限。",
+    "查看赛事审核与用户角色调整的操作记录。",
+  ];
+  $("[data-admin-heading] h1").text(pageTitles[sectionIndex]);
+  $("[data-admin-heading] p").text(descriptions[sectionIndex]);
+  const visibleSection = sections[sectionIndex];
+  sections.filter(selector => selector !== visibleSection).forEach(selector => $(selector).remove());
+  $('a[data-admin-section-link][href="#audit-trail"]').attr("href", "/admin/logs").removeAttr("data-admin-section-link");
+  if (section !== "logs") $("aside[aria-label='审计日志状态']").remove();
 }

@@ -26,6 +26,8 @@ coverage/
 # Logs and local runtime data
 *.log
 logs/
+!/src/app/admin/logs/
+!/src/app/admin/logs/**
 tmp/
 temp/
 *.db

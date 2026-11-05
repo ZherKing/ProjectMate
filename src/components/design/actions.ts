@@ -88,7 +88,7 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         const now = Date.now();
         sqlite.prepare("UPDATE competitions SET review_status = ?, reviewed_by = ?, reviewed_at = ?, review_note = ? WHERE id = ?").run(decision, admin.userId, now, note || null, competitionId);
         sqlite.prepare("INSERT INTO admin_audit_logs (id, actor_id, action, target_type, target_id, details, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(randomUUID(), admin.userId, decision === "approved" ? "competition.approve" : "competition.reject", "competition", competitionId, note || "", now);
-        revalidatePath("/admin"); revalidatePath("/competitions"); revalidatePath("/");
+        revalidatePath("/admin"); revalidatePath("/admin/logs"); revalidatePath("/competitions"); revalidatePath("/");
         return { ok: true, message: decision === "approved" ? "赛事已通过审核。" : "赛事已退回。" };
       }
       case "admin-set-role": {
@@ -105,6 +105,8 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         const now = Date.now();
         sqlite.prepare("INSERT INTO admin_audit_logs (id, actor_id, action, target_type, target_id, details, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(randomUUID(), admin.userId, "user.role.update", "user", target.id, `${target.role} -> ${role}`, now);
         revalidatePath("/admin");
+        revalidatePath("/admin/users");
+        revalidatePath("/admin/logs");
         return { ok: true, message: "用户角色已更新。" };
       }
       default: return { ok: false, message: "此功能尚在完善中，当前操作未修改数据。" };
