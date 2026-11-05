@@ -9,6 +9,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { listRecruitmentProjects } from "@/lib/db/projects";
 import { listProjectTasks, getLatestCoachReport } from "@/lib/db/tasks";
 import { DesignScreen } from "./design-screen";
+import { SiteShell } from "@/components/layout/site-shell";
 
 export type ScreenName = keyof typeof screens;
 
@@ -23,6 +24,12 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
   const text = (el: cheerio.Cheerio<AnyNode>) => el.text().replace(/\s+/g, " ").trim();
   const main = $("main");
   $("[data-action=\"favorite\"]").each((index,el)=>{ $(el).attr("data-favorite-key",name+"-"+index); });
+  const sharedShell = name === "favorites";
+  if (sharedShell) {
+    $("body > header").remove();
+    $("body > footer").remove();
+    main.removeClass("pt-16").attr("data-design-main", "favorites");
+  }
   const allCompetitions = name === "competitions" || name === "favorites" || name === "home" || name === "teams" ? listCompetitions() : [];
   const favoriteIds = favoritesView && user?.id ? listFavoriteCompetitionIds(user.id) : null;
   const competitions = favoriteIds
@@ -379,7 +386,9 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     $(el).attr("data-favorite-key",card.attr("data-competition-id")||card.find("h3").text().trim().slice(0,250)||name+"-"+index);
   });
   $("#poster-modal p").filter((_,el)=>/AI 正在全网/.test(text($(el)))).text("招募项目已保存，可复制链接邀请搭档加入。");
-  return <DesignScreen name={name} html={$("body").html() || ""} loggedIn={!!user} variant={variant} />;
+  const renderedHtml = sharedShell ? main.toString() : $("body").html() || "";
+  const screen = <DesignScreen name={name} html={renderedHtml} loggedIn={!!user} variant={variant} />;
+  return sharedShell ? <SiteShell>{screen}</SiteShell> : screen;
 }
 
 function escapeHtml(value: string) { return value.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!)); }
