@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { getCompetition, getCompetitionTrackDetails, listCompetitionTracks, listCompetitions, listFavoriteCompetitionIds, listPendingCompetitions, listAdminUsers, listAdminAuditLogs } from "@/lib/db/queries";
 import { getProfile } from "@/lib/db/profile";
 import { requireAdmin } from "@/lib/auth/guards";
+import { hasAdminRole } from "@/lib/auth/permissions";
 import { listRecruitmentProjects } from "@/lib/db/projects";
 import { listProjectTasks, getLatestCoachReport } from "@/lib/db/tasks";
 import { DesignScreen } from "./design-screen";
@@ -136,6 +137,9 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     actions.html('<a href="/login" class="px-3 py-1.5 text-primary rounded-lg text-label-md font-semibold">登录</a><a href="/register" class="px-3 py-1.5 bg-primary text-on-primary rounded-lg text-label-md font-semibold">免费注册</a>');
   }
   if(user?.image) actions.find("summary > span").first().html('<img src="'+escapeHtml(user.image)+'" alt="个人头像" class="w-8 h-8 rounded-full object-cover" />');
+  if (user?.id && hasAdminRole(user.id)) {
+    actions.find('.pm-user-menu-panel a[href="/settings"]').after('<a href="/admin">管理员后台</a>');
+  }
   $('header img[alt="ProjectMate Brand Logo"]').parent().wrap('<a href="/" aria-label="ProjectMate 首页"></a>');
   // Preserve the source navigation and route semantics.
   $("a[data-path]").each((_, el) => { if ($(el).attr("href") === "#") $(el).attr("href", "/"); });
