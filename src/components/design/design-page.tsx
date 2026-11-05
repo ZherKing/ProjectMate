@@ -6,11 +6,11 @@ import { redirect } from "next/navigation";
 import { getCompetition, getCompetitionTrackDetails, listCompetitionTracks, listCompetitions, listFavoriteCompetitionIds } from "@/lib/db/queries";
 import { getProfile } from "@/lib/db/profile";
 import { requireAdmin } from "@/lib/auth/guards";
-import { hasAdminRole } from "@/lib/auth/permissions";
 import { listRecruitmentProjects } from "@/lib/db/projects";
 import { listProjectTasks, getLatestCoachReport } from "@/lib/db/tasks";
 import { DesignScreen } from "./design-screen";
 import { SiteShell } from "@/components/layout/site-shell";
+import { SiteHeader } from "@/components/layout/site-header";
 import { populateAdminContent } from "./admin-content";
 
 export type ScreenName = keyof typeof screens;
@@ -23,6 +23,8 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   if (favoritesView && !user) redirect("/login?next=/competitions/favorites");
   if (name === "admin" && !(await requireAdmin())) redirect("/login?next=/admin");
   const $ = cheerio.load(screens[name]);
+  const hasHeader = $("body > header").length > 0;
+  $("body > header").remove();
   const text = (el: cheerio.Cheerio<AnyNode>) => el.text().replace(/\s+/g, " ").trim();
   const main = $("main");
   $("[data-action=\"favorite\"]").each((index,el)=>{ $(el).attr("data-favorite-key",name+"-"+index); });
@@ -122,18 +124,6 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     }
   }
 
-  // Header uses the source layout but real authentication state.
-  const actions = $("header > div").children().last();
-  if (user) {
-    actions.html('<a href="/teams/create" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:bg-primary-container transition-colors shadow-sm">＋ 发布项目</a><details class="pm-user-menu"><summary class="flex items-center gap-2.5 pl-2 cursor-pointer list-none"><span class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center">'+escapeHtml((user.name || "我").slice(0,1))+'</span><span class="hidden lg:flex flex-col text-left"><strong class="text-label-md">'+escapeHtml(user.name || "项目成员")+'</strong></span></summary><div class="pm-user-menu-panel"><a href="/settings">个人设置</a><a href="/api/auth/signout?callbackUrl=/">退出登录</a></div></details>');
-  } else {
-    actions.html('<a href="/login" class="px-3 py-1.5 text-primary rounded-lg text-label-md font-semibold">登录</a><a href="/register" class="px-3 py-1.5 bg-primary text-on-primary rounded-lg text-label-md font-semibold">免费注册</a>');
-  }
-  if(user?.image) actions.find("summary > span").first().html('<img src="'+escapeHtml(user.image)+'" alt="个人头像" class="w-8 h-8 rounded-full object-cover" />');
-  if (user?.id && hasAdminRole(user.id)) {
-    actions.find('.pm-user-menu-panel a[href="/settings"]').after('<a href="/admin">管理员后台</a>');
-  }
-  $('header img[alt="ProjectMate Brand Logo"]').parent().wrap('<a href="/" aria-label="ProjectMate 首页"></a>');
   // Preserve the source navigation and route semantics.
   $("a[data-path]").each((_, el) => { if ($(el).attr("href") === "#") $(el).attr("href", "/"); });
   $('a[href="#"]').each((_, el) => {
@@ -425,7 +415,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   $("#poster-modal p").filter((_,el)=>/AI 正在全网/.test(text($(el)))).text("招募项目已保存，可复制链接邀请搭档加入。");
   const renderedHtml = sharedShell ? main.toString() : $("body").html() || "";
   const screen = <DesignScreen name={name} html={renderedHtml} loggedIn={!!user} variant={variant} />;
-  return sharedShell ? <SiteShell>{screen}</SiteShell> : screen;
+  return sharedShell ? <SiteShell>{screen}</SiteShell> : <>{hasHeader && name !== "competitionDetail" && <SiteHeader />}{screen}</>;
 }
 
 function escapeHtml(value: string) { return value.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!)); }
