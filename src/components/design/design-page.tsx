@@ -50,6 +50,7 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     main.removeClass("pt-16 bg-surface").addClass("min-h-screen");
   }
   if (name === "settings" && user?.id) {
+    main.find("nav").filter((_, el) => /控制台/.test(text($(el)))).first().remove();
     const profile = getProfile(user.id);
     main.find('input[type="text"]').filter((_,el)=>$(el).attr("value")==="计算机科学与软件学院 (2022级本硕)").attr("value", profile?.school || "");
     main.find('input[type="text"]').filter((_,el)=>$(el).attr("value")==="林星宇").attr("value", user.name || "");
@@ -100,7 +101,10 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
     main.find("h1").first().text("我的赛事收藏");
     main.find("button").filter((_,el)=>/返回比赛中心|浏览更多/.test(text($(el)))).attr("data-route","/competitions");
   }
-  if (name === "admin" && user?.id) populateAdminContent($, user.id);
+  if (name === "admin" && user?.id) {
+    populateAdminContent($, user.id);
+    main.find("[data-admin-heading] > nav[aria-label=\"Breadcrumb\"]").remove();
+  }
   if (name === "competitionDetail") {
     const rawId = query?.id;
     const selectedId = (Array.isArray(rawId) ? rawId[0] : rawId) || listCompetitions()[0]?.id || "";
