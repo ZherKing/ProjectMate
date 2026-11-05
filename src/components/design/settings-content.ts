@@ -12,6 +12,7 @@ const modules = [
 
 export function configureSettingsPage($: CheerioAPI, section: SettingsSection) {
   const main = $("main");
+  main.find("span").filter((_, element) => $(element).text().trim() === "AUTH_CONTEXT:").parent().remove();
   const sidebar = main.find("aside").first();
   const content = sidebar.next();
   const cards = content.children("div");
