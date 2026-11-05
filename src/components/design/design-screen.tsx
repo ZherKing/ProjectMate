@@ -283,7 +283,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     if(action==="save-settings"){
       const inputs=[...root.current.querySelectorAll<HTMLInputElement>("input")].filter(input=>!input.placeholder?.includes("搜索"));
       const areas=[...root.current.querySelectorAll<HTMLTextAreaElement>("textarea")];
-      const result=await run("save-profile",{school:inputs[0]?.value||"",education:inputs[1]?.value||"",roles:"",skills:inputs.at(-1)?.value||"",interests:"",weeklyHours:"0"},button);
+      const result=await run("save-profile",{school:inputs[1]?.value||"",education:"",roles:"",skills:inputs[3]?.value||areas.at(-1)?.value||"",interests:"",weeklyHours:"0"},button);
       if(result?.ok)router.refresh();
       return;
     }

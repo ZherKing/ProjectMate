@@ -31,7 +31,9 @@ export async function DesignPage({ name, variant, query }: { name: ScreenName; v
   }
   if (name === "settings" && user?.id) {
     const profile = getProfile(user.id);
-    main.find('input[type="text"]').filter((_,el)=>$(el).attr("value")==="林星宇").attr("value", profile?.school || user.name || "");
+    main.find('input[type="text"]').filter((_,el)=>$(el).attr("value")==="计算机科学与软件学院 (2022级本硕)").attr("value", profile?.school || "");
+    main.find('input[type="text"]').filter((_,el)=>$(el).attr("value")==="林星宇").attr("value", user.name || "");
+    main.find('input').eq(3).attr("value", profile?.skills || "");
     main.find('input[type="email"]').attr("value", user.email || "");
     main.find("button").filter((_,el)=>/保存个人设置/.test(text($(el)))).attr("data-action","save-settings");
     main.find("#save-settings-btn").closest("div.sticky").attr("data-settings-save-bar","").addClass("hidden");
