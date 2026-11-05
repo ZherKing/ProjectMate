@@ -97,6 +97,8 @@ button { cursor: pointer; }
 .design-screen [role="status"] { animation: pm-toast-in .28s cubic-bezier(.22,1,.36,1) both; }
 @keyframes settings-save-bar-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 .settings-save-bar-enter { animation: settings-save-bar-enter .22s cubic-bezier(.22,1,.36,1) both; }
+.settings-admin-save-bar { align-items: center; justify-content: space-between; gap: 16px; padding: 16px; border: 1px solid #e5e3ef; border-radius: 12px; background: rgba(255,255,255,.96); box-shadow: 0 8px 24px rgba(39,30,111,.13); backdrop-filter: blur(12px); }
+.settings-admin-save-bar:not(.hidden) { display: flex; }
 @media (prefers-reduced-motion: reduce) {
   .pm-header, .design-screen [data-design-header], .pm-toast, .design-screen [role="status"], .settings-save-bar-enter { animation: none; transition: none; }
   .pm-toast-progress { animation: none; }

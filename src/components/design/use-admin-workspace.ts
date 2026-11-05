@@ -18,7 +18,7 @@ export function useAdminWorkspace(root: RefObject<HTMLDivElement | null>, enable
     const updateSettingsBar = () => {
       const dirty = settingFields.some((field, index) => (field.type === "checkbox" ? String((field as HTMLInputElement).checked) : field.value) !== settingInitial[index]);
       const bar = scope.querySelector<HTMLElement>("[data-admin-settings-bar]");
-      if (bar) { bar.classList.toggle("hidden", !dirty); if (dirty && !settingDirty) { bar.classList.remove("settings-save-bar-enter"); void bar.offsetWidth; bar.classList.add("settings-save-bar-enter"); } }
+      if (bar) { bar.classList.toggle("hidden", !dirty); bar.style.position = "fixed"; bar.style.bottom = "24px"; bar.style.left = "24px"; bar.style.right = "24px"; bar.style.zIndex = "45"; bar.style.maxWidth = "1192px"; bar.style.marginInline = "auto"; if (dirty && !settingDirty) { bar.classList.remove("settings-save-bar-enter"); void bar.offsetWidth; bar.classList.add("settings-save-bar-enter"); } }
       settingDirty = dirty;
     };
     const cards = [...scope.querySelectorAll<HTMLElement>("article[data-review-id]")];
