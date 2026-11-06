@@ -180,9 +180,11 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-v
 #competition-detail-modal:not(.hidden) > #competition-detail-modal-card { animation: pm-detail-card-in .18s ease-out both; }
 #competition-detail-modal.pm-detail-closing { animation: pm-detail-backdrop-out .18s ease-in both; pointer-events: none; }
 #competition-detail-modal.pm-detail-closing > #competition-detail-modal-card { animation: pm-detail-card-out .18s ease-in both; }
-*[data-team-create-modal] { animation: pm-detail-backdrop-in .18s ease-out both; }
-*[data-team-create-modal] #creator-modal-card { animation: pm-detail-card-in .18s ease-out both; }
-*[data-team-create-modal] #creator-modal-card.pm-team-modal-closing { animation: pm-detail-card-out .18s ease-in both; }
+*[data-team-create-modal] { animation: none; }
+*[data-team-create-modal] #creator-modal-card { animation: pm-detail-backdrop-in .18s ease-out both; }
+*[data-team-create-modal] #creator-modal-card > [role="dialog"] { animation: pm-detail-card-in .18s ease-out both; will-change: opacity, transform; }
+*[data-team-create-modal] #creator-modal-card.pm-team-modal-closing { animation: pm-detail-backdrop-out .18s ease-in both; pointer-events: none; }
+*[data-team-create-modal] #creator-modal-card.pm-team-modal-closing > [role="dialog"] { animation: pm-detail-card-out .18s ease-in both; }
 @keyframes pm-detail-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes pm-detail-backdrop-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes pm-detail-card-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
