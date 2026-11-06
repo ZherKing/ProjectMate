@@ -58,7 +58,7 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         return { ok: true, message: "项目已发布至组队大厅。", id };
       }
       case "coach": {
-        if(!isAiConfigured())return {ok:false,message:"AI_API_KEY 尚未配置。请在服务器 .env 文件中配置 DeepSeek 后再试。"};
+        if(!isAiConfigured())return {ok:false,message:"AI_API_KEY 尚未配置。请在服务器 .env 或 .env.local 文件中配置 DeepSeek 后再试。"};
         if(!consumeAiQuota(userId,"project-coach"))return {ok:false,message:"AI 教练请求较频繁，请 10 分钟后再试。"};
         const projectId = getAccessibleProjectId(userId, data.projectId);
         if (!projectId) return { ok: false, message: "当前账号还没有可分析的项目任务。请先创建项目并添加任务。" };
@@ -67,7 +67,7 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         return { ok: true, message: "分析完成，报告已保存。", summary };
       }
       case "analyze-competition": {
-        if(!isAiConfigured())return {ok:false,message:"AI_API_KEY 尚未配置。请在服务器 .env 文件中配置 DeepSeek 后再试。"};
+        if(!isAiConfigured())return {ok:false,message:"AI_API_KEY 尚未配置。请在服务器 .env 或 .env.local 文件中配置 DeepSeek 后再试。"};
         const id=(data.competitionId||"").trim();
         const competition=getCompetition(id);
         if(!competition)return {ok:false,message:"赛事不存在或尚未通过审核。"};
@@ -82,7 +82,7 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         return {ok:true,message:"分析已根据本站审核过的赛事资料生成。请以官方来源为准。",summary:analysis};
       }
       case "generate-team-copy": {
-        if(!isAiConfigured())return {ok:false,message:"AI_API_KEY 尚未配置。请在服务器 .env 文件中配置 DeepSeek 后再试。"};
+        if(!isAiConfigured())return {ok:false,message:"AI_API_KEY 尚未配置。请在服务器 .env 或 .env.local 文件中配置 DeepSeek 后再试。"};
         const title=(data.title||"").trim();const description=(data.description||"").trim();
         if(title.length<2||description.length<5)return {ok:false,message:"请先填写项目名称和项目描述，再生成招募文案。"};
         if(!consumeAiQuota(userId,"team-recruitment-copy"))return {ok:false,message:"AI 文案生成请求较频繁，请 10 分钟后再试。"};
