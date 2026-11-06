@@ -162,7 +162,10 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
   const filterTeams=()=>{
     const scope=root.current;if(!scope)return;
     const active=Array.from(scope.querySelectorAll('.role-chip[data-selected="true"],.filter-pill[data-selected="true"]')).map(el=>el.textContent?.trim()||"");
-    scope.querySelectorAll<HTMLElement>('[data-project-card][data-project-id]').forEach(el=>{const text=el.textContent||"";el.classList.toggle("hidden",active.some(tag=>tag!=="全部赛事"&&!text.includes(tag)));});
+    const roleFilters=[...scope.querySelectorAll<HTMLElement>('[data-team-role-filter][data-selected="true"]')].map(el=>el.dataset.teamRoleFilter||"");
+    const trackFilters=[...scope.querySelectorAll<HTMLElement>('[data-team-track-filter][data-selected="true"]')].map(el=>el.dataset.teamTrackFilter||"");
+    const hours=scope.querySelector<HTMLElement>('[data-team-hours-filter][data-selected="true"]')?.dataset.teamHoursFilter||"不限";
+    scope.querySelectorAll<HTMLElement>('[data-project-card][data-project-id]').forEach(el=>{const text=el.textContent||"";const roles=el.dataset.roles||"";const track=el.dataset.track||"";const weekly=Number(el.dataset.hours||0);const roleOk=!roleFilters.length||roleFilters.some(tag=>roles.includes(tag));const trackOk=!trackFilters.length||trackFilters.some(tag=>track.includes(tag));const hoursOk=hours==="不限"||(hours.startsWith("10")&&weekly>=10)||(hours.startsWith("20")&&weekly>=20);el.classList.toggle("hidden",!(roleOk&&trackOk&&hoursOk));});
   };
   async function onAuthSubmit(event: React.FormEvent<HTMLDivElement>) {
     const form = event.target as HTMLFormElement;
@@ -457,7 +460,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     if(el.hasAttribute("data-sort-filter")){
       root.current.querySelectorAll<HTMLElement>("[data-sort-filter]").forEach(item=>{const on=item===el;item.dataset.selected=String(on);item.classList.toggle("bg-surface-container-lowest",on);item.classList.toggle("text-primary",on);item.classList.toggle("font-semibold",on);});filterCompetitions();return;
     }
-    if(el.classList.contains('filter-pill')||el.classList.contains('role-chip')){el.dataset.selected=el.dataset.selected==="true"?"false":"true";el.classList.toggle('bg-primary');el.classList.toggle('text-on-primary');filterTeams();return;}
+    if(el.classList.contains('filter-pill')||el.classList.contains('role-chip')||el.hasAttribute('data-team-hours-filter')){const group=el.hasAttribute('data-team-hours-filter')?'[data-team-hours-filter]':el.classList.contains('role-chip')?'[data-team-role-filter]': '[data-team-track-filter]';root.current.querySelectorAll<HTMLElement>(group).forEach(item=>{if(item!==el)item.dataset.selected="false";item.classList.remove('bg-primary','text-on-primary');});el.dataset.selected=el.dataset.selected==="true"?"false":"true";el.classList.toggle('bg-primary');el.classList.toggle('text-on-primary');filterTeams();return;}
     if(el.closest('#filter-tabs')){el.parentElement?.querySelectorAll('button').forEach(b=>b.classList.remove('bg-primary','text-on-primary'));el.classList.add('bg-primary','text-on-primary');const heading=root.current.querySelector('h1');if(/收藏/.test(label)){if(!guard())return;root.current.dataset.favoritesMode="true";root.current.dataset.competitionPage="1";if(heading)heading.textContent="我收藏的赛事";filterCompetitions(false);history.replaceState(history.state,"",location.pathname+"?tab=favorites");return;}root.current.dataset.favoritesMode="false";root.current.dataset.competitionPage="1";if(heading)heading.textContent="发现比赛";filterCompetitions(false);history.replaceState(history.state,"",location.pathname);toast("已返回全部赛事。","赛事列表");return;}
     if(action==="page-prev"||action==="page-next"){const current=Number(root.current.dataset.competitionPage||1);root.current.dataset.competitionPage=String(Math.max(1,current+(action==="page-next"?1:-1)));filterCompetitions(false);return;}
     if(/新建任务|任务看板|更新任务看板/.test(label)){router.push("/projects/tasks");return;}

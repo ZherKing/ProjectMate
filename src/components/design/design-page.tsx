@@ -224,6 +224,9 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     flow.closest("section").attr("id","workflow");
   }
   if (name === "competitions") {
+    main.find("span").filter((_, el) => text($(el)) === "LIVE RADAR").parent().remove();
+    main.find("span").filter((_, el) => /官方数据更新于/.test(text($(el)))).parent().remove();
+    main.find("p").filter((_, el) => /平台所收录比赛均已通过/.test(text($(el)))).parent().remove();
     const headings=main.find("h3").slice(0,3);
     const listColumn=headings.first().closest("article").parent();
     listColumn.removeClass("xl:col-span-5").addClass("xl:col-span-12");
@@ -260,10 +263,17 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
         .attr("tabindex","0").attr("role","button").attr("aria-label",item.name);
       card.find("span").filter((_,el)=>/官方规约已校验/.test(text($(el)))).text("来源："+item.platform);
       card.find("span").filter((_,el)=>/查看赛道专区/.test(text($(el)))).first().replaceWith('<button type="button" data-action="open-competition-detail" data-competition-id="'+escapeHtml(item.id)+'" class="font-label-md text-label-md text-primary">详情</button>');
+      const detailButton=card.find('button[data-action="open-competition-detail"]').last().clone();
+      card.find('button[data-action="open-competition-detail"]').last().remove();
+      const sourceLabel=card.find("span").filter((_,el)=>/^来源：/.test(text($(el)))).first();
+      sourceLabel.closest("div").addClass("hidden");
+      card.append('<div class="mt-auto flex items-center justify-between gap-3 border-t border-surface-container pt-3" data-competition-card-footer><span class="text-xs text-on-surface-variant">来源：'+escapeHtml(item.platform)+'</span></div>');
+      card.find("[data-competition-card-footer]").append(detailButton);
       card.find("p").first().after('<p class="mt-2 text-body-sm text-on-surface-variant">更新于 '+escapeHtml(new Date(item.updatedAt).toLocaleDateString("zh-CN"))+ (tracks?.names.length?' · '+tracks.names.length+' 个赛道':'')+'</p>');
       listContainer.append(card);
     });
-    main.find('input[placeholder*="检索比赛名"]').attr("data-competition-search","").attr("aria-label","搜索比赛、平台或赛道").attr("placeholder","搜索比赛名称、平台或赛道…");
+    main.find('input[placeholder*="检索比赛名"]').attr("data-competition-search","").attr("aria-label","搜索比赛、平台或赛道").attr("placeholder","搜索比赛名称、平台或赛道…").closest("label").attr("data-search-field","");
+    main.find('input[placeholder*="检索比赛名"]').closest("label").find("[data-icon=search],svg").last().remove();
     const platformInputs=main.find('input[type="checkbox"]').slice(0,5);
     const platformTemplate=platformInputs.first().closest("label").clone();
     const platformContainer=platformInputs.first().closest("label").parent();
@@ -300,12 +310,16 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     const count=main.find("span").filter((_,el)=>/^共匹配 /.test(text($(el)))).first().attr("data-results-heading","").text("共匹配 "+competitions.length+" 项赛事");
     count.parent().after('<p class="hidden rounded-xl bg-surface-container-low p-5 text-body-md text-on-surface-variant" data-no-competitions role="status">没有匹配的赛事，请调整关键词或筛选条件。</p>');
     main.find("button").filter((_,el)=>/重置条件/.test(text($(el)))).attr("data-action","reset-filters");
-    main.find("button").filter((_,el)=>/精准筛选/.test(text($(el)))).attr("data-action","apply-filters");
+    main.find("button").filter((_,el)=>/精准筛选/.test(text($(el)))).attr("data-action","apply-filters").find("span").last().text("搜索");
     main.find("[data-page-prev]").attr("data-action","page-prev");
     main.find("[data-page-next]").attr("data-action","page-next");
     main.find("#filter-tabs button").first().find("span").last().text(String(competitions.length));
     main.find("#filter-tabs button").filter((_,el)=>/我收藏的/.test(text($(el)))).attr("data-action","favorites-unavailable").removeAttr("data-route");
     main.find("button").filter((_,el)=>/发起组队/.test(text($(el)))).attr("data-route","/teams/create");
+    main.find("#filter-tabs button").filter((_,el)=>/AI 推荐/.test(text($(el)))).attr("data-selected","false");
+    const activeTracks=competitions.reduce((sum,item)=>sum+(trackGroups.get(item.id)?.names.length||0),0);
+    const statMap=new Map([["进行中赛道",String(activeTracks)], ["奖池总额","暂无数据"], ["AI匹配率","暂无数据"]]);
+    main.find("span").each((_,el)=>{const label=text($(el));const value=statMap.get(label);if(value!==undefined)$(el).next().text(value);});
     main.find("h2").filter((_,el)=>/生产力智能体赛道/.test(text($(el)))).closest("section").remove();
     const detailDoc=cheerio.load(screens.competitionDetail);
     const detailCard=detailDoc("#competition-detail-card").clone();
@@ -353,6 +367,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   }
   if (name === "teams") {
     main.find("span").filter((_, el) => /LIVE TEAMMATCHING SYSTEM|实时组队就绪/.test(text($(el)))).parent().remove();
+    main.find("#open-creator-btn").find("svg").last().remove();
     const existingCreator = main.find("#creator-modal");
     if (existingCreator.length) {
       const competitionId = Array.isArray(query?.competition) ? query?.competition[0] : query?.competition || "";
@@ -396,12 +411,17 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       }
     }
     const projects = listRecruitmentProjects();
+    const teamFilters=main.find('[data-section="team-filters"]');
+    const trackFilterButtons=main.find("button.filter-pill");
+    trackFilterButtons.each((index,el)=>{const label=text($(el));if(label!=="全部赛事")$(el).attr("data-team-track-filter",label);});
+    main.find("button.role-chip").each((_,el)=>{ $(el).attr("data-team-role-filter",text($(el))); });
+    main.find("button").filter((_,el)=>/^(不限|10h+\/周|20h\+\/周\(冲刺\))$/.test(text($(el)))).each((_,el)=>{ $(el).attr("data-team-hours-filter",text($(el))); });
     const sampleCards=main.find(".apply-team-btn").filter((_,el)=>!$(el).closest("#ai-synergy-modal").length).map((_,el)=>$(el).closest('[class*="rounded-xl"]').get(0)).get();
     if(projects.length && sampleCards.length){
       const parent=$(sampleCards[0]).parent(); const template=$(sampleCards[0]).clone();
       sampleCards.forEach(el=>$(el).remove());
       projects.forEach(project=>{
-        const card=template.clone();card.attr("id","project-"+project.id).attr("data-project-card","").attr("data-project-id",project.id).attr("data-project-title",project.title).attr("data-roles",project.roles||"").attr("data-hours",String(project.weeklyHours||10));
+        const card=template.clone();card.attr("id","project-"+project.id).attr("data-project-card","").attr("data-project-id",project.id).attr("data-project-title",project.title).attr("data-roles",project.roles||"").attr("data-track",project.trackName||"").attr("data-hours",String(project.weeklyHours||10));
         card.find("h3").first().text(project.title);
         card.find("h3").first().next("p").text(project.description);
         card.find("span").filter((_,el)=>/^队长:/.test(text($(el)))).text(project.creatorName || "项目发起人");
@@ -416,7 +436,11 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
         card.find(".apply-team-btn").attr("data-project-id",project.id).attr("data-action","apply");
         parent.append(card);
       });
-    } else main.find(".apply-team-btn").attr("data-action","apply");
+    } else {
+      main.find(".apply-team-btn").filter((_,el)=>!$(el).closest("#ai-synergy-modal").length).each((_,el)=>{ $(el).closest('[class*="rounded-xl"]').remove(); });
+      const activeHeading=main.find("h2").filter((_,el)=>/精选活跃战队/.test(text($(el))));
+      activeHeading.after('<p class="pm-empty-team-state text-sm text-on-surface-variant mt-3">暂无活跃组队项目，发布你的项目后会显示在这里。</p>');
+    }
     main.find(".view-detail-btn").attr("data-action","team-details");
     if (!projects.length) main.find(".apply-team-btn").filter((_,el)=>!$(el).closest("#ai-synergy-modal").length).each((index,el)=>{const card=$(el).closest('[class*="rounded-xl"]');card.attr("data-project-card","").attr("data-project-id","design-sample-"+index).attr("data-demo","true");});
     main.find('input[name="track-type"]').each((_,el)=>{ $(el).attr("value", text($(el).parent())); });

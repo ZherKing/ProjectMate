@@ -39,6 +39,7 @@ button { cursor: pointer; }
 input:not([type="checkbox"]):not([type="radio"]), textarea, select { border: 1px solid var(--line) !important; transition: border-color .16s ease, background-color .16s ease; }
 input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus, select:focus { border-color: var(--primary) !important; outline: none !important; box-shadow: none !important; }
 input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-visible, select:focus-visible { border-color: var(--primary) !important; outline: none !important; box-shadow: none !important; }
+*[data-search-field]:focus-within { border-color: var(--primary) !important; box-shadow: 0 0 0 3px rgba(79,70,229,.14) !important; }
 *[class*="focus-within:ring"]:focus-within { box-shadow: none !important; }
 
 .pm-display { font-family: "Plus Jakarta Sans", Inter, "Noto Sans SC", system-ui, sans-serif; }
@@ -165,6 +166,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-v
 @media (prefers-reduced-motion: reduce) { .pm-route-transition, .pm-route-spinner { animation: none; } }
 .pm-project-nickname-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 .pm-project-nickname-row input { width: min(100%, 320px); min-height: 34px; }
+.design-screen #filter-tabs button.bg-primary { color: #fff !important; }
 .pm-status { border-radius: 999px; padding: 4px 8px; font-size: 10px; font-weight: 650; white-space: nowrap; }
 .pm-status-blue { color: #1d4ed8; background: #eaf2ff; }
 .pm-status-green { color: #047857; background: #e7fbf2; }
