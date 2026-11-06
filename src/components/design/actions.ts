@@ -147,6 +147,10 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
     }
   } catch (error) {
     if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) return { ok: false, message: "DeepSeek 请求超时，请检查服务状态后重试。" };
+    const detail = error instanceof Error ? error.message.toLowerCase() : "";
+    if (/insufficient balance|余额不足|402/.test(detail)) return { ok: false, message: "DeepSeek 账户余额不足，请充值或更换可用的 API Key 后重试。" };
+    if (/invalid.?api.?key|authentication|unauthorized|401/.test(detail)) return { ok: false, message: "DeepSeek API Key 无效或已失效，请检查服务器环境配置。" };
+    if (/model.*not found|模型不存在|404/.test(detail)) return { ok: false, message: "DeepSeek 模型不可用，请将 AI_MODEL 设置为账号支持的模型，例如 deepseek-chat。" };
     if (["coach", "analyze-competition", "generate-team-copy"].includes(action)) return { ok: false, message: "DeepSeek 服务调用失败，请检查服务器 .env 中的 API Key、Base URL 和模型名称后重试。" };
     return { ok: false, message: "操作未完成，请稍后重试。已有数据保持不变。" };
   }
