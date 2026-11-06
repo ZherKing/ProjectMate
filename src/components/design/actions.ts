@@ -12,14 +12,14 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { randomUUID } from "node:crypto";
 import { isConfiguredAdminEmail } from "@/lib/auth/permissions";
 import { getCompetition, getCompetitionTrackDetails } from "@/lib/db/queries";
-import { analyzeCompetitionTrack, generateRecruitmentCopy } from "@/lib/ai/website-ai";
+import { analyzeCompetitionTrack, generateRecruitmentDraft, generateRecruitmentCopy } from "@/lib/ai/website-ai";
 import { isAiConfigured } from "@/lib/ai/provider";
 import { consumeAiQuota } from "@/lib/ai/limits";
 import { getCompetitionAnalysis } from "@/lib/ai/analysis-cache";
 import { getAccessibleProjectId } from "@/lib/db/projects";
 
 type Payload = Record<string, string>;
-export type ScreenResult = { ok: boolean; message: string; href?: string; summary?: string; generatedText?: string; generatedAt?: string; id?: string };
+export type ScreenResult = { ok: boolean; message: string; href?: string; summary?: string; generatedText?: string; generatedTitle?: string; generatedAt?: string; id?: string };
 
 export async function screenAction(action: string, data: Payload = {}): Promise<ScreenResult> {
   const session = await auth();
@@ -83,11 +83,11 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
       }
       case "generate-team-copy": {
         if(!isAiConfigured())return {ok:false,message:"AI_API_KEY 尚未配置。请在服务器 .env 或 .env.local 文件中配置 DeepSeek 后再试。"};
-        const title=(data.title||"").trim();const description=(data.description||"").trim();
-        if(title.length<2||description.length<5)return {ok:false,message:"请先填写项目名称和项目描述，再生成招募文案。"};
+        const title=(data.title||"").trim();const description=(data.description||"").trim();const competitionName=(data.competitionName||"").trim();
+        if(title.length<2&&competitionName.length<2)return {ok:false,message:"请先选择关联比赛，或填写项目名称后再生成招募文案。"};
         if(!consumeAiQuota(userId,"team-recruitment-copy"))return {ok:false,message:"AI 文案生成请求较频繁，请 10 分钟后再试。"};
-        const generatedText=await generateRecruitmentCopy({title,description,trackName:(data.trackName||"").slice(0,160),roles:(data.roles||"").slice(0,500)});
-        return {ok:true,message:"文案已生成，可编辑后再发布。",generatedText};
+        const draft=await generateRecruitmentDraft({title:title||competitionName,description,competitionName,trackName:(data.trackName||"").slice(0,160),roles:(data.roles||"").slice(0,500)});
+        return {ok:true,message:"已根据关联比赛生成项目草稿，可编辑后再发布。",generatedText:draft.description,generatedTitle:draft.title};
       }
       case "complete-task": {
         const projectId = getAccessibleProjectId(userId, data.projectId);
