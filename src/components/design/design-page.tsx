@@ -378,6 +378,10 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       existingCreator.find("#ai-generate-btn").attr("data-action", "generate-team-copy");
       existingCreator.find("#ai-output-box").addClass("pm-ai-copy-scroll");
       existingCreator.find("#ai-generated-text").attr("data-ai-team-copy", "").text("填写项目名称和描述后，可以生成可编辑的招募文案草稿。");
+      existingCreator.find('[data-section="target-competition"]').prepend('<div class="mb-3" data-publish-competition-picker><label class="block text-xs font-semibold text-on-surface-variant mb-1.5">关联比赛</label><input data-publish-competition-search class="w-full rounded-lg bg-white px-3 py-2 text-sm" placeholder="输入比赛名称关键词筛选"><select data-publish-competition-select class="mt-2 w-full rounded-lg bg-white px-3 py-2 text-sm" aria-label="选择关联比赛"></select></div>');
+      const picker=existingCreator.find('[data-publish-competition-select]');
+      competitions.forEach((competition)=>picker.append(`<option value="${escapeHtml(competition.id)}">${escapeHtml(competition.name)}</option>`));
+      if(competitionId)picker.val(competitionId);
       existingCreator.find("span").filter((_, el) => text($(el)) === "关联赛道").remove();
       existingCreator.find("span").filter((_, el) => /可以发布/.test(text($(el)))).closest("div").remove();
       existingCreator.find("#status-dot,#status-label").remove();
@@ -411,6 +415,8 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       }
     }
     const projects = listRecruitmentProjects();
+    const seatTotal = projects.reduce((sum, project) => sum + project.seatCount, 0);
+    main.find("h2").filter((_,el)=>/精选活跃战队/.test(text($(el)))).parent().find("span").filter((_,el)=>/共 \d+ 个精选席位/.test(text($(el)))).text(projects.length ? `共 ${seatTotal} 个席位` : "暂无席位数据");
     const teamFilters=main.find('[data-section="team-filters"]');
     const trackFilterButtons=main.find("button.filter-pill");
     trackFilterButtons.each((index,el)=>{const label=text($(el));if(label!=="全部赛事")$(el).attr("data-team-track-filter",label);});
@@ -426,6 +432,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
         card.find("h3").first().next("p").text(project.description);
         card.find("span").filter((_,el)=>/^队长:/.test(text($(el)))).text(project.creatorName || "项目发起人");
         card.find("span").filter((_,el)=>/^每周 \d/.test(text($(el)))).text("每周 "+(project.weeklyHours||10)+"h");
+        card.find("span").filter((_,el)=>/共 \d+ 个席位|差 \d+ 人满员|招募中/.test(text($(el)))).first().text(`共 ${project.seatCount} 个席位`);
         card.find("span").filter((_,el)=>/^已开工 MVP/.test(text($(el)))).text(project.status);
         card.find("span").filter((_,el)=>/^AI 契合/.test(text($(el)))).text("等待匹配");
         card.find("[data-icon=psychology]").parent().contents().filter((_,el)=>el.type==="text").remove();
