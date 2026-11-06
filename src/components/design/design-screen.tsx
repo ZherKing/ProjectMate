@@ -72,7 +72,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     },duration+220);
     return()=>{clearTimeout(closeTimer);clearTimeout(removeTimer);};
   },[notice,router]);
-  useEffect(()=>{const onKey=(event:KeyboardEvent)=>{if(event.key==="Escape")root.current?.querySelectorAll('[role="dialog"]:not(#competition-detail-modal-card),#creator-modal,#ai-synergy-modal,#demo-modal,#poster-modal').forEach(el=>el.classList.add("hidden"));};document.addEventListener("keydown",onKey);return()=>document.removeEventListener("keydown",onKey);},[]);
+  useEffect(()=>{const onKey=(event:KeyboardEvent)=>{if(event.key==="Escape")root.current?.querySelectorAll('[role="dialog"]:not(#competition-detail-modal-card):not(#creator-modal):not(#creator-modal-card),#ai-synergy-modal,#demo-modal,#poster-modal').forEach(el=>el.classList.add("hidden"));};document.addEventListener("keydown",onKey);return()=>document.removeEventListener("keydown",onKey);},[]);
   useEffect(()=>{
     const header=root.current?.querySelector<HTMLElement>('[data-design-header]');
     if(!header)return;
@@ -84,7 +84,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
   useSettingsEditor(root,name==="settings",html,toast);
   useAdminWorkspace(root,name==="admin",html,toast);
   const guard=(returnTo?:string)=>{if(loggedIn)return true;loginReturnTo.current=returnTo||location.pathname+location.search;toast("正在前往登录页面，登录后可继续当前操作。","需要登录",true);return false;};
-  const modal=(id:string,open:boolean)=>{const el=root.current?.querySelector("#"+id);if(el){el.classList.toggle("hidden",!open);el.querySelector<HTMLElement>("#creator-modal-card")?.classList.toggle("hidden",!open);el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");if(open)(el.querySelector('button,input') as HTMLElement|null)?.focus();}};
+  const modal=(id:string,open:boolean)=>{const el=root.current?.querySelector<HTMLElement>("#"+id);if(el){if(!open&&id==="creator-modal"&&!window.matchMedia("(prefers-reduced-motion: reduce)").matches){el.querySelector<HTMLElement>("#creator-modal-card")?.classList.add("pm-team-modal-closing");setTimeout(()=>{el.classList.add("hidden");el.querySelector<HTMLElement>("#creator-modal-card")?.classList.remove("pm-team-modal-closing");},180);}else{el.classList.toggle("hidden",!open);el.querySelector<HTMLElement>("#creator-modal-card")?.classList.toggle("hidden",!open);}el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");if(open)(el.querySelector('button,input') as HTMLElement|null)?.focus();}};
   const value=(id:string)=>(root.current?.querySelector("#"+id) as HTMLInputElement|HTMLTextAreaElement|null)?.value||"";
   const setValue=(id:string,text:string)=>{const el=root.current?.querySelector("#"+id) as HTMLInputElement|HTMLTextAreaElement|null;if(el)el.value=text;};
   const updateStep=(next:number)=>{
