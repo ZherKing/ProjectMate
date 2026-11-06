@@ -35,6 +35,11 @@ body {
 @layer base { button, input, select, textarea { font: inherit; } }
 button { cursor: pointer; }
 
+/* 全站表单统一聚焦状态：只保留紫色边框，不使用外扩 ring 或双层边框。 */
+input:not([type="checkbox"]):not([type="radio"]), textarea, select { transition: border-color .16s ease, background-color .16s ease; }
+input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus, select:focus { border-color: var(--primary) !important; outline: none !important; box-shadow: none !important; }
+input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-visible, select:focus-visible { border-color: var(--primary) !important; outline: none !important; box-shadow: none !important; }
+
 .pm-display { font-family: "Plus Jakarta Sans", Inter, "Noto Sans SC", system-ui, sans-serif; }
 .pm-shell { min-height: 100vh; background: var(--canvas); }
 .pm-header { position: fixed; inset: 0 0 auto; z-index: 40; height: 64px; border-bottom: 1px solid rgba(226, 226, 239, .72); background: rgba(255,255,255,.96); backdrop-filter: blur(14px); transition: background-color .28s ease, border-color .28s ease, box-shadow .28s ease, backdrop-filter .28s ease; }

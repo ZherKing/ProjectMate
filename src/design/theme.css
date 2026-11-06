@@ -134,6 +134,7 @@
 .design-screen svg { overflow:visible; }
 .design-screen button { cursor:pointer; }
 .design-screen input[type=checkbox],.design-screen input[type=radio]{accent-color:#3525cd;}
+.design-screen input:not([type=checkbox]):not([type=radio]):focus,.design-screen textarea:focus,.design-screen select:focus{border-color:#3525cd !important;outline:none !important;box-shadow:none !important;background-color:#fff;}
 .design-screen a, .design-screen button { transition:background-color .15s,color .15s; }
 .design-screen :focus-visible{outline:2px solid #4f46e5;outline-offset:3px;}
 .design-screen button:disabled{opacity:.6;cursor:wait;}
