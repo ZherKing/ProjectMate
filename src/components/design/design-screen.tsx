@@ -261,7 +261,17 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       return;
     }
     if(action==="view-competition-source"){return;}
-    if(action==="start-team"){const destination="/teams?create=1&competition="+encodeURIComponent(el.closest<HTMLElement>('[data-competition-modal]')?.dataset.competitionId||"");if(guard(destination))router.push(destination);return;}
+    if(action==="start-team"){
+      const destination="/teams?create=1&competition="+encodeURIComponent(el.closest<HTMLElement>('[data-competition-modal]')?.dataset.competitionId||"");
+      if(!guard(destination))return;
+      const detail=root.current?.querySelector<HTMLElement>('#competition-detail-modal');
+      const navigate=()=>router.push(destination);
+      if(!detail||detail.classList.contains('hidden')){navigate();return;}
+      if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){detail.classList.add('hidden');navigate();return;}
+      detail.classList.add('pm-detail-closing');
+      detailCloseTimer.current=setTimeout(()=>{detail.classList.add('hidden');detail.classList.remove('pm-detail-closing');detailCloseTimer.current=null;navigate();},180);
+      return;
+    }
     if(action==="detail-favorite"){
       const modalCard=el.closest<HTMLElement>('[data-competition-modal]');const key=modalCard?.dataset.competitionId||"";
       const result=await run("favorite",{key},button);if(result?.ok){const active=el.getAttribute("aria-pressed")!=="true";el.classList.toggle("text-error",active);el.setAttribute("aria-pressed",String(active));const favoriteText=el.querySelector("#fav-text");if(favoriteText)favoriteText.textContent=active?"已收藏":"收藏赛事";const favoriteIcon=el.querySelector("svg");if(favoriteIcon)favoriteIcon.setAttribute("fill",active?"currentColor":"none");const source=root.current.querySelector<HTMLElement>(`[data-competition-id="${CSS.escape(key)}"]`);if(source){source.dataset.favorite=String(active);const sourceButton=source.querySelector<HTMLElement>('[data-action="favorite"]');sourceButton?.classList.toggle("text-error",active);}}return;
