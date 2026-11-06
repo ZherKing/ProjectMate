@@ -11,9 +11,15 @@ import { saveProfile } from "@/lib/db/profile";
 import { requireAdmin } from "@/lib/auth/guards";
 import { randomUUID } from "node:crypto";
 import { isConfiguredAdminEmail } from "@/lib/auth/permissions";
+import { getCompetition, getCompetitionTrackDetails } from "@/lib/db/queries";
+import { analyzeCompetitionTrack, generateRecruitmentCopy } from "@/lib/ai/website-ai";
+import { isAiConfigured } from "@/lib/ai/provider";
+import { consumeAiQuota } from "@/lib/ai/limits";
+import { getCompetitionAnalysis } from "@/lib/ai/analysis-cache";
+import { getAccessibleProjectId } from "@/lib/db/projects";
 
 type Payload = Record<string, string>;
-export type ScreenResult = { ok: boolean; message: string; href?: string; summary?: string; id?: string };
+export type ScreenResult = { ok: boolean; message: string; href?: string; summary?: string; generatedText?: string; generatedAt?: string; id?: string };
 
 export async function screenAction(action: string, data: Payload = {}): Promise<ScreenResult> {
   const session = await auth();
@@ -52,12 +58,40 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         return { ok: true, message: "项目已发布至组队大厅。", id };
       }
       case "coach": {
-        const summary = await runProjectCoach("demo-project", (data.prompt || "").slice(0,2000));
+        if(!isAiConfigured())return {ok:false,message:"AI_API_KEY 尚未配置。请在服务器 .env 文件中配置 DeepSeek 后再试。"};
+        if(!consumeAiQuota(userId,"project-coach"))return {ok:false,message:"AI 教练请求较频繁，请 10 分钟后再试。"};
+        const projectId = getAccessibleProjectId(userId, data.projectId);
+        if (!projectId) return { ok: false, message: "当前账号还没有可分析的项目任务。请先创建项目并添加任务。" };
+        const summary = await runProjectCoach(projectId, (data.prompt || "").slice(0,2000));
         revalidatePath("/projects"); revalidatePath("/projects/tasks");
         return { ok: true, message: "分析完成，报告已保存。", summary };
       }
+      case "analyze-competition": {
+        if(!isAiConfigured())return {ok:false,message:"AI_API_KEY 尚未配置。请在服务器 .env 文件中配置 DeepSeek 后再试。"};
+        const id=(data.competitionId||"").trim();
+        const competition=getCompetition(id);
+        if(!competition)return {ok:false,message:"赛事不存在或尚未通过审核。"};
+        const tracks=getCompetitionTrackDetails(id);
+        const index=Math.max(0,Math.min(tracks.length-1,Number(data.trackIndex)||0));
+        const track=tracks[index];
+        if(!track)return {ok:false,message:"本站尚无可分析的赛道资料。请以赛事官方页面为准。"};
+        const cached=getCompetitionAnalysis(id,track.id,competition.updatedAt);
+        if(cached)return {ok:true,message:"已读取基于当前赛事资料生成的分析。",summary:cached.analysis,generatedAt:String(cached.generatedAt)};
+        if(!consumeAiQuota(userId,"competition-analysis"))return {ok:false,message:"AI 分析请求较频繁，请 10 分钟后再试。"};
+        const analysis=await analyzeCompetitionTrack({...competition,competitionId:id,trackId:track.id,sourceUpdatedAt:competition.updatedAt,competitionName:competition.name,trackName:track.name,description:track.description,deadline:track.deadline});
+        return {ok:true,message:"分析已根据本站审核过的赛事资料生成。请以官方来源为准。",summary:analysis};
+      }
+      case "generate-team-copy": {
+        if(!isAiConfigured())return {ok:false,message:"AI_API_KEY 尚未配置。请在服务器 .env 文件中配置 DeepSeek 后再试。"};
+        const title=(data.title||"").trim();const description=(data.description||"").trim();
+        if(title.length<2||description.length<5)return {ok:false,message:"请先填写项目名称和项目描述，再生成招募文案。"};
+        if(!consumeAiQuota(userId,"team-recruitment-copy"))return {ok:false,message:"AI 文案生成请求较频繁，请 10 分钟后再试。"};
+        const generatedText=await generateRecruitmentCopy({title,description,trackName:(data.trackName||"").slice(0,160),roles:(data.roles||"").slice(0,500)});
+        return {ok:true,message:"文案已生成，可编辑后再发布。",generatedText};
+      }
       case "complete-task": {
-        const task = sqlite.prepare("SELECT id FROM project_tasks WHERE id = ? AND project_id = ?").get(data.taskId, "demo-project");
+        const projectId = getAccessibleProjectId(userId, data.projectId);
+        const task = projectId ? sqlite.prepare("SELECT id FROM project_tasks WHERE id = ? AND project_id = ?").get(data.taskId, projectId) : null;
         if (!task) return { ok: false, message: "该任务是设计演示，尚未保存到任务数据库。" };
         updateProjectTaskStatus(data.taskId, "已完成");
         revalidatePath("/projects"); revalidatePath("/projects/tasks");
@@ -111,7 +145,9 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
       }
       default: return { ok: false, message: "此功能尚在完善中，当前操作未修改数据。" };
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) return { ok: false, message: "DeepSeek 请求超时，请检查服务状态后重试。" };
+    if (["coach", "analyze-competition", "generate-team-copy"].includes(action)) return { ok: false, message: "DeepSeek 服务调用失败，请检查服务器 .env 中的 API Key、Base URL 和模型名称后重试。" };
     return { ok: false, message: "操作未完成，请稍后重试。已有数据保持不变。" };
   }
 }

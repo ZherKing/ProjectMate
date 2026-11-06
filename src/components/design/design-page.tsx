@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { getCompetition, getCompetitionTrackDetails, listCompetitionTracks, listCompetitions, listFavoriteCompetitionIds } from "@/lib/db/queries";
 import { getProfile } from "@/lib/db/profile";
 import { requireAdmin } from "@/lib/auth/guards";
-import { listRecruitmentProjects } from "@/lib/db/projects";
+import { listRecruitmentProjects, getAccessibleProjectId } from "@/lib/db/projects";
 import { listProjectTasks, getLatestCoachReport } from "@/lib/db/tasks";
 import { DesignScreen } from "./design-screen";
 import { SiteShell } from "@/components/layout/site-shell";
@@ -15,6 +15,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { populateAdminContent } from "./admin-content";
 import { configureSettingsPage, type SettingsSection } from "./settings-content";
 import { teamCreateModalTemplate } from "@/design/team-create-modal-template";
+import { getCompetitionAnalysis } from "@/lib/ai/analysis-cache";
 
 export type ScreenName = keyof typeof screens;
 
@@ -322,6 +323,13 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     detailCard.find("h4").eq(1).closest("section").find("p").first().attr("data-modal-requirements","");
     detailCard.find("h4").eq(1).closest("section").find("p").attr("data-modal-requirement-item","");
     detailCard.find("h4").eq(1).closest("section").find("h5,h6").attr("data-modal-requirement-title","");
+    const aiSection = detailCard.find("p").filter((_, el) => /AI 赛道分析/.test(text($(el)))).closest("section");
+    aiSection.attr("data-ai-analysis-section", "");
+    aiSection.find("span").filter((_, el) => /数据未生成/.test(text($(el)))).attr("data-ai-analysis-status", "");
+    aiSection.find("p").filter((_, el) => /AI 赛道分析/.test(text($(el)))).attr("data-ai-analysis-placeholder", "");
+    aiSection.find("p").filter((_, el) => /需等待赛事组委会/.test(text($(el)))).attr("data-ai-analysis-placeholder-description", "");
+    aiSection.find("div.rounded-xl").last().attr("data-ai-analysis-empty", "");
+    aiSection.find("div.flex.items-center.justify-between").first().append('<button type="button" data-action="analyze-track" class="px-3 py-1.5 rounded-lg bg-primary text-on-primary font-label-sm text-label-sm">生成分析</button>');
     detailCard.find("a").filter((_,el)=>/^ccf.org.cn/.test(text($(el)))).attr("data-modal-authority-source","");
     detailCard.find("a").filter((_,el)=>/下载官方赛题说明书/.test(text($(el)))).attr("data-modal-spec-link","");
     detailCard.find("a").filter((_,el)=>/样例开发集/.test(text($(el)))).attr("data-modal-sample-link","");
@@ -332,7 +340,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     detailCard.find("button").filter((_,el)=>/赛题 Track-/.test(text($(el)))).each((index,el)=>{ $(el).attr("data-track-id",String(index)); });
     detailCard.find("[data-design-handler]").removeAttr("data-design-handler");
     const trackData=Object.fromEntries(competitions.map((item)=>[item.id,(trackGroups.get(item.id)?.names||[])]));
-    const competitionData=Object.fromEntries(competitions.map((item)=>[item.id,{name:item.name,platform:item.platform,status:item.status,season:item.season,sourceUrl:item.sourceUrl,tracks:getCompetitionTrackDetails(item.id)}]));
+    const competitionData=Object.fromEntries(competitions.map((item)=>[item.id,{name:item.name,platform:item.platform,status:item.status,season:item.season,sourceUrl:item.sourceUrl,tracks:getCompetitionTrackDetails(item.id).map(track=>({...track,analysis:getCompetitionAnalysis(item.id,track.id,item.updatedAt)}))}]));
     const modalHtml='<div id="competition-detail-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-inverse-surface/45 p-3 sm:p-6 backdrop-blur-[6px]" data-competition-modal data-track-data="'+escapeHtml(JSON.stringify(trackData))+'" data-competition-data="'+escapeHtml(JSON.stringify(competitionData))+'">'+detailCard.toString()+"</div>";
     main.append(modalHtml);
   }
@@ -348,6 +356,23 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       existingCreator.html(`<div id="creator-modal-card" data-competition-id="${escapeHtml(competitionId)}" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">${teamCreateModalTemplate}</div>`);
       existingCreator.find("#creator-modal-card").addClass("hidden");
       existingCreator.attr("data-team-create-modal", "");
+      existingCreator.attr("data-competition-id", competitionId);
+      existingCreator.find("#ai-generate-btn").attr("data-action", "generate-team-copy");
+      existingCreator.find("#ai-generated-text").attr("data-ai-team-copy", "").text("填写项目名称和描述后，可以生成可编辑的招募文案草稿。");
+      existingCreator.find('[data-field="roles"]').attr("data-team-roles", "");
+      const selectedCompetition = competitionId ? getCompetition(competitionId) : undefined;
+      if (selectedCompetition) {
+        const competitionCard=existingCreator.find('[data-section="target-competition"]');
+        competitionCard.find("h3").first().text(selectedCompetition.name);
+        competitionCard.find("[data-team-competition-status]").text(selectedCompetition.status);
+        competitionCard.find("[data-team-competition-source]").text(selectedCompetition.platform+" 官方数据源");
+        competitionCard.find("[data-team-competition-season]").text(selectedCompetition.season||"赛事信息");
+        const tracks=getCompetitionTrackDetails(competitionId);
+        const trackSelect=existingCreator.find("#team-track");trackSelect.empty();
+        tracks.forEach((track,index)=>trackSelect.append(`<option value="${escapeHtml(track.name)}"${index===0?" selected":""}>${escapeHtml(track.name)}</option>`));
+        if(!tracks.length)trackSelect.append('<option value="自拟赛道" selected>自拟赛道</option>');
+      }
+      else if (!competitionId) existingCreator.find('[data-section="target-competition"]').addClass("hidden");
     }
     const projects = listRecruitmentProjects();
     const sampleCards=main.find(".apply-team-btn").filter((_,el)=>!$(el).closest("#ai-synergy-modal").length).map((_,el)=>$(el).closest('[class*="rounded-xl"]').get(0)).get();
@@ -397,8 +422,9 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       coachColumn.removeClass("xl:col-span-6").addClass("xl:col-span-9");
       rightColumn.remove();
     }
-    const report = getLatestCoachReport("demo-project");
-    const liveTasks = listProjectTasks("demo-project");
+    const projectId = user?.id ? getAccessibleProjectId(user.id) : null;
+    const report = projectId ? getLatestCoachReport(projectId) : undefined;
+    const liveTasks = projectId ? listProjectTasks(projectId) : [];
     if(report){
       const conclusion=main.find("span").filter((_,e)=>/结论.*Conclusion/i.test(text($(e)))).first();
       const panel=conclusion.parent().parent();panel.find("p").first().text(report.summary);
@@ -417,9 +443,58 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     $("#btn-dismiss-suggestion").attr("data-action","dismiss-advice");
     // Existing tasks remain accessible from the source Kanban cards.
     main.find("div").filter((_,el)=>/^#TASK-\d+$/.test(text($(el)))).attr("data-route","/projects/tasks");
-    const tasks=listProjectTasks("demo-project");
+    const tasks=projectId ? listProjectTasks(projectId) : [];
     tasks.forEach(task=>main.find("span").filter((_,el)=>text($(el)).toUpperCase()==="#"+task.id.toUpperCase()).attr("data-task-id",task.id));
     if(report)main.find('[data-report-placeholder]').text(report.summary);
+    main.find("span,p,h3,h4").filter((_, el) => /AI 风险评估|AI 推荐决策方案|收益: \+2\.0d 裕量|优化冲刺排期策略/.test(text($(el)))).each((_, el) => {
+      const value = text($(el));
+      if (/AI 风险评估/.test(value)) $(el).text("项目风险评估");
+      else if (/AI 推荐决策方案/.test(value)) $(el).text("项目排期建议");
+      else if (/收益: \+2\.0d 裕量/.test(value)) $(el).text("等待真实任务数据");
+      else if (/优化冲刺排期策略/.test(value) && !report) $(el).text("暂无项目分析");
+    });
+    if (!report) main.find("p").filter((_, el) => /根据当前任务|存在一定风险|建议优先/.test(text($(el)))).text("暂无分析。运行 AI 教练后，这里会显示基于当前项目任务的建议。");
+  }
+  if (name === "home") {
+    main.find("h3,p,span").filter((_, el) => /高胜率|上榜率|胜率预测|AI匹配率|协同胜率/.test(text($(el)))).each((_, el) => {
+      const value = text($(el));
+      if (/高胜率/.test(value)) $(el).text(value.replace(/高胜率/g, "适合你的"));
+      if (/上榜率|胜率预测|AI匹配率|协同胜率/.test(value)) $(el).text("暂未生成真实指标");
+    });
+    main.find("span").filter((_, el) => /^\d{2,3}\.\d%$/.test(text($(el)))).each((_, el) => { $(el).text("暂无数据"); });
+    main.find("p").filter((_, el) => /基于往届 .*获奖团队画像解析|根据专业背景与过往成果/.test(text($(el)))).text("个性化建议会在完善个人资料后提供。");
+    main.find("p").filter((_, el) => /计算推荐上榜率|竞赛胜率模型/.test(text($(el)))).text("建议依据已审核赛事资料和你的个人偏好生成。");
+  }
+  if (name === "teams") {
+    main.find("p,h3,span").filter((_, el) => /AI 协同推荐精度|AI 契合 \d+%|匹配度 \d+%|匹配度优先|竞赛胜率模型|匹配度和技术栈推荐越精准/.test(text($(el)))).each((_, el) => {
+      const value = text($(el));
+      if (/AI 协同推荐精度/.test(value)) $(el).text("规则匹配状态");
+      else if (/AI 契合 \d+%|匹配度 \d+%/.test(value)) $(el).text("等待匹配");
+      else if (/匹配度优先/.test(value)) $(el).text("按项目资料排序");
+      else if (/竞赛胜率模型/.test(value)) $(el).text("根据项目资料和个人偏好排序");
+      else if (/匹配度和技术栈推荐越精准/.test(value)) $(el).text("填写更多项目资料后，规则匹配会更准确。");
+    });
+    main.find("p").filter((_, el) => /^\d{2,3}\.\d%$/.test(text($(el)))).each((_, el) => { $(el).text("暂无数据"); });
+    const profile = user?.id ? getProfile(user.id) : undefined;
+    const profileTerms = `${profile?.roles || ""},${profile?.skills || ""},${profile?.interests || ""}`.toLowerCase().split(/[，,、/\s]+/).filter((term) => term.length > 1);
+    const scoreFor = (roles: string | null, hours: number | null) => {
+      if (!profileTerms.length) return null;
+      const roleTerms = (roles || "").toLowerCase().split(/[，,、/\s]+/).filter((term) => term.length > 1);
+      const overlaps = roleTerms.filter((role) => profileTerms.some((term) => role.includes(term) || term.includes(role))).length;
+      const skillScore = roleTerms.length ? Math.round((overlaps / roleTerms.length) * 70) : 0;
+      const timeScore = profile?.weeklyHours && hours ? Math.max(0, 30 - Math.round(Math.abs(profile.weeklyHours - hours) / 2)) : 0;
+      return Math.min(100, skillScore + timeScore);
+    };
+    main.find("select").filter((_, el) => /AI 契合度最高/.test($(el).text())).find("option").first().text("资料匹配度最高");
+    main.find("[data-project-id]").each((_, el) => {
+      const card = $(el);
+      const score = scoreFor(card.attr("data-roles") || null, Number(card.attr("data-hours")) || null);
+      const label = card.find("span").filter((__, span) => /等待匹配|资料匹配/.test(text($(span)))).first();
+      if (label.length) label.text(score === null ? "完善资料后匹配" : `资料匹配 ${score}%`);
+      if (score !== null) card.attr("data-match-score", String(score));
+    });
+    if (!listRecruitmentProjects().length) main.find(".apply-team-btn").filter((_, el) => !$(el).closest("#ai-synergy-modal").length).each((_, el) => { $(el).closest('[class*="rounded-xl"]').remove(); });
+    if (user?.id && !profileTerms.length) main.find("#ai-synergy-modal").find("p").filter((_, el) => /匹配|推荐/.test(text($(el)))).last().text("完善个人技能、兴趣和每周投入时间后，系统会按规则筛选项目。");
   }
   $("[data-action='favorite']").each((index,el)=>{
     const card=$(el).parents().filter((_,parent)=>$(parent).find("h3").length===1).first();
