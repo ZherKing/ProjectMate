@@ -358,6 +358,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       existingCreator.attr("data-team-create-modal", "");
       existingCreator.attr("data-competition-id", competitionId);
       existingCreator.find("#ai-generate-btn").attr("data-action", "generate-team-copy");
+      existingCreator.find("#ai-output-box").addClass("pm-ai-copy-scroll");
       existingCreator.find("#ai-generated-text").attr("data-ai-team-copy", "").text("填写项目名称和描述后，可以生成可编辑的招募文案草稿。");
       existingCreator.find('[data-field="roles"]').attr("data-team-roles", "");
       const selectedCompetition = competitionId ? getCompetition(competitionId) : undefined;

@@ -21,8 +21,10 @@ async function revealText(target: HTMLElement | null, value: string) {
   if (!target) return;
   target.removeAttribute("data-ai-loading");
   target.textContent = "";
+  const scrollBox = target.closest<HTMLElement>(".pm-ai-copy-scroll");
   for (const char of Array.from(value)) {
     target.append(char);
+    if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
     await new Promise((resolve) => setTimeout(resolve, 12));
   }
 }
