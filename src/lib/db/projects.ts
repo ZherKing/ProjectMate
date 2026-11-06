@@ -41,11 +41,12 @@ export function getProjectStats(projectId: string) {
   initializeDatabase();
   const tasks = sqlite.prepare("SELECT id,title,status,priority,assignee FROM project_tasks WHERE project_id=? ORDER BY created_at ASC").all(projectId) as Array<{ id: string; title: string; status: string; priority: string; assignee: string | null }>;
   const memberCount = sqlite.prepare("SELECT COUNT(*) AS count FROM project_members WHERE project_id=?").get(projectId) as { count: number };
+  const members = sqlite.prepare("SELECT users.name AS name, project_members.role AS role FROM project_members LEFT JOIN users ON users.id=project_members.user_id WHERE project_members.project_id=? ORDER BY project_members.joined_at ASC").all(projectId) as Array<{ name: string | null; role: string }>;
   const completed = tasks.filter((task) => task.status === "已完成").length;
   const active = tasks.filter((task) => task.status !== "已完成");
   const loads = new Map<string, number>();
   for (const task of active) if (task.assignee) loads.set(task.assignee, (loads.get(task.assignee) || 0) + (task.priority === "高" ? 2 : 1));
-  return { tasks, memberCount: Math.max(memberCount.count, 1), completion: tasks.length ? Math.round((completed / tasks.length) * 100) : 0, remaining: active.length, loads: [...loads].map(([name, score]) => ({ name, score })) };
+  return { tasks, members, memberCount: memberCount.count, completion: tasks.length ? Math.round((completed / tasks.length) * 100) : 0, completed, remaining: active.length, loads: [...loads].map(([name, score]) => ({ name, score })) };
 }
 
 export function updateProjectNickname(projectId: string, userId: string, nickname: string) {

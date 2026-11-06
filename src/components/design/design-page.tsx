@@ -424,15 +424,65 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   }
   if (name === "projects") {
     const projectStats = user?.id ? (() => { const id=getAccessibleProjectId(user.id); return id ? getProjectStats(id) : null; })() : null;
-    const projectContext = user?.id ? (() => { const id=getAccessibleProjectId(user.id); return id ? sqlite.prepare("SELECT nickname,title FROM recruitment_projects WHERE id=? AND creator_id=?").get(id,user.id) as { nickname: string | null; title: string } | undefined : undefined; })() : undefined;
+    const projectContext = user?.id ? (() => { const id=getAccessibleProjectId(user.id); return id ? sqlite.prepare("SELECT nickname,title,competition_id AS competitionId,track_name AS trackName,status FROM recruitment_projects WHERE id=? AND creator_id=?").get(id,user.id) as { nickname: string | null; title: string; competitionId: string | null; trackName: string | null; status: string } | undefined : undefined; })() : undefined;
     const titleHeading = main.find("h1").first();
-    if (projectContext && titleHeading.length) titleHeading.after('<div class="pm-project-nickname-row"><input data-project-nickname maxlength="80" value="'+escapeHtml(projectContext.nickname || projectContext.title)+'" aria-label="项目昵称"><button type="button" class="pm-button-outline" data-action="save-project-nickname">保存昵称</button></div>');
+    if (projectContext && titleHeading.length) {
+      titleHeading.text(projectContext.nickname || projectContext.title).after('<div class="pm-project-nickname-row"><input data-project-nickname maxlength="80" value="'+escapeHtml(projectContext.nickname || projectContext.title)+'" aria-label="项目昵称"><button type="button" class="pm-button-outline" data-action="save-project-nickname">保存昵称</button></div>');
+      titleHeading.parent().find("span").filter((_,el)=>/正在冲刺|Sprint/.test(text($(el)))).text(projectContext.status);
+      const competition=projectContext.competitionId?getCompetition(projectContext.competitionId):undefined;
+      const info=titleHeading.parent().find("p").first();
+      info.text(competition?[competition.name,projectContext.trackName].filter(Boolean).join(" · "):"比赛与赛道信息暂无");
+    } else if (titleHeading.length) {
+      titleHeading.text("暂无项目");
+      titleHeading.parent().find("span").filter((_,el)=>/正在冲刺|Sprint/.test(text($(el)))).remove();
+      titleHeading.parent().find("p").first().text("创建组队项目后，项目进度、任务和成员数据会显示在这里。");
+    }
     main.find("button").filter((_, el) => /邀请新成员/.test(text($(el)))).attr("data-action", "project-invite");
     main.find("button").filter((_, el) => /新建任务卡片/.test(text($(el)))).attr("data-action", "new-project-task");
     main.find("span").filter((_, el) => text($(el)) === "整体完成度").next().text(projectStats ? `${projectStats.completion}%` : "暂无数据");
     if (projectStats) {
-      main.find("p").filter((_, el) => /高优先级未完成任务/.test(text($(el)))).first().text(`${projectStats.remaining} 个未完成任务`);
-      main.find("span").filter((_, el) => /进行中 \(阻塞\)|待分配 \/ 需求池|正在进行中/.test(text($(el)))).first().text(`${projectStats.remaining} 项未完成`);
+      main.find("span").filter((_, el) => /^\d{1,3}%$/.test(text($(el)))).text(`${projectStats.completion}%`);
+      main.find("p").filter((_, el) => /预计可如期交付主算法/.test(text($(el)))).text(`${projectStats.completed}/${projectStats.tasks.length} 项任务已完成`);
+      const countdown=main.find("span").filter((_,el)=>text($(el))==="决赛作品提交倒计时").closest(".bg-surface-container-low.rounded-xl");
+      if(projectContext?.competitionId){
+        const event=sqlite.prepare("SELECT MIN(deadline) AS deadline FROM competition_tracks WHERE competition_id=?").get(projectContext.competitionId) as {deadline:number|null}|undefined;
+        const deadline=event?.deadline;
+        countdown.find("span").filter((_,el)=>/^\d+$/.test(text($(el)))).text(deadline?String(Math.max(0,Math.ceil((deadline-Date.now())/(24*60*60*1000)))):"暂无");
+        countdown.find("span").filter((_,el)=>/^截止:/.test(text($(el)))).text(deadline?`截止: ${new Date(deadline).toLocaleDateString("zh-CN")}`:"截止日期暂无");
+      } else countdown.find("span").filter((_,el)=>/^\d+$/.test(text($(el)))).text("暂无");
+      const urgentList=main.find("h3").filter((_,el)=>/高优先级未完成任务/.test(text($(el)))).closest(".bg-surface-container-lowest");
+      const urgent=projectStats.tasks.filter(task=>task.priority==="高"&&task.status!=="已完成");
+      urgentList.find("span").filter((_,el)=>/\d+ 紧急/.test(text($(el)))).text(`${urgent.length} 项`);
+      const urgentCards=urgentList.children("div").last().empty();
+      if(urgent.length) urgent.forEach(task=>urgentCards.append('<article class="rounded-lg bg-surface-container-low p-3"><div class="flex items-center justify-between"><span class="font-mono-metric text-mono-metric font-bold">#'+escapeHtml(task.id)+'</span><span class="text-xs">'+escapeHtml(task.status)+'</span></div><p class="mt-1 text-sm font-medium">'+escapeHtml(task.title)+'</p><p class="mt-1 text-xs text-on-surface-variant">负责人：'+escapeHtml(task.assignee||"未分配")+'</p></article>'));
+      else urgentCards.append('<p class="text-sm text-on-surface-variant">暂无未完成的高优先级任务。</p>');
+      const goal=main.find("h3").filter((_,el)=>/当前冲刺目标/.test(text($(el)))).closest(".bg-surface-container-lowest");
+      goal.find("h3").text("任务概览");goal.find("span").filter((_,el)=>/^W\d/.test(text($(el)))).remove();
+      goal.children("p").first().text(projectStats.tasks.length?`当前共 ${projectStats.tasks.length} 项任务，其中 ${projectStats.remaining} 项尚未完成。`:"暂无任务数据。");
+      const milestones=goal.find(".flex.flex-col.gap-3.pt-2").empty();
+      projectStats.tasks.slice(0,4).forEach(task=>milestones.append('<div class="flex items-start gap-3"><span class="mt-1.5 h-2 w-2 shrink-0 rounded-full '+(task.status==="已完成"?"bg-secondary":"bg-primary")+'"></span><div><p class="text-sm font-medium">'+escapeHtml(task.title)+'</p><p class="text-xs text-on-surface-variant">'+escapeHtml(task.status)+' · '+escapeHtml(task.assignee||"待分配")+'</p></div></div>'));
+      if(!projectStats.tasks.length)milestones.append('<p class="text-sm text-on-surface-variant">暂无任务数据。</p>');
+      const membersCard=main.find("h3").filter((_,el)=>/成员任务负荷/.test(text($(el)))).closest(".bg-surface-container-lowest");
+      membersCard.find("span").filter((_,el)=>/位核心在席/.test(text($(el)))).text(`${projectStats.memberCount} 位成员`);
+      const memberList=membersCard.children("div").last().empty();
+      const assigned=[...new Set(projectStats.tasks.map(task=>task.assignee).filter((name):name is string=>Boolean(name)))];
+      if(assigned.length) assigned.forEach(name=>{const assignedTasks=projectStats.tasks.filter(task=>task.assignee===name&&task.status!=="已完成");const percent=projectStats.tasks.length?Math.round(assignedTasks.length/Math.max(1,projectStats.remaining)*100):0;memberList.append('<div class="flex items-center justify-between gap-3"><div class="min-w-0"><p class="truncate text-sm font-medium">'+escapeHtml(name)+'</p><p class="text-xs text-on-surface-variant">'+assignedTasks.length+' 项未完成任务</p></div><span class="pm-status '+(percent>=75?"pm-status-amber":"pm-status-gray")+'">'+percent+'%</span></div>');});
+      else memberList.append('<p class="text-sm text-on-surface-variant">暂无已指派任务或成员负荷数据。</p>');
+      const map: Array<[RegExp,string]>=[[/待分配|待办/,"待分配 / 需求池"],[/进行中/,"正在进行中"],[/阻塞|紧急/,"阻塞与依赖"],[/已完成/,"已验收闭环"]];
+      main.find("span").filter((_,el)=>map.some(([,name])=>text($(el))===name)).each((_,labelEl)=>{const label=$(labelEl);const match=map.find(([,name])=>name===text(label));if(!match)return;const column=label.closest("div.bg-surface-container-low.rounded-xl");const tasks=projectStats.tasks.filter(task=>match[0].test(task.status));column.find("span").filter((_,el)=>/^\d+$/.test(text($(el)))).last().text(String(tasks.length));column.children("div").slice(1).remove();tasks.forEach(task=>column.append('<article class="rounded-lg bg-surface-container-lowest p-3 shadow-sm"><div class="flex justify-between"><span class="font-mono-metric text-xs">#'+escapeHtml(task.id)+'</span><span class="text-xs">'+escapeHtml(task.priority)+'</span></div><p class="mt-2 text-sm font-medium">'+escapeHtml(task.title)+'</p><p class="mt-2 text-xs text-on-surface-variant">'+escapeHtml(task.assignee||"未分配")+'</p></article>'));if(!tasks.length)column.append('<p class="px-2 py-3 text-xs text-on-surface-variant">暂无任务</p>');});
+    } else {
+      main.find("span").filter((_,el)=>/^ID:\s*PM-/.test(text($(el)))).text("暂无项目 ID");
+      main.find("span").filter((_,el)=>text($(el))==="实时守护中").text("等待项目数据");
+      main.find("p").filter((_,el)=>/结合 GitHub 代码日志|GitHub 代码日志|Kanban 工时/.test(text($(el)))).text("创建项目并添加任务后，AI 教练会根据真实数据分析。");
+      main.find("span").filter((_,el)=>/^#TASK-/.test(text($(el)))).closest("article").remove();
+      main.find("span").filter((_,el)=>/^\d{1,3}%$/.test(text($(el)))).text("暂无数据");
+      main.find("p").filter((_,el)=>/预计可如期交付主算法|评审环境已提前锁定/.test(text($(el)))).text("暂无项目进度数据");
+      main.find("span").filter((_,el)=>/^截止:/.test(text($(el)))).text("暂无截止日期");
+      main.find("h3").filter((_,el)=>/当前冲刺目标/.test(text($(el)))).closest(".bg-surface-container-lowest").find("p,.flex.flex-col.gap-3.pt-2").remove();
+      main.find("h3").filter((_,el)=>/成员任务负荷|高优先级未完成任务/.test(text($(el)))).closest(".bg-surface-container-lowest").children("div").last().html('<p class="text-sm text-on-surface-variant">暂无项目数据</p>');
+      main.find("span").filter((_,el)=>/^\d+ 紧急$/.test(text($(el)))).text("暂无");
+      main.find("span").filter((_,el)=>/位成员|位核心在席/.test(text($(el)))).text("暂无成员");
+      main.find("span").filter((_,el)=>/正在进行中|待分配 \/ 需求池|阻塞与依赖|已验收闭环/.test(text($(el)))).each((_,el)=>{const col=$(el).closest("div.bg-surface-container-low.rounded-xl");col.children("div").slice(1).remove();col.append('<p class="px-2 py-3 text-xs text-on-surface-variant">暂无项目任务</p>');});
     }
     main.append('<div id="project-invite-modal" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"><div class="pm-workspace-modal" role="dialog" aria-modal="true" aria-labelledby="project-invite-title"><button type="button" class="pm-workspace-modal-close" data-action="close-workspace-modal" aria-label="关闭">×</button><h2 id="project-invite-title">邀请新成员</h2><p>生成一个 7 天内有效的项目邀请链接，发送给你的队友。</p><div class="pm-invite-link-row"><input readonly data-project-invite-link aria-label="项目邀请链接" /><button type="button" data-action="copy-project-invite">复制</button></div><p class="pm-workspace-modal-status" data-project-invite-status></p><button type="button" class="pm-button-primary" data-action="generate-project-invite">生成邀请链接</button></div></div>');
     main.append('<div id="project-task-modal" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"><div class="pm-workspace-modal" role="dialog" aria-modal="true" aria-labelledby="project-task-title"><button type="button" class="pm-workspace-modal-close" data-action="close-workspace-modal" aria-label="关闭">×</button><h2 id="project-task-title">新建任务卡片</h2><div class="pm-workspace-form"><label>任务名称<input data-project-task-title placeholder="例如：冻结接口文档" maxlength="160" /></label><label>优先级<select data-project-task-priority><option>中</option><option>高</option><option>低</option></select></label><label>负责人<input data-project-task-assignee placeholder="可留空" maxlength="80" /></label></div><p class="pm-workspace-modal-status" data-project-task-status></p><button type="button" class="pm-button-primary" data-action="create-project-task">创建任务</button></div></div>');
