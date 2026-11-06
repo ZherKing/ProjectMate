@@ -84,7 +84,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
   useSettingsEditor(root,name==="settings",html,toast);
   useAdminWorkspace(root,name==="admin",html,toast);
   const guard=(returnTo?:string)=>{if(loggedIn)return true;loginReturnTo.current=returnTo||location.pathname+location.search;toast("正在前往登录页面，登录后可继续当前操作。","需要登录",true);return false;};
-  const modal=(id:string,open:boolean)=>{const el=root.current?.querySelector("#"+id);if(el){el.classList.toggle("hidden",!open);el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");if(open)(el.querySelector('button,input') as HTMLElement|null)?.focus();}};
+  const modal=(id:string,open:boolean)=>{const el=root.current?.querySelector("#"+id);if(el){el.classList.toggle("hidden",!open);el.querySelector<HTMLElement>("#creator-modal-card")?.classList.toggle("hidden",!open);el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");if(open)(el.querySelector('button,input') as HTMLElement|null)?.focus();}};
   const value=(id:string)=>(root.current?.querySelector("#"+id) as HTMLInputElement|HTMLTextAreaElement|null)?.value||"";
   const setValue=(id:string,text:string)=>{const el=root.current?.querySelector("#"+id) as HTMLInputElement|HTMLTextAreaElement|null;if(el)el.value=text;};
   const updateStep=(next:number)=>{
@@ -261,12 +261,13 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       return;
     }
     if(action==="view-competition-source"){return;}
-    if(action==="start-team"){if(guard("/teams/create"))router.push("/teams/create?competition="+encodeURIComponent(el.closest<HTMLElement>('[data-competition-modal]')?.dataset.competitionId||""));return;}
+    if(action==="start-team"){const destination="/teams?create=1&competition="+encodeURIComponent(el.closest<HTMLElement>('[data-competition-modal]')?.dataset.competitionId||"");if(guard(destination))router.push(destination);return;}
     if(action==="detail-favorite"){
       const modalCard=el.closest<HTMLElement>('[data-competition-modal]');const key=modalCard?.dataset.competitionId||"";
       const result=await run("favorite",{key},button);if(result?.ok){const active=el.getAttribute("aria-pressed")!=="true";el.classList.toggle("text-error",active);el.setAttribute("aria-pressed",String(active));const favoriteText=el.querySelector("#fav-text");if(favoriteText)favoriteText.textContent=active?"已收藏":"收藏赛事";const favoriteIcon=el.querySelector("svg");if(favoriteIcon)favoriteIcon.setAttribute("fill",active?"currentColor":"none");const source=root.current.querySelector<HTMLElement>(`[data-competition-id="${CSS.escape(key)}"]`);if(source){source.dataset.favorite=String(active);const sourceButton=source.querySelector<HTMLElement>('[data-action="favorite"]');sourceButton?.classList.toggle("text-error",active);}}return;
     }
     if(id==="open-creator-btn"){if(guard()){updateStep(1);modal("creator-modal",true);}return;}
+    if(action==="team-publish"){const scope=root.current;const modalRoot=scope.querySelector<HTMLElement>('[data-team-create-modal]');const competitionId=modalRoot?.querySelector<HTMLElement>('[data-competition-id]')?.dataset.competitionId||new URLSearchParams(location.search).get('competition')||"";const title=scope.querySelector<HTMLInputElement>('#team-project-name')?.value||"";const description=scope.querySelector<HTMLTextAreaElement>('#team-project-desc')?.value||"";const trackName=scope.querySelector<HTMLSelectElement>('#team-track')?.value||"自拟赛道";const weeklyHours=scope.querySelector<HTMLInputElement>('#team-hours')?.value||"10";const result=await run("publish",{title,description,competitionId,trackName,weeklyHours},button);if(result?.ok){modal("creator-modal",false);router.refresh();}return;}
     if(["close-ai-synergy","close-ai-synergy-action","close-creator-btn","close-poster-btn"].includes(id)){modal(id.includes("synergy")?"ai-synergy-modal":id.includes("poster")?"poster-modal":"creator-modal",false);if(id==="close-poster-btn"){posterVisible.current=false;router.refresh();}return;}
     if(id==="fill-example-idea"){setValue("idea-input-field","我们想做一个面向大学生的 AI 项目搭档，帮助发现比赛、找到队友并推进项目。");return;}
     if(id==="wizard-prev-btn"){updateStep(Math.max(1,step.current-1));return;}

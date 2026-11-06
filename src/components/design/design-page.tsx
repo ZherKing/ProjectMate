@@ -14,6 +14,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { populateAdminContent } from "./admin-content";
 import { configureSettingsPage, type SettingsSection } from "./settings-content";
+import { teamCreateModalTemplate } from "@/design/team-create-modal-template";
 
 export type ScreenName = keyof typeof screens;
 
@@ -341,6 +342,13 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     main.find('input[type="checkbox"]').attr("data-action","demo-task");
   }
   if (name === "teams") {
+    const existingCreator = main.find("#creator-modal");
+    if (existingCreator.length) {
+      const competitionId = Array.isArray(query?.competition) ? query?.competition[0] : query?.competition || "";
+      existingCreator.html(`<div id="creator-modal-card" data-competition-id="${escapeHtml(competitionId)}" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">${teamCreateModalTemplate}</div>`);
+      existingCreator.find("#creator-modal-card").addClass("hidden");
+      existingCreator.attr("data-team-create-modal", "");
+    }
     const projects = listRecruitmentProjects();
     const sampleCards=main.find(".apply-team-btn").filter((_,el)=>!$(el).closest("#ai-synergy-modal").length).map((_,el)=>$(el).closest('[class*="rounded-xl"]').get(0)).get();
     if(projects.length && sampleCards.length){
