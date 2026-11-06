@@ -31,7 +31,8 @@ async function revealText(target: HTMLElement | null, value: string) {
 export function DesignScreen({ name, html, loggedIn, variant }: { name: string; html: string; loggedIn: boolean; variant?: "register" }) {
   const root=useRef<HTMLDivElement>(null);
   const detailCloseTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
-  useEffect(()=>()=>{if(detailCloseTimer.current)clearTimeout(detailCloseTimer.current);},[]);
+  const competitionFilterTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  useEffect(()=>()=>{if(detailCloseTimer.current)clearTimeout(detailCloseTimer.current);if(competitionFilterTimer.current)clearTimeout(competitionFilterTimer.current);},[]);
   const markup = useMemo(() => <div dangerouslySetInnerHTML={{__html:html}} />, [html]);
   const router=useRouter();
   const [notice,setNotice]=useState<Notice|null>(null);
@@ -115,11 +116,11 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     root.current?.querySelector("#wizard-next-btn")?.classList.toggle("hidden",next===3);
     root.current?.querySelector("#wizard-publish-btn")?.classList.toggle("hidden",next!==3);
   };
-  const run=async(action:string,data:Record<string,string>={},button?:HTMLButtonElement)=>{
+  const run=async(action:string,data:Record<string,string>={},button?:HTMLButtonElement,silent=false)=>{
     if(!guard())return null;
     if(button)button.disabled=true;
-    try{const result=await screenAction(action,data);toast(result.message,result.ok?"操作成功":"操作未完成",!!result.href);return result;}
-    catch{toast("请求未完成，请稍后重试。","连接失败");return null;}
+    try{const result=await screenAction(action,data);if(!silent)toast(result.message,result.ok?"操作成功":"操作未完成",!!result.href);return result;}
+    catch{if(!silent)toast("请求未完成，请稍后重试。","连接失败");return null;}
     finally{if(button)button.disabled=false;}
   };
   const filterCompetitions=(syncUrl=true)=>{
@@ -129,13 +130,14 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     const inputs=[...scope.querySelectorAll<HTMLInputElement>('[data-platform-filter]')];
     const platforms=inputs.filter(i=>i.checked).map(i=>i.dataset.platformFilter||"");
     const status=scope.querySelector<HTMLInputElement>('[data-status-filter]:checked')?.dataset.statusFilter||"";
-    const cards=[...scope.querySelectorAll<HTMLElement>('[data-competition-id]')];
+    const cards=[...scope.querySelectorAll<HTMLElement>('[data-competition-card]')];
     const favoritesMode=scope.dataset.favoritesMode==="true";
     const matched=cards.filter(card=>{const text=(card.dataset.searchText||"").normalize("NFKC").toLowerCase();return (!favoritesMode||card.dataset.favorite==="true")&&terms.every(term=>text.includes(term))&&platforms.includes(card.dataset.platform||"")&&(!status||card.dataset.status===status);});
     const sort=scope.querySelector<HTMLElement>('[data-sort-filter][data-selected="true"]')?.dataset.sortFilter||"default";
     const deadline=(card:HTMLElement)=>card.dataset.deadline?Number(card.dataset.deadline):Infinity;
     matched.sort((a,b)=>sort==="name"?(a.querySelector("h3")?.textContent||"").localeCompare(b.querySelector("h3")?.textContent||"","zh-CN"):sort==="updated"?Number(b.dataset.updatedAt)-Number(a.dataset.updatedAt):sort==="deadline"?(deadline(a)-deadline(b)||Number(a.dataset.defaultOrder)-Number(b.dataset.defaultOrder)):Number(a.dataset.defaultOrder)-Number(b.dataset.defaultOrder));
-    const parent=cards[0]?.parentElement;matched.forEach(card=>parent?.append(card));
+    const parent=cards[0]?.parentElement;
+    if(parent&&matched.some((card,index)=>parent.children[index]!==card))matched.forEach(card=>parent.append(card));
     const pageSize=6;const totalPages=Math.max(1,Math.ceil(matched.length/pageSize));let page=syncUrl?1:Math.min(Math.max(Number(scope.dataset.competitionPage||1),1),totalPages);scope.dataset.competitionPage=String(page);
     const visible=new Set(matched.slice((page-1)*pageSize,page*pageSize));cards.forEach(card=>card.classList.toggle("hidden",!visible.has(card)));
     const heading=scope.querySelector('[data-results-heading]');if(heading)heading.textContent="共匹配 "+matched.length+" 项赛事";
@@ -155,7 +157,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
   const filterTeams=()=>{
     const scope=root.current;if(!scope)return;
     const active=Array.from(scope.querySelectorAll('.role-chip[data-selected="true"],.filter-pill[data-selected="true"]')).map(el=>el.textContent?.trim()||"");
-    scope.querySelectorAll<HTMLElement>('[data-project-id]').forEach(el=>{if(el.tagName==="BUTTON")return;const text=el.textContent||"";el.classList.toggle("hidden",active.some(tag=>tag!=="全部赛事"&&!text.includes(tag)));});
+    scope.querySelectorAll<HTMLElement>('[data-project-card][data-project-id]').forEach(el=>{const text=el.textContent||"";el.classList.toggle("hidden",active.some(tag=>tag!=="全部赛事"&&!text.includes(tag)));});
   };
   async function onAuthSubmit(event: React.FormEvent<HTMLDivElement>) {
     const form = event.target as HTMLFormElement;
@@ -228,13 +230,41 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       return;
     }
     if(action==="auth-unavailable"){event.preventDefault();toast("此认证服务尚未配置，请使用已注册的账号密码登录。","暂不可用");return;}
+    if(el.matches("[data-role-toggle]")){
+      const selected=el.dataset.selected!=="true";
+      el.dataset.selected=String(selected);
+      el.classList.toggle("bg-primary/10",selected);el.classList.toggle("border-primary/30",selected);el.classList.toggle("text-primary",selected);
+      el.classList.toggle("bg-surface-container-low",!selected);el.classList.toggle("text-on-surface-variant",!selected);
+      const count=el.closest("[data-section='recruitment-roles']")?.querySelector<HTMLElement>("[data-selected-role-count]");
+      if(count){const total=el.closest("[data-team-roles]")?.querySelectorAll('[data-role-toggle][data-selected="true"]').length||0;count.textContent=`已选 ${total} 个角色`;}
+      const icon=el.querySelector("svg");if(icon){icon.classList.remove("hidden");icon.innerHTML=selected?'<path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/>':'<path d="M12 4.5v15m7.5-7.5h-15" stroke-linecap="round" stroke-linejoin="round"/>';}
+      return;
+    }
+    if(action==="show-custom-role"){
+      const editor=el.closest("[data-section='recruitment-roles']")?.querySelector<HTMLElement>("[data-custom-role-editor]");
+      editor?.classList.toggle("hidden");editor?.querySelector<HTMLInputElement>("[data-custom-role-input]")?.focus();return;
+    }
+    if(action==="add-custom-role"){
+      const editor=el.closest<HTMLElement>("[data-custom-role-editor]");const input=editor?.querySelector<HTMLInputElement>("[data-custom-role-input]");const value=input?.value.trim().slice(0,40)||"";
+      if(!value){toast("请输入岗位名称。","岗位名称为空");return;}
+      const section=el.closest<HTMLElement>("[data-section='recruitment-roles']");const roleRoot=section?.querySelector<HTMLElement>("[data-team-roles]");if(!roleRoot)return;
+      if([...roleRoot.querySelectorAll<HTMLElement>("[data-role-toggle]")].some(role=>role.textContent?.trim().startsWith(value))){toast("该岗位已添加。","岗位已存在");return;}
+      const role=document.createElement("button");role.type="button";role.dataset.roleToggle="";role.dataset.selected="true";role.className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-primary";
+      const labelNode=document.createElement("span");labelNode.textContent=value;role.append(labelNode);
+      const icon=document.createElementNS("http://www.w3.org/2000/svg","svg");icon.setAttribute("aria-hidden","true");icon.setAttribute("viewBox","0 0 24 24");icon.setAttribute("fill","none");icon.setAttribute("stroke","currentColor");icon.setAttribute("stroke-width","2");icon.setAttribute("class","w-3.5 h-3.5");
+      const path=document.createElementNS("http://www.w3.org/2000/svg","path");path.setAttribute("d","M6 6l12 12M18 6 6 18");path.setAttribute("stroke-linecap","round");icon.append(path);role.append(icon);roleRoot.append(role);if(input)input.value="";
+      const count=section?.querySelector<HTMLElement>("[data-selected-role-count]");if(count)count.textContent=`已选 ${roleRoot.querySelectorAll('[data-role-toggle][data-selected="true"]').length} 个角色`;return;
+    }
     if(id==="open-ai-match-btn"){if(guard())modal("ai-synergy-modal",true);return;}
+    if(action==="open-competition-detail"&&el.closest("[data-competition-card]")&&el.tagName==="BUTTON"){
+      event.preventDefault();event.stopPropagation();
+    }
     if(action==="open-competition-detail"){
       const competitionId=el.dataset.competitionId||el.closest<HTMLElement>('[data-competition-id]')?.dataset.competitionId||"";
       const card=root.current.querySelector<HTMLElement>('#competition-detail-modal');
       if(card){
         card.dataset.competitionId=competitionId;
-        const source=root.current.querySelector<HTMLElement>(`[data-competition-id="${CSS.escape(competitionId)}"]`);
+        const source=root.current.querySelector<HTMLElement>(`[data-competition-card][data-competition-id="${CSS.escape(competitionId)}"]`);
         const competitionData=JSON.parse(card.dataset.competitionData||"{}");
         const competition=competitionData[competitionId] as { name?: string; platform?: string; status?: string; season?: string; sourceUrl?: string; tracks?: Array<{ name:string; description:string|null; deadline:number|null; analysis?:{analysis:string;generatedAt:number;model:string}|null }> }|undefined;
         const title=competition?.name||source?.querySelector("h3")?.textContent?.trim()||"赛事详情";
@@ -305,8 +335,8 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       const result=await run("favorite",{key},button);if(result?.ok){const active=el.getAttribute("aria-pressed")!=="true";el.classList.toggle("text-error",active);el.setAttribute("aria-pressed",String(active));const favoriteText=el.querySelector("#fav-text");if(favoriteText)favoriteText.textContent=active?"已收藏":"收藏赛事";const favoriteIcon=el.querySelector("svg");if(favoriteIcon)favoriteIcon.setAttribute("fill",active?"currentColor":"none");const source=root.current.querySelector<HTMLElement>(`[data-competition-id="${CSS.escape(key)}"]`);if(source){source.dataset.favorite=String(active);const sourceButton=source.querySelector<HTMLElement>('[data-action="favorite"]');sourceButton?.classList.toggle("text-error",active);}}return;
     }
     if(id==="open-creator-btn"){if(guard()){updateStep(1);modal("creator-modal",true);}return;}
-    if(action==="team-publish"){const scope=root.current;const modalRoot=scope.querySelector<HTMLElement>('[data-team-create-modal]');const competitionId=modalRoot?.querySelector<HTMLElement>('[data-competition-id]')?.dataset.competitionId||new URLSearchParams(location.search).get('competition')||"";const title=scope.querySelector<HTMLInputElement>('#team-project-name')?.value||"";const description=scope.querySelector<HTMLTextAreaElement>('#team-project-desc')?.value||"";const trackName=scope.querySelector<HTMLSelectElement>('#team-track')?.value||"自拟赛道";const weeklyHours=scope.querySelector<HTMLInputElement>('#team-hours')?.value||"10";const roleRoot=scope.querySelector<HTMLElement>('[data-team-roles]');const roles=[...(roleRoot?.querySelectorAll<HTMLElement>('button')||[])].filter(role=>role.classList.contains('bg-primary/10')).map(role=>role.querySelector('span')?.textContent?.trim()||'').filter(Boolean).join('、');const result=await run("publish",{title,description,competitionId,trackName,weeklyHours,roles},button);if(result?.ok){modal("creator-modal",false);router.refresh();}return;}
-    if(action==="generate-team-copy"){const scope=root.current;const title=scope.querySelector<HTMLInputElement>('#team-project-name')?.value||"";const description=scope.querySelector<HTMLTextAreaElement>('#team-project-desc')?.value||"";const trackName=scope.querySelector<HTMLSelectElement>('#team-track')?.value||"";const roleRoot=scope.querySelector<HTMLElement>('[data-team-roles]');const roles=[...(roleRoot?.querySelectorAll<HTMLElement>('button')||[])].filter(role=>role.classList.contains('bg-primary/10')).map(role=>role.querySelector('span')?.textContent?.trim()||'').filter(Boolean).join('、');const output=scope.querySelector<HTMLElement>('[data-ai-team-copy]');setAiLoading(output,true);const result=await run('generate-team-copy',{title,description,trackName,roles},button);if(result?.ok&&result.generatedText){await revealText(output,result.generatedText);const descriptionField=scope.querySelector<HTMLTextAreaElement>('#team-project-desc');if(descriptionField){descriptionField.value=result.generatedText;descriptionField.dispatchEvent(new Event('input',{bubbles:true}));}}else{setAiLoading(output,false);if(output)output.textContent=result?.message||'生成未完成，请稍后重试。';}return;}
+    if(action==="team-publish"){const scope=root.current;const modalRoot=scope.querySelector<HTMLElement>('[data-team-create-modal]');const competitionId=modalRoot?.querySelector<HTMLElement>('[data-competition-id]')?.dataset.competitionId||new URLSearchParams(location.search).get('competition')||"";const title=scope.querySelector<HTMLInputElement>('#team-project-name')?.value||"";const description=scope.querySelector<HTMLTextAreaElement>('#team-project-desc')?.value||"";const trackName=scope.querySelector<HTMLSelectElement>('#team-track')?.value||"自拟赛道";const weeklyHours=scope.querySelector<HTMLInputElement>('#team-hours')?.value||"10";if(title.trim().length<2||description.trim().length<5){toast("请填写项目名称和项目描述后再发布。","项目信息未完成");return;}const roleRoot=scope.querySelector<HTMLElement>('[data-team-roles]');const roles=[...(roleRoot?.querySelectorAll<HTMLElement>('[data-role-toggle][data-selected="true"]')||[])].map(role=>role.querySelector('span')?.textContent?.trim()||'').filter(Boolean).join('、');const result=await run("publish",{title,description,competitionId,trackName,weeklyHours,roles},button);if(result?.ok){modal("creator-modal",false);router.refresh();}return;}
+    if(action==="generate-team-copy"){const scope=root.current;const title=scope.querySelector<HTMLInputElement>('#team-project-name')?.value||"";const description=scope.querySelector<HTMLTextAreaElement>('#team-project-desc')?.value||"";const trackName=scope.querySelector<HTMLSelectElement>('#team-track')?.value||"";const roleRoot=scope.querySelector<HTMLElement>('[data-team-roles]');const roles=[...(roleRoot?.querySelectorAll<HTMLElement>('[data-role-toggle][data-selected="true"]')||[])].map(role=>role.querySelector('span')?.textContent?.trim()||'').filter(Boolean).join('、');const output=scope.querySelector<HTMLElement>('[data-ai-team-copy]');setAiLoading(output,true);const result=await run('generate-team-copy',{title,description,trackName,roles},button);if(result?.ok&&result.generatedText){await revealText(output,result.generatedText);const descriptionField=scope.querySelector<HTMLTextAreaElement>('#team-project-desc');if(descriptionField){descriptionField.value=result.generatedText;descriptionField.dispatchEvent(new Event('input',{bubbles:true}));}}else{setAiLoading(output,false);if(output)output.textContent=result?.message||'生成未完成，请稍后重试。';}return;}
     if(["close-ai-synergy","close-ai-synergy-action","close-creator-btn","close-poster-btn"].includes(id)){modal(id.includes("synergy")?"ai-synergy-modal":id.includes("poster")?"poster-modal":"creator-modal",false);if(id==="close-poster-btn"){posterVisible.current=false;router.refresh();}return;}
     if(id==="fill-example-idea"){setValue("idea-input-field","我们想做一个面向大学生的 AI 项目搭档，帮助发现比赛、找到队友并推进项目。");return;}
     if(id==="wizard-prev-btn"){updateStep(Math.max(1,step.current-1));return;}
@@ -340,8 +370,22 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     if(action==="coach"||id==="btn-apply-suggestion"){
       if(id==="btn-apply-suggestion"){toast("此处排期是设计示例，请在任务看板选择具体任务后修改；未自动更改任务。","请确认具体调整");router.push("/projects/tasks");return;}
       const input=root.current.querySelector<HTMLInputElement>('[data-coach-input]');
-      const result=await run("coach",{prompt:input?.value||"请评估当前任务风险"},button);
-      if(result?.ok){router.refresh();if(input)input.value="";}return;
+      const panel=el.closest<HTMLElement>("[data-coach-project-id]")||root.current.querySelector<HTMLElement>("[data-coach-project-id]");
+      const projectId=panel?.dataset.coachProjectId||"";const messages=panel?.querySelector<HTMLElement>("[data-coach-messages]");
+      if(!projectId||!messages){toast("当前账号暂无可分析的项目任务。","暂无项目");return;}
+      const question=input?.value.trim()||"请评估当前任务风险";
+      const history=[...messages.querySelectorAll<HTMLElement>("[data-coach-message]")].slice(-8).map(node=>({role:node.dataset.coachMessage||"assistant",content:node.textContent||""}));
+      messages.querySelector("[data-coach-empty]")?.remove();
+      const addMessage=(role:"user"|"assistant",content:string)=>{const bubble=document.createElement("div");bubble.className=`pm-coach-message pm-coach-message-${role}`;bubble.dataset.coachMessage=role;bubble.textContent=content;messages.append(bubble);return bubble;};
+      addMessage("user",question);
+      const pending=document.createElement("div");pending.className="pm-coach-message pm-coach-message-assistant";pending.dataset.coachPending="";pending.innerHTML='<span>AI 教练分析中</span><span class="pm-ai-dots" aria-hidden="true"><i></i><i></i><i></i></span>';messages.append(pending);messages.scrollTop=messages.scrollHeight;
+      const prompt=JSON.stringify({projectId,history:[...history,{role:"user",content:question}]}).slice(-1900);
+      const result=await run("coach",{projectId,prompt},button,true);pending.remove();
+      addMessage("assistant",result?.ok&&result.summary?result.summary:result?.message||"AI 教练暂时无法回复，请稍后重试。");messages.scrollTop=messages.scrollHeight;
+      if(result?.ok&&input)input.value="";return;
+    }
+    if(action==="coach-prompt"){
+      const input=root.current.querySelector<HTMLInputElement>("[data-coach-input]");if(input){input.value=el.dataset.prompt||el.textContent?.trim()||"";root.current.querySelector<HTMLButtonElement>("button[data-action='coach']")?.click();}return;
     }
     if(action==="apply-advice"){toast("请在任务看板选择具体任务进行调整，当前建议不会自动修改数据。","排期建议");router.push("/projects/tasks");return;}
     if(action==="dismiss-advice"||id==="btn-dismiss-suggestion"){const card=root.current.querySelector<HTMLElement>('#ai-suggestion-card');if(card)card.style.opacity="0.55";toast("已忽略当前建议。","建议已忽略");return;}
@@ -403,7 +447,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     if(action==="unavailable"||button){toast("此功能尚在完善中，当前操作未修改数据。","功能说明");}
   }
   return <div className="design-screen" data-screen={name} data-variant={variant}>
-    <div ref={root} onSubmit={onAuthSubmit} onClick={onClick} onInput={event=>{if((event.target as HTMLElement).matches('[data-competition-search],[data-platform-filter],[data-status-filter]'))filterCompetitions();}} onChange={event=>{if((event.target as HTMLElement).matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}}>{markup}</div>
+    <div ref={root} onSubmit={onAuthSubmit} onClick={onClick} onKeyDown={event=>{if(event.key==="Enter"&&(event.target as HTMLElement).matches("[data-coach-input]")){event.preventDefault();root.current?.querySelector<HTMLButtonElement>("button[data-action='coach']")?.click();}}} onInput={event=>{const target=event.target as HTMLElement;if(target.matches('[data-competition-search]')){if(competitionFilterTimer.current)clearTimeout(competitionFilterTimer.current);competitionFilterTimer.current=setTimeout(()=>filterCompetitions(),100);}else if(target.matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}} onChange={event=>{if((event.target as HTMLElement).matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}}>{markup}</div>
     {notice&&<div className={`fixed top-20 right-6 z-[100] w-80 max-w-[calc(100vw-2rem)] flex gap-3 overflow-hidden p-4 pb-5 bg-white rounded-xl shadow-xl border-l-4 border-primary ${noticeClosing?"pm-toast-closing":""}`} role="status" aria-live="polite" style={{"--pm-toast-duration":`${notice.login?1200:5000}ms`} as CSSProperties}><Info className="text-primary shrink-0" size={20}/><div className="flex-1"><p className="text-label-md font-semibold">{notice.title}</p><p className="text-body-sm text-on-surface-variant mt-1">{notice.message}</p></div>{!notice.login&&<button aria-label="关闭通知" onClick={()=>{setNoticeClosing(true);setTimeout(()=>setNotice(null),220);}}><X size={16}/></button>}<span className="pm-toast-progress absolute bottom-0 left-0 h-[3px] w-full origin-left bg-primary" aria-hidden="true"/></div>}
   </div>;
 }

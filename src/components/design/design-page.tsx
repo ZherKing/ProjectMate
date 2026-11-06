@@ -16,6 +16,7 @@ import { populateAdminContent } from "./admin-content";
 import { configureSettingsPage, type SettingsSection } from "./settings-content";
 import { teamCreateModalTemplate } from "@/design/team-create-modal-template";
 import { getCompetitionAnalysis } from "@/lib/ai/analysis-cache";
+import { isAiConfigured } from "@/lib/ai/provider";
 
 export type ScreenName = keyof typeof screens;
 
@@ -126,7 +127,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       main.find("button").filter((_,el)=>/Track-A|Track-B|Track-C/.test(text($(el)))).remove();
       const trackHost = main.find("h2").filter((_,el)=>/赛题方向列表/.test(text($(el)))).parent();
       const trackTemplate = main.find("button").filter((_,el)=>/赛题/.test(text($(el)))).first();
-      tracks.slice(0, 6).forEach((track, index) => trackHost.after('<button type="button" data-track-id="'+escapeHtml(track.id)+'" class="w-full text-left p-4 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition"><strong>'+escapeHtml(track.name)+'</strong><span class="block mt-1 text-body-sm text-on-surface-variant">'+escapeHtml(track.description || "暂无赛道说明")+'</span></button>'));
+      tracks.slice(0, 6).forEach((track) => trackHost.after('<button type="button" data-track-id="'+escapeHtml(track.id)+'" class="w-full text-left p-4 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition"><strong>'+escapeHtml(track.name)+'</strong><span class="block mt-1 text-body-sm text-on-surface-variant">'+escapeHtml(track.description || "暂无赛道说明")+'</span></button>'));
       main.find("h1").last().text(tracks[0]?.name || "暂无赛道说明");
     }
   }
@@ -252,7 +253,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       const tracks=trackGroups.get(item.id);
       const searchText=[item.name,item.platform,item.status,item.season,...(tracks?.names||[])].join(" ");
       const deadline=tracks?.deadline ?? null;
-      card.attr("data-competition-id",item.id).attr("data-action","open-competition-detail").attr("data-platform",item.platform).attr("data-status",item.status).attr("data-favorite",String(favoriteKeys.has(item.id)||favoriteKeys.has(item.name)))
+      card.attr("data-competition-card", "").attr("data-competition-id",item.id).attr("data-action","open-competition-detail").attr("data-platform",item.platform).attr("data-status",item.status).attr("data-favorite",String(favoriteKeys.has(item.id)||favoriteKeys.has(item.name)))
         .attr("data-search-text",searchText).attr("data-updated-at",String(item.updatedAt)).attr("data-default-order",String(index))
         .attr("data-deadline",deadline==null?"":String(deadline)).attr("data-source-url",item.sourceUrl)
         .attr("tabindex","0").attr("role","button").attr("aria-label",item.name);
@@ -361,6 +362,15 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       existingCreator.find("#ai-output-box").addClass("pm-ai-copy-scroll");
       existingCreator.find("#ai-generated-text").attr("data-ai-team-copy", "").text("填写项目名称和描述后，可以生成可编辑的招募文案草稿。");
       existingCreator.find('[data-field="roles"]').attr("data-team-roles", "");
+      existingCreator.find("[data-role-toggle]").filter((_, el) => $(el).attr("id") === "add-custom-role").removeAttr("data-role-toggle").attr("data-action", "show-custom-role");
+      existingCreator.find('[data-section="recruitment-roles"] span').filter((_, el) => /^已选 \d+ 个角色$/.test(text($(el)))).attr("data-selected-role-count", "").text("已选 0 个角色");
+      existingCreator.find("#team-project-name").val("").attr("placeholder", "请输入项目名称");
+      existingCreator.find("#team-project-desc").val("").attr("placeholder", "请输入一句话项目描述、技术方向和参赛目标");
+      existingCreator.find("#team-hours").val("").attr("placeholder", "例如 10");
+      existingCreator.find("[data-role-toggle]").attr("data-selected", "false").removeClass("bg-primary/10 border-primary/30 text-primary").addClass("bg-surface-container-low text-on-surface-variant");
+      existingCreator.find("[data-role-toggle]").filter((_, el) => $(el).find("svg").length === 0).append('<svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4.5v15m7.5-7.5h-15" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+      existingCreator.find("[data-selected-role-count]").text("已选 0 个角色");
+      existingCreator.find('[data-section="recruitment-roles"]').append('<div class="hidden flex gap-2" data-custom-role-editor><input type="text" maxlength="40" class="min-w-0 flex-1 rounded-lg bg-white px-3 py-2 text-sm" placeholder="输入自定义招募岗位" data-custom-role-input><button type="button" class="px-3 py-2 rounded-lg border border-outline-variant text-label-sm" data-action="add-custom-role">添加</button></div>');
       const selectedCompetition = competitionId ? getCompetition(competitionId) : undefined;
       if (selectedCompetition) {
         const competitionCard=existingCreator.find('[data-section="target-competition"]');
@@ -374,6 +384,11 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
         if(!tracks.length)trackSelect.append('<option value="自拟赛道" selected>自拟赛道</option>');
       }
       else if (!competitionId) existingCreator.find('[data-section="target-competition"]').addClass("hidden");
+      else {
+        const tracks=getCompetitionTrackDetails(competitionId);const trackSelect=existingCreator.find("#team-track").empty();
+        tracks.forEach(track=>trackSelect.append(`<option value="${escapeHtml(track.name)}">${escapeHtml(track.name)}</option>`));
+        if(!tracks.length)trackSelect.append('<option value="自拟赛道">自拟赛道</option>');
+      }
     }
     const projects = listRecruitmentProjects();
     const sampleCards=main.find(".apply-team-btn").filter((_,el)=>!$(el).closest("#ai-synergy-modal").length).map((_,el)=>$(el).closest('[class*="rounded-xl"]').get(0)).get();
@@ -381,7 +396,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       const parent=$(sampleCards[0]).parent(); const template=$(sampleCards[0]).clone();
       sampleCards.forEach(el=>$(el).remove());
       projects.forEach(project=>{
-        const card=template.clone();card.attr("id","project-"+project.id).attr("data-project-id",project.id).attr("data-project-title",project.title).attr("data-roles",project.roles||"").attr("data-hours",String(project.weeklyHours||10));
+        const card=template.clone();card.attr("id","project-"+project.id).attr("data-project-card","").attr("data-project-id",project.id).attr("data-project-title",project.title).attr("data-roles",project.roles||"").attr("data-hours",String(project.weeklyHours||10));
         card.find("h3").first().text(project.title);
         card.find("h3").first().next("p").text(project.description);
         card.find("span").filter((_,el)=>/^队长:/.test(text($(el)))).text(project.creatorName || "项目发起人");
@@ -398,7 +413,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       });
     } else main.find(".apply-team-btn").attr("data-action","apply");
     main.find(".view-detail-btn").attr("data-action","team-details");
-    if (!projects.length) main.find(".apply-team-btn").filter((_,el)=>!$(el).closest("#ai-synergy-modal").length).each((index,el)=>{const card=$(el).closest('[class*="rounded-xl"]');card.attr("data-project-id","design-sample-"+index).attr("data-demo","true");});
+    if (!projects.length) main.find(".apply-team-btn").filter((_,el)=>!$(el).closest("#ai-synergy-modal").length).each((index,el)=>{const card=$(el).closest('[class*="rounded-xl"]');card.attr("data-project-card","").attr("data-project-id","design-sample-"+index).attr("data-demo","true");});
     main.find('input[name="track-type"]').each((_,el)=>{ $(el).attr("value", text($(el).parent())); });
     const select=$("#creator-comp-select");select.empty();competitions.forEach(c=>select.append('<option value="'+escapeHtml(c.id)+'">'+escapeHtml(c.name)+'</option>'));
   }
@@ -426,6 +441,19 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     const projectId = user?.id ? getAccessibleProjectId(user.id) : null;
     const report = projectId ? getLatestCoachReport(projectId) : undefined;
     const liveTasks = projectId ? listProjectTasks(projectId) : [];
+    if (conversation.length) {
+      conversation.attr("data-coach-messages", "").empty();
+      if (report) conversation.append('<div class="pm-coach-message pm-coach-message-assistant" data-coach-message="assistant">'+escapeHtml(report.summary)+'</div>');
+      const coachPanel=conversation.parent();
+      coachPanel.attr("data-coach-project-id", projectId || "").removeClass("min-h-[640px]").addClass("h-[680px] max-h-[calc(100vh-180px)] min-h-0");
+      conversation.addClass("pm-coach-messages");
+      if (!projectId) {
+        const emptyState='<p class="pm-coach-empty" data-coach-empty>当前账号暂无可分析的项目。创建自己的组队项目并添加任务后，即可开始与 AI 教练对话。</p>';
+        conversation.append(emptyState);
+        coachPanel.find("input[data-coach-input],button[data-action='coach']").prop("disabled", true).addClass("opacity-50 cursor-not-allowed");
+      }
+      if (!isAiConfigured()) coachPanel.find("input[data-coach-input]").attr("placeholder", "请先配置服务器 AI_API_KEY");
+    }
     if(report){
       const conclusion=main.find("span").filter((_,e)=>/结论.*Conclusion/i.test(text($(e)))).first();
       const panel=conclusion.parent().parent();panel.find("p").first().text(report.summary);
@@ -438,6 +466,8 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     const input=main.find('input[placeholder*="AI 教练"]');input.attr("data-coach-input","");
     input.closest("div").find("button").attr("data-action","coach");
     main.find("button").filter((_,el)=>/发送/.test(text($(el)))).attr("data-action","coach");
+    input.closest("div").next().find("button").each((_,el)=>{ $(el).attr("data-action","coach-prompt").attr("data-prompt",text($(el))); });
+    if (!projectId) main.find('[data-coach-project-id]').find("input[data-coach-input],button[data-action='coach']").prop("disabled", true).addClass("opacity-50 cursor-not-allowed");
     main.find("button").filter((_,el)=>/任务看板|新建任务卡片|筛选视图/.test(text($(el)))).attr("data-route","/projects/tasks");
     $("#btn-update-kanban").attr("data-route","/projects/tasks");
     $("#btn-apply-suggestion").attr("data-action","apply-advice");

@@ -51,6 +51,7 @@ docker-compose.override.yml
 
 # Isolated UI verification build
 /.next-ui-qa/
+/.next-dev-qa/
 /.next-register-qa/
 /.next-motion-qa/
 /.next-filter-qa/

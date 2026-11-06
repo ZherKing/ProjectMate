@@ -14,9 +14,10 @@ async function coachAction() {
   "use server";
   const session = await auth();
   const userId = session?.user?.id;
-  if (!userId || !isAiConfigured() || !consumeAiQuota(userId, "project-coach")) return;
+  if (!userId) return;
   const projectId = getAccessibleProjectId(userId);
-  if (projectId) await runProjectCoach(projectId);
+  if (!projectId || !isAiConfigured() || !consumeAiQuota(userId, "project-coach")) return;
+  await runProjectCoach(projectId, userId);
   revalidatePath("/projects/tasks");
 }
 

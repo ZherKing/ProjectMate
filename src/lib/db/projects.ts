@@ -31,6 +31,11 @@ export function getAccessibleProjectId(userId: string, requestedId?: string) {
   return firstOwned?.id ?? null;
 }
 
+export function getOwnedProjectContext(userId: string, projectId: string) {
+  initializeDatabase();
+  return sqlite.prepare("SELECT id, title, description, track_name AS trackName FROM recruitment_projects WHERE id = ? AND creator_id = ?").get(projectId, userId) as { id: string; title: string; description: string; trackName: string | null } | undefined;
+}
+
 export function applyToRecruitmentProject(input: { projectId: string; applicantId: string; message?: string }) {
   initializeDatabase();
   sqlite.prepare(

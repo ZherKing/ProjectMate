@@ -59,10 +59,10 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
       }
       case "coach": {
         if(!isAiConfigured())return {ok:false,message:"AI_API_KEY 尚未配置。请在服务器 .env 或 .env.local 文件中配置 DeepSeek 后再试。"};
-        if(!consumeAiQuota(userId,"project-coach"))return {ok:false,message:"AI 教练请求较频繁，请 10 分钟后再试。"};
         const projectId = getAccessibleProjectId(userId, data.projectId);
         if (!projectId) return { ok: false, message: "当前账号还没有可分析的项目任务。请先创建项目并添加任务。" };
-        const summary = await runProjectCoach(projectId, (data.prompt || "").slice(0,2000));
+        if(!consumeAiQuota(userId,"project-coach"))return {ok:false,message:"AI 教练请求较频繁，请 10 分钟后再试。"};
+        const summary = await runProjectCoach(projectId, userId, (data.prompt || "").slice(0,2000));
         revalidatePath("/projects"); revalidatePath("/projects/tasks");
         return { ok: true, message: "分析完成，报告已保存。", summary };
       }

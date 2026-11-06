@@ -142,6 +142,11 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-v
 .pm-ai-copy-scroll::-webkit-scrollbar-track { background: transparent; }
 .pm-ai-copy-scroll::-webkit-scrollbar-thumb { border-radius: 999px; background: #c7c5e8; }
 .pm-ai-copy-scroll [data-ai-team-copy] { white-space: pre-wrap; overflow-wrap: anywhere; }
+.pm-coach-messages { min-height: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.pm-coach-message { width: fit-content; max-width: min(90%, 680px); margin: 0 0 12px; padding: 12px 14px; border-radius: 12px; font-size: 13px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pm-coach-message-assistant { margin-right: auto; color: #303044; background: #f3f3fa; }
+.pm-coach-message-user { margin-left: auto; color: #fff; background: #3525cd; }
+.pm-coach-empty { max-width: 560px; padding: 14px; border: 1px dashed #d8d7e6; border-radius: 10px; color: #646477; font-size: 13px; line-height: 1.65; }
 .pm-status { border-radius: 999px; padding: 4px 8px; font-size: 10px; font-weight: 650; white-space: nowrap; }
 .pm-status-blue { color: #1d4ed8; background: #eaf2ff; }
 .pm-status-green { color: #047857; background: #e7fbf2; }
