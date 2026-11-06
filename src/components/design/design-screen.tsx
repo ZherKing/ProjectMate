@@ -33,7 +33,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
   useEffect(()=>{
     const query=new URLSearchParams(location.search);
     if(name==="teams"&&query.get("create")==="1"&&loggedIn){
-      const el=root.current?.querySelector("#creator-modal");el?.classList.remove("hidden");el?.setAttribute("role","dialog");
+      const el=root.current?.querySelector<HTMLElement>("#creator-modal");el?.classList.remove("hidden");el?.querySelector<HTMLElement>("#creator-modal-card")?.classList.remove("hidden");el?.setAttribute("role","dialog");
     }
     if(name!=="competitions")return;
     const restore=()=>{
