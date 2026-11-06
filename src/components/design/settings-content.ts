@@ -26,6 +26,7 @@ export function configureSettingsPage($: CheerioAPI, section: SettingsSection) {
   const selected = modules.find(module => module.key === section)!;
 
   sidebar.children().first().attr("role", "navigation").attr("aria-label", "个人设置导航");
+  sidebar.children().first().children().first().remove();
   sidebar.find("button").each((index, element) => {
     const module = modules[index];
     const button = $(element);
