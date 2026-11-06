@@ -44,6 +44,11 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
   const publishedId=useRef("");
   const publishedDraft=useRef({title:"",roles:""});
   const posterVisible=useRef(false);
+  const showRouteTransition=()=>{
+    document.getElementById("pm-route-transition")?.remove();
+    const overlay=document.createElement("div");overlay.id="pm-route-transition";overlay.setAttribute("role","status");overlay.setAttribute("aria-label","正在打开组队项目");overlay.innerHTML='<div class="pm-route-transition-card"><span class="pm-route-spinner" aria-hidden="true"></span><span>正在打开发布组队项目…</span></div>';document.body.append(overlay);
+  };
+  useEffect(()=>()=>{document.getElementById("pm-route-transition")?.remove();},[]);
   useEffect(()=>{
     if (!posterVisible.current) return;
     const poster=root.current?.querySelector("#poster-modal");poster?.classList.remove("hidden");poster?.setAttribute("role","dialog");
@@ -334,12 +339,13 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     if(action==="start-team"){
       const destination="/teams?create=1&competition="+encodeURIComponent(el.closest<HTMLElement>('[data-competition-modal]')?.dataset.competitionId||"");
       if(!guard(destination))return;
+      showRouteTransition();
       const detail=root.current?.querySelector<HTMLElement>('#competition-detail-modal');
       const navigate=()=>router.push(destination);
-      if(!detail||detail.classList.contains('hidden')){navigate();return;}
-      if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){detail.classList.add('hidden');navigate();return;}
+      if(!detail||detail.classList.contains('hidden')){setTimeout(navigate,180);return;}
+      if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){detail.classList.add('hidden');setTimeout(navigate,120);return;}
       detail.classList.add('pm-detail-closing');
-      detailCloseTimer.current=setTimeout(()=>{detail.classList.add('hidden');detail.classList.remove('pm-detail-closing');detailCloseTimer.current=null;navigate();},180);
+      detailCloseTimer.current=setTimeout(()=>{detail.classList.add('hidden');detail.classList.remove('pm-detail-closing');detailCloseTimer.current=null;setTimeout(navigate,80);},180);
       return;
     }
     if(action==="detail-favorite"){
