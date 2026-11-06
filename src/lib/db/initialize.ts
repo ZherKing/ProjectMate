@@ -12,6 +12,8 @@ export function initializeDatabase() {
     "CREATE TABLE IF NOT EXISTS recruitment_projects (id TEXT PRIMARY KEY NOT NULL, creator_id TEXT NOT NULL, competition_id TEXT, track_name TEXT, title TEXT NOT NULL, description TEXT NOT NULL, roles TEXT, weekly_hours INTEGER, status TEXT NOT NULL, created_at INTEGER NOT NULL);" +
     "CREATE TABLE IF NOT EXISTS team_applications (id TEXT PRIMARY KEY NOT NULL, project_id TEXT NOT NULL, applicant_id TEXT NOT NULL, message TEXT, status TEXT NOT NULL, created_at INTEGER NOT NULL, UNIQUE(project_id, applicant_id));" +
     "CREATE TABLE IF NOT EXISTS project_tasks (id TEXT PRIMARY KEY NOT NULL, project_id TEXT NOT NULL, title TEXT NOT NULL, status TEXT NOT NULL, priority TEXT NOT NULL, assignee TEXT, created_at INTEGER NOT NULL);" +
+    "CREATE TABLE IF NOT EXISTS project_members (project_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL DEFAULT '成员', joined_at INTEGER NOT NULL, PRIMARY KEY(project_id,user_id));" +
+    "CREATE TABLE IF NOT EXISTS project_invites (token TEXT PRIMARY KEY NOT NULL, project_id TEXT NOT NULL, inviter_id TEXT NOT NULL, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL, used_by TEXT, used_at INTEGER);" +
     "CREATE TABLE IF NOT EXISTS project_ai_reports (id TEXT PRIMARY KEY NOT NULL, project_id TEXT NOT NULL, summary TEXT NOT NULL, source TEXT NOT NULL, created_at INTEGER NOT NULL);" +
     "CREATE TABLE IF NOT EXISTS admin_audit_logs (id TEXT PRIMARY KEY NOT NULL, actor_id TEXT NOT NULL, action TEXT NOT NULL, target_type TEXT NOT NULL, target_id TEXT NOT NULL, details TEXT NOT NULL, created_at INTEGER NOT NULL);" +
     "CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL, updated_at INTEGER NOT NULL);" +
@@ -29,6 +31,8 @@ export function initializeDatabase() {
   ] as const) {
     if (!existingCompetitionColumns.has(name)) sqlite.exec(`ALTER TABLE competitions ADD COLUMN ${name} ${definition}`);
   }
+  const projectColumns = sqlite.prepare("PRAGMA table_info(recruitment_projects)").all() as Array<{ name: string }>;
+  if (!projectColumns.some((column) => column.name === "nickname")) sqlite.exec("ALTER TABLE recruitment_projects ADD COLUMN nickname TEXT");
   sqlite.exec("CREATE INDEX IF NOT EXISTS admin_audit_logs_created_at_idx ON admin_audit_logs(created_at DESC)");
   const userColumns = sqlite.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
   if (!userColumns.some((column) => column.name === "role")) {

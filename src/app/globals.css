@@ -147,6 +147,18 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-v
 .pm-coach-message-assistant { margin-right: auto; color: #303044; background: #f3f3fa; }
 .pm-coach-message-user { margin-left: auto; color: #fff; background: #3525cd; }
 .pm-coach-empty { max-width: 560px; padding: 14px; border: 1px dashed #d8d7e6; border-radius: 10px; color: #646477; font-size: 13px; line-height: 1.65; }
+.pm-workspace-modal { position: relative; width: min(100%, 460px); padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: 0 20px 60px rgba(19,27,46,.2); animation: pm-detail-card-in .18s ease-out both; }
+.pm-workspace-modal h2 { margin: 0; font-size: 20px; font-weight: 750; }
+.pm-workspace-modal p { margin: 8px 0 16px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.pm-workspace-modal-close { position: absolute; top: 12px; right: 14px; border: 0; color: #777587; background: transparent; font-size: 24px; }
+.pm-invite-link-row { display: flex; gap: 8px; }
+.pm-invite-link-row input { min-width: 0; flex: 1; }
+.pm-invite-link-row button { border: 1px solid #dfdeeb; border-radius: 9px; padding: 0 12px; color: var(--primary); background: #fff; }
+.pm-workspace-form { display: grid; gap: 12px; }
+.pm-workspace-form label { display: grid; gap: 6px; color: #464555; font-size: 12px; font-weight: 650; }
+.pm-workspace-modal-status { min-height: 20px; }
+.pm-project-nickname-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.pm-project-nickname-row input { width: min(100%, 320px); min-height: 34px; }
 .pm-status { border-radius: 999px; padding: 4px 8px; font-size: 10px; font-weight: 650; white-space: nowrap; }
 .pm-status-blue { color: #1d4ed8; background: #eaf2ff; }
 .pm-status-green { color: #047857; background: #e7fbf2; }

@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { getCompetition, getCompetitionTrackDetails, listCompetitionTracks, listCompetitions, listFavoriteCompetitionIds } from "@/lib/db/queries";
 import { getProfile } from "@/lib/db/profile";
 import { requireAdmin } from "@/lib/auth/guards";
-import { listRecruitmentProjects, getAccessibleProjectId } from "@/lib/db/projects";
+import { listRecruitmentProjects, getAccessibleProjectId, getProjectStats } from "@/lib/db/projects";
 import { listProjectTasks, getLatestCoachReport } from "@/lib/db/tasks";
 import { DesignScreen } from "./design-screen";
 import { SiteShell } from "@/components/layout/site-shell";
@@ -17,6 +17,7 @@ import { configureSettingsPage, type SettingsSection } from "./settings-content"
 import { teamCreateModalTemplate } from "@/design/team-create-modal-template";
 import { getCompetitionAnalysis } from "@/lib/ai/analysis-cache";
 import { isAiConfigured } from "@/lib/ai/provider";
+import { sqlite } from "@/lib/db/client";
 
 export type ScreenName = keyof typeof screens;
 
@@ -351,6 +352,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     main.find('input[type="checkbox"]').attr("data-action","demo-task");
   }
   if (name === "teams") {
+    main.find("span").filter((_, el) => /LIVE TEAMMATCHING SYSTEM|实时组队就绪/.test(text($(el)))).parent().remove();
     const existingCreator = main.find("#creator-modal");
     if (existingCreator.length) {
       const competitionId = Array.isArray(query?.competition) ? query?.competition[0] : query?.competition || "";
@@ -361,6 +363,9 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       existingCreator.find("#ai-generate-btn").attr("data-action", "generate-team-copy");
       existingCreator.find("#ai-output-box").addClass("pm-ai-copy-scroll");
       existingCreator.find("#ai-generated-text").attr("data-ai-team-copy", "").text("填写项目名称和描述后，可以生成可编辑的招募文案草稿。");
+      existingCreator.find("span").filter((_, el) => text($(el)) === "关联赛道").parent().remove();
+      existingCreator.find("span").filter((_, el) => /可以发布/.test(text($(el)))).closest("div").remove();
+      existingCreator.find("#status-dot,#status-label").remove();
       existingCreator.find('[data-field="roles"]').attr("data-team-roles", "");
       existingCreator.find("[data-role-toggle]").filter((_, el) => $(el).attr("id") === "add-custom-role").removeAttr("data-role-toggle").attr("data-action", "show-custom-role");
       existingCreator.find('[data-section="recruitment-roles"] span').filter((_, el) => /^已选 \d+ 个角色$/.test(text($(el)))).attr("data-selected-role-count", "").text("已选 0 个角色");
@@ -418,6 +423,19 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     const select=$("#creator-comp-select");select.empty();competitions.forEach(c=>select.append('<option value="'+escapeHtml(c.id)+'">'+escapeHtml(c.name)+'</option>'));
   }
   if (name === "projects") {
+    const projectStats = user?.id ? (() => { const id=getAccessibleProjectId(user.id); return id ? getProjectStats(id) : null; })() : null;
+    const projectContext = user?.id ? (() => { const id=getAccessibleProjectId(user.id); return id ? sqlite.prepare("SELECT nickname,title FROM recruitment_projects WHERE id=? AND creator_id=?").get(id,user.id) as { nickname: string | null; title: string } | undefined : undefined; })() : undefined;
+    const titleHeading = main.find("h1").first();
+    if (projectContext && titleHeading.length) titleHeading.after('<div class="pm-project-nickname-row"><input data-project-nickname maxlength="80" value="'+escapeHtml(projectContext.nickname || projectContext.title)+'" aria-label="项目昵称"><button type="button" class="pm-button-outline" data-action="save-project-nickname">保存昵称</button></div>');
+    main.find("button").filter((_, el) => /邀请新成员/.test(text($(el)))).attr("data-action", "project-invite");
+    main.find("button").filter((_, el) => /新建任务卡片/.test(text($(el)))).attr("data-action", "new-project-task");
+    main.find("span").filter((_, el) => text($(el)) === "整体完成度").next().text(projectStats ? `${projectStats.completion}%` : "暂无数据");
+    if (projectStats) {
+      main.find("p").filter((_, el) => /高优先级未完成任务/.test(text($(el)))).first().text(`${projectStats.remaining} 个未完成任务`);
+      main.find("span").filter((_, el) => /进行中 \(阻塞\)|待分配 \/ 需求池|正在进行中/.test(text($(el)))).first().text(`${projectStats.remaining} 项未完成`);
+    }
+    main.append('<div id="project-invite-modal" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"><div class="pm-workspace-modal" role="dialog" aria-modal="true" aria-labelledby="project-invite-title"><button type="button" class="pm-workspace-modal-close" data-action="close-workspace-modal" aria-label="关闭">×</button><h2 id="project-invite-title">邀请新成员</h2><p>生成一个 7 天内有效的项目邀请链接，发送给你的队友。</p><div class="pm-invite-link-row"><input readonly data-project-invite-link aria-label="项目邀请链接" /><button type="button" data-action="copy-project-invite">复制</button></div><p class="pm-workspace-modal-status" data-project-invite-status></p><button type="button" class="pm-button-primary" data-action="generate-project-invite">生成邀请链接</button></div></div>');
+    main.append('<div id="project-task-modal" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"><div class="pm-workspace-modal" role="dialog" aria-modal="true" aria-labelledby="project-task-title"><button type="button" class="pm-workspace-modal-close" data-action="close-workspace-modal" aria-label="关闭">×</button><h2 id="project-task-title">新建任务卡片</h2><div class="pm-workspace-form"><label>任务名称<input data-project-task-title placeholder="例如：冻结接口文档" maxlength="160" /></label><label>优先级<select data-project-task-priority><option>中</option><option>高</option><option>低</option></select></label><label>负责人<input data-project-task-assignee placeholder="可留空" maxlength="80" /></label></div><p class="pm-workspace-modal-status" data-project-task-status></p><button type="button" class="pm-button-primary" data-action="create-project-task">创建任务</button></div></div>');
     const metricSection=main.find("section").filter((_,el)=>/整体完成度/.test(text($(el)))).first();
     const metricGrid=metricSection.children("div.grid").first();
     const metricCards=metricGrid.children("div").filter((_,el)=>/整体完成度|决赛作品提交倒计时/.test(text($(el))));

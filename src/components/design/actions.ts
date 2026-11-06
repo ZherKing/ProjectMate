@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { initializeDatabase } from "@/lib/db/initialize";
 import { sqlite } from "@/lib/db/client";
-import { createRecruitmentProject, applyToRecruitmentProject } from "@/lib/db/projects";
+import { createRecruitmentProject, applyToRecruitmentProject, addProjectTask, createProjectInvite, getAccessibleProjectId, updateProjectNickname } from "@/lib/db/projects";
 import { runProjectCoach } from "@/lib/ai/project-coach";
 import { updateProjectTaskStatus } from "@/lib/db/tasks";
 import { saveProfile } from "@/lib/db/profile";
@@ -16,7 +16,6 @@ import { analyzeCompetitionTrack, generateRecruitmentDraft, generateRecruitmentC
 import { isAiConfigured } from "@/lib/ai/provider";
 import { consumeAiQuota } from "@/lib/ai/limits";
 import { getCompetitionAnalysis } from "@/lib/ai/analysis-cache";
-import { getAccessibleProjectId } from "@/lib/db/projects";
 
 type Payload = Record<string, string>;
 export type ScreenResult = { ok: boolean; message: string; href?: string; summary?: string; generatedText?: string; generatedTitle?: string; generatedAt?: string; id?: string };
@@ -96,6 +95,31 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         updateProjectTaskStatus(data.taskId, "已完成");
         revalidatePath("/projects"); revalidatePath("/projects/tasks");
         return { ok: true, message: "任务已标记为完成。" };
+      }
+      case "update-project-nickname": {
+        const projectId = getAccessibleProjectId(userId, data.projectId);
+        if (!projectId) return { ok: false, message: "当前账号没有可编辑的项目。" };
+        const nickname = (data.nickname || "").trim();
+        if (nickname.length < 2) return { ok: false, message: "项目昵称至少需要 2 个字。" };
+        if (!updateProjectNickname(projectId, userId, nickname)) return { ok: false, message: "项目昵称保存失败。" };
+        revalidatePath("/projects");
+        return { ok: true, message: "项目昵称已保存。" };
+      }
+      case "create-project-task": {
+        const projectId = getAccessibleProjectId(userId, data.projectId);
+        if (!projectId) return { ok: false, message: "当前账号没有可编辑的项目。" };
+        const title = (data.title || "").trim();
+        if (title.length < 2) return { ok: false, message: "请填写任务名称。" };
+        const id = addProjectTask(projectId, userId, { title, priority: data.priority === "高" ? "高" : data.priority === "低" ? "低" : "中", assignee: data.assignee || "" });
+        if (!id) return { ok: false, message: "任务创建失败。" };
+        revalidatePath("/projects"); revalidatePath("/projects/tasks");
+        return { ok: true, message: "任务已创建。", id };
+      }
+      case "create-project-invite": {
+        const projectId = getAccessibleProjectId(userId, data.projectId);
+        if (!projectId) return { ok: false, message: "当前账号没有可邀请成员的项目。" };
+        const token = createProjectInvite(projectId, userId);
+        return { ok: true, message: "邀请链接已生成。", href: "/projects/invite?token=" + token };
       }
       case "save-profile": {
         saveProfile(userId, {

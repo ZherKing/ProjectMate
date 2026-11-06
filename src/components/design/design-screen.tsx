@@ -244,6 +244,18 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       const editor=el.closest("[data-section='recruitment-roles']")?.querySelector<HTMLElement>("[data-custom-role-editor]");
       editor?.classList.toggle("hidden");editor?.querySelector<HTMLInputElement>("[data-custom-role-input]")?.focus();return;
     }
+    if(action==="project-invite"){root.current.querySelector<HTMLElement>("#project-invite-modal")?.classList.remove("hidden");return;}
+    if(action==="save-project-nickname"){const input=root.current.querySelector<HTMLInputElement>("[data-project-nickname]");const result=await run("update-project-nickname",{nickname:input?.value||""},button);if(result?.ok)router.refresh();return;}
+    if(action==="new-project-task"){root.current.querySelector<HTMLElement>("#project-task-modal")?.classList.remove("hidden");return;}
+    if(action==="close-workspace-modal"){el.closest<HTMLElement>("[id$='-modal']")?.classList.add("hidden");return;}
+    if(action==="generate-project-invite"){
+      const modalRoot=el.closest<HTMLElement>("#project-invite-modal");const status=modalRoot?.querySelector<HTMLElement>("[data-project-invite-status]");const result=await run("create-project-invite",{},button);
+      if(result?.ok&&result.href){const input=modalRoot?.querySelector<HTMLInputElement>("[data-project-invite-link]");if(input)input.value=location.origin+result.href;if(status)status.textContent="邀请链接已生成，7 天内有效。";}else if(status)status.textContent=result?.message||"邀请链接生成失败。";return;
+    }
+    if(action==="copy-project-invite"){const input=el.closest<HTMLElement>("#project-invite-modal")?.querySelector<HTMLInputElement>("[data-project-invite-link]");if(input?.value){try{await navigator.clipboard.writeText(input.value);toast("邀请链接已复制。","复制成功");}catch{input.select();toast("请手动复制已选中的邀请链接。","复制未完成");}}return;}
+    if(action==="create-project-task"){
+      const modalRoot=el.closest<HTMLElement>("#project-task-modal");const title=modalRoot?.querySelector<HTMLInputElement>("[data-project-task-title]")?.value||"";const priority=modalRoot?.querySelector<HTMLSelectElement>("[data-project-task-priority]")?.value||"中";const assignee=modalRoot?.querySelector<HTMLInputElement>("[data-project-task-assignee]")?.value||"";const status=modalRoot?.querySelector<HTMLElement>("[data-project-task-status]");const result=await run("create-project-task",{title,priority,assignee},button);if(result?.ok){if(status)status.textContent="任务已创建。";modalRoot?.classList.add("hidden");router.refresh();}else if(status)status.textContent=result?.message||"任务创建失败。";return;
+    }
     if(action==="add-custom-role"){
       const editor=el.closest<HTMLElement>("[data-custom-role-editor]");const input=editor?.querySelector<HTMLInputElement>("[data-custom-role-input]");const value=input?.value.trim().slice(0,40)||"";
       if(!value){toast("请输入岗位名称。","岗位名称为空");return;}
