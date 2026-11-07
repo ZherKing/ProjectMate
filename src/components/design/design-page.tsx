@@ -329,6 +329,8 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     aiSection.find("p").filter((_, el) => /AI 赛道分析/.test(text($(el)))).attr("data-ai-analysis-placeholder", "");
     aiSection.find("p").filter((_, el) => /需等待赛事组委会/.test(text($(el)))).attr("data-ai-analysis-placeholder-description", "");
     aiSection.find("div.rounded-xl").last().attr("data-ai-analysis-empty", "");
+    const trackTabList = detailCard.find('[role="tablist"]').first();
+    trackTabList.after('<div class="flex items-center justify-between gap-2 pt-1" data-track-pagination><button type="button" data-action="track-page-prev" class="px-2.5 py-1 rounded-lg bg-surface-container-low text-label-sm text-on-surface-variant disabled:opacity-40" disabled>上一页</button><span class="font-mono-metric text-mono-metric text-on-surface-variant" data-track-page-label>第 1 / 1 页</span><button type="button" data-action="track-page-next" class="px-2.5 py-1 rounded-lg bg-surface-container-low text-label-sm text-on-surface-variant disabled:opacity-40" disabled>下一页</button></div>');
     aiSection.find("div.flex.items-center.justify-between").first().append('<button type="button" data-action="analyze-track" class="px-3 py-1.5 rounded-lg bg-primary text-on-primary font-label-sm text-label-sm">生成分析</button>');
     detailCard.find("a").filter((_,el)=>/^ccf.org.cn/.test(text($(el)))).attr("data-modal-authority-source","");
     detailCard.find("a").filter((_,el)=>/下载官方赛题说明书/.test(text($(el)))).attr("data-modal-spec-link","");
@@ -338,6 +340,11 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     detailCard.find("span").filter((_,el)=>/^信息来源已通过/.test(text($(el)))).attr("data-modal-source-note","");
     detailCard.find("span").filter((_,el)=>/报名进行中|待核验/.test(text($(el)))).first().attr("data-modal-status","");
     detailCard.find("button").filter((_,el)=>/赛题 Track-/.test(text($(el)))).each((index,el)=>{ $(el).attr("data-track-id",String(index)); });
+    const trackButtonTemplate = detailCard.find('button[data-track-id]').first();
+    const maxTrackCount = Math.max(3, ...competitions.map((item) => getCompetitionTrackDetails(item.id).length));
+    for (let index = detailCard.find('button[data-track-id]').length; index < maxTrackCount; index += 1) {
+      detailCard.find('[role="tablist"]').first().append(trackButtonTemplate.clone().attr("id", `track-btn-${index}`).attr("data-track-id", String(index)).attr("aria-selected", "false"));
+    }
     detailCard.find("[data-design-handler]").removeAttr("data-design-handler");
     const trackData=Object.fromEntries(competitions.map((item)=>[item.id,(trackGroups.get(item.id)?.names||[])]));
     const competitionData=Object.fromEntries(competitions.map((item)=>[item.id,{name:item.name,platform:item.platform,status:item.reviewStatus === "approved" && item.status === "待核验" ? "已核验" : item.status,season:item.season,sourceUrl:item.sourceUrl,tracks:getCompetitionTrackDetails(item.id).map(track=>({...track,analysis:getCompetitionAnalysis(item.id,track.id,item.updatedAt)}))}]));

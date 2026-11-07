@@ -159,6 +159,18 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       const query=params.toString();window.history.replaceState(window.history.state,"",location.pathname+(query?"?"+query:"")+location.hash);
     }
   };
+  const renderTrackPage=(modalCard:HTMLElement, tracks:Array<{name:string;description:string|null;deadline:number|null;analysis?:{analysis:string;generatedAt:number;model:string}|null}>, buttons:HTMLButtonElement[], page:number)=>{
+    const totalPages=Math.max(1,Math.ceil(tracks.length/3));
+    const safePage=Math.min(Math.max(page,0),totalPages-1);
+    modalCard.dataset.trackPage=String(safePage);
+    buttons.forEach((button,index)=>{
+      const trackIndex=Number(button.dataset.trackIndex ?? index);
+      button.classList.toggle("hidden",trackIndex<safePage*3||trackIndex>=(safePage+1)*3||trackIndex>=tracks.length);
+    });
+    const label=modalCard.querySelector<HTMLElement>("[data-track-page-label]");if(label)label.textContent=`第 ${safePage+1} / ${totalPages} 页`;
+    const prev=modalCard.querySelector<HTMLButtonElement>("[data-action='track-page-prev']");if(prev)prev.disabled=safePage<=0;
+    const next=modalCard.querySelector<HTMLButtonElement>("[data-action='track-page-next']");if(next)next.disabled=safePage>=totalPages-1;
+  };
   const filterTeams=()=>{
     const scope=root.current;if(!scope)return;
     const active=Array.from(scope.querySelectorAll('.role-chip[data-selected="true"],.filter-pill[data-selected="true"]')).map(el=>el.textContent?.trim()||"");
@@ -309,7 +321,8 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
         const trackData=JSON.parse(card.dataset.trackData||"{}");
         const tracks=(competition?.tracks||[]);
         const trackButtons=[...card.querySelectorAll<HTMLButtonElement>('button[data-track-id]')];
-        trackButtons.forEach((trackButton,index)=>{const track=tracks[index];trackButton.classList.toggle("hidden",!track);if(track){const titleEl=trackButton.querySelector("p");if(titleEl)titleEl.textContent=track.name;const label=trackButton.querySelector("span");if(label)label.textContent=`赛道 ${index+1}`;}});
+        trackButtons.forEach((trackButton,index)=>{trackButton.dataset.trackIndex=String(index);const track=tracks[index];trackButton.classList.toggle("hidden",!track);if(track){const titleEl=trackButton.querySelector("p");if(titleEl)titleEl.textContent=track.name;const label=trackButton.querySelector("span");if(label)label.textContent=`赛道 ${index+1}`;}});
+        renderTrackPage(card,tracks,trackButtons,0);
         const firstTrack=tracks[0];const detailHeading=card.querySelector("h1");if(detailHeading)detailHeading.textContent=firstTrack?.name||title;
         const description=card.querySelector("[data-modal-track-description]");if(description)description.textContent=firstTrack?.description||"赛事来源未提供赛道任务说明。";
         const objective=card.querySelector("[data-modal-track-objective]");if(objective)objective.textContent="赛事来源未提供任务目标，请以官方赛事页面为准。";
@@ -325,9 +338,14 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       }
       return;
     }
+    if(action==="track-page-prev"||action==="track-page-next"){
+      const modalCard=el.closest<HTMLElement>('[data-competition-modal]');
+      if(modalCard){const competition=(JSON.parse(modalCard.dataset.competitionData||"{}") as Record<string,{tracks?:Array<{name:string;description:string|null;deadline:number|null;analysis?:{analysis:string;generatedAt:number;model:string}|null}>}>)[modalCard.dataset.competitionId||""];const buttons=[...modalCard.querySelectorAll<HTMLButtonElement>('button[data-track-id]')];renderTrackPage(modalCard,competition?.tracks||[],buttons,Number(modalCard.dataset.trackPage||0)+(action==="track-page-next"?1:-1));}
+      return;
+    }
     if(el.matches('button[data-track-id]')){
       const modalCard=el.closest<HTMLElement>('[data-competition-modal]');
-      if(modalCard){const buttons=[...modalCard.querySelectorAll<HTMLButtonElement>('button[data-track-id]')];const index=buttons.indexOf(el as HTMLButtonElement);modalCard.dataset.selectedTrackIndex=String(Math.max(0,index));buttons.forEach((item,i)=>{const active=i===index;item.classList.toggle('bg-primary-fixed',active);item.classList.toggle('ring-1',active);item.classList.toggle('ring-primary',active);});const track=(JSON.parse(modalCard.dataset.competitionData||'{}') as Record<string,{tracks?:Array<{name:string;description:string|null;deadline:number|null;analysis?:{analysis:string;generatedAt:number;model:string}|null}>}>)[modalCard.dataset.competitionId||'']?.tracks?.[index];if(track){const title=modalCard.querySelector('h1');if(title)title.textContent=track.name;const label=modalCard.querySelector('[data-modal-track-label]');if(label)label.textContent=`赛道 ${index+1} · ${track.name}`;const desc=modalCard.querySelector('[data-modal-track-description]');if(desc)desc.textContent=track.description||'赛事来源未提供赛道任务说明。';const deadline=modalCard.querySelector('[data-modal-track-deadline]');if(deadline)deadline.textContent=track.deadline?new Date(track.deadline).toLocaleString('zh-CN'):'暂无提交截止时间';}const empty=modalCard.querySelector<HTMLElement>('[data-ai-analysis-empty]');let output=modalCard.querySelector<HTMLElement>('[data-ai-analysis-result]');const status=modalCard.querySelector<HTMLElement>('[data-ai-analysis-status]');if(track?.analysis){empty?.classList.add('hidden');if(!output){output=document.createElement('div');output.dataset.aiAnalysisResult='';output.className='rounded-xl bg-surface-container-low p-4 font-body-sm text-body-sm text-on-surface-variant whitespace-pre-line leading-relaxed';modalCard.querySelector('[data-ai-analysis-section]')?.append(output);}output.textContent=track.analysis.analysis;if(status)status.textContent='已生成';}else{empty?.classList.remove('hidden');output?.remove();if(status)status.textContent='待生成';}}
+      if(modalCard){const buttons=[...modalCard.querySelectorAll<HTMLButtonElement>('button[data-track-id]')];const index=Number((el as HTMLButtonElement).dataset.trackIndex??buttons.indexOf(el as HTMLButtonElement));modalCard.dataset.selectedTrackIndex=String(Math.max(0,index));buttons.forEach((item,i)=>{const active=i===index;item.classList.toggle('bg-primary-fixed',active);item.classList.toggle('ring-1',active);item.classList.toggle('ring-primary',active);});const track=(JSON.parse(modalCard.dataset.competitionData||'{}') as Record<string,{tracks?:Array<{name:string;description:string|null;deadline:number|null;analysis?:{analysis:string;generatedAt:number;model:string}|null}>}>)[modalCard.dataset.competitionId||'']?.tracks?.[index];if(track){const title=modalCard.querySelector('h1');if(title)title.textContent=track.name;const label=modalCard.querySelector('[data-modal-track-label]');if(label)label.textContent=`赛道 ${index+1} · ${track.name}`;const desc=modalCard.querySelector('[data-modal-track-description]');if(desc)desc.textContent=track.description||'赛事来源未提供赛道任务说明。';const deadline=modalCard.querySelector('[data-modal-track-deadline]');if(deadline)deadline.textContent=track.deadline?new Date(track.deadline).toLocaleString('zh-CN'):'暂无提交截止时间';}const empty=modalCard.querySelector<HTMLElement>('[data-ai-analysis-empty]');let output=modalCard.querySelector<HTMLElement>('[data-ai-analysis-result]');const status=modalCard.querySelector<HTMLElement>('[data-ai-analysis-status]');if(track?.analysis){empty?.classList.add('hidden');if(!output){output=document.createElement('div');output.dataset.aiAnalysisResult='';output.className='rounded-xl bg-surface-container-low p-4 font-body-sm text-body-sm text-on-surface-variant whitespace-pre-line leading-relaxed';modalCard.querySelector('[data-ai-analysis-section]')?.append(output);}output.textContent=track.analysis.analysis;if(status)status.textContent='已生成';}else{empty?.classList.remove('hidden');output?.remove();if(status)status.textContent='待生成';}}
       return;
     }
     if(action==="analyze-track"){
