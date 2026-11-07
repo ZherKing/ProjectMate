@@ -43,7 +43,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-v
 *[data-search-field] input:not([type="checkbox"]):not([type="radio"]) { border: 0 !important; box-shadow: none !important; }
 *[data-search-field]:focus-within { border-color: var(--primary) !important; box-shadow: none !important; }
 [data-admin-search-field]:focus-within { border-color: var(--primary) !important; box-shadow: 0 0 0 3px rgba(79,70,229,.14) !important; }
-.design-screen [data-competition-card] { min-height: 190px; }
+.design-screen [data-competition-card] { min-height: 176px; }
 .design-screen [data-competition-card] h3 { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-height: 2.6em; }
 *[class*="focus-within:ring"]:focus-within { box-shadow: none !important; }
 

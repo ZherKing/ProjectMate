@@ -231,7 +231,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       card.find(".absolute,[class*=grid-cols-3]").remove();
       card.find("div").filter((_,el)=>($(el).attr("class")||"").includes("flex flex-wrap gap-1.5")).remove();
       const title=card.find("h3").first().text(item.name);
-      title.parent().find("p").first().text(item.platform);
+      title.parent().find("p").first().remove();
       title.parent().find("span").first().text(displayStatus);
       title.parent().find("span").eq(1).remove();
       const tracks=trackGroups.get(item.id);
@@ -249,7 +249,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       sourceLabel.closest("div").addClass("hidden");
       card.append('<div class="mt-auto flex items-center justify-between gap-3 border-t border-surface-container pt-3" data-competition-card-footer><span class="inline-flex items-center gap-1.5 text-xs text-on-surface-variant"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#18a77a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 14 4.2l2.3-.2 1.2 2 2 .9-.2 2.3L21 11l-1.2 2 .2 2.3-2 1.2-.9 2-2.3-.2L12 21l-2-1.2-2.3.2-1.2-2-2-.9.2-2.3L3 13l1.2-2L4 8.7l2-1.2.9-2 2.3.2Z"></path><path d="m8.5 12 2.2 2.2 4.8-5"></path></svg>来源：'+escapeHtml(item.platform)+'</span></div>');
       card.find("[data-competition-card-footer]").append(detailButton);
-      card.find("p").first().after('<p class="mt-2 text-body-sm text-on-surface-variant">更新于 '+escapeHtml(new Date(item.updatedAt).toLocaleDateString("zh-CN"))+ (tracks?.names.length?' · '+tracks.names.length+' 个赛道':'')+'</p>');
+      title.after('<p class="mt-2 text-body-sm text-on-surface-variant">更新于 '+escapeHtml(new Date(item.updatedAt).toLocaleDateString("zh-CN"))+ (tracks?.names.length?' · '+tracks.names.length+' 个赛道':'')+'</p>');
       listContainer.append(card);
     });
     const competitionSearch = main.find('input[placeholder*="检索比赛名"]').attr("data-competition-search","").attr("aria-label","搜索比赛、平台或赛道").attr("placeholder","搜索比赛名称、平台或赛道…");
