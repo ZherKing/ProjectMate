@@ -60,6 +60,7 @@ docker-compose.override.yml
 /.next-settings-qa/
 /.next-settings-focus-qa/
 /.next-settings-focus2-qa/
+/.next-settings-exact-qa/
 /.next-register-qa/
 /.next-motion-qa/
 /.next-filter-qa/

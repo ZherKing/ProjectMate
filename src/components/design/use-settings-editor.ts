@@ -21,10 +21,6 @@ export function useSettingsEditor(root: RefObject<HTMLDivElement | null>, enable
     const update = () => {
       const dirty = !!file || fields.some((field,index) => field.value !== initial[index]);
       bar?.classList.toggle("hidden", !dirty);
-      scope.querySelectorAll<HTMLElement>("[data-settings-tags-container]").forEach((container) => {
-        const input = container.querySelector<HTMLInputElement>("[data-settings-tags]");
-        container.classList.toggle("settings-tags-dirty", Boolean(input && fields.some((field, index) => field === input && field.value !== initial[index])));
-      });
       if (dirty && !wasDirty) {
         bar?.classList.remove("settings-save-bar-enter");
         if (bar) void bar.offsetWidth;

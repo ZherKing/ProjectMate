@@ -67,7 +67,11 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     main.find('input').eq(0).attr("data-settings-field","name").attr("maxlength","40");
     main.find('input').eq(1).attr("data-settings-field","school").attr("maxlength","120").removeAttr("readonly").removeClass("cursor-not-allowed select-none");
     const skillInput=main.find('input').eq(3).attr("data-settings-field","skills").attr("maxlength","500").attr("placeholder","输入技能，用逗号分隔").attr("data-settings-tags","");
-    skillInput.parent().attr("data-settings-tags-container","").addClass("settings-tags-container");
+    const skillWrap=skillInput.parent();
+    skillWrap.attr("class","relative flex items-center").attr("data-settings-tags-container","");
+    skillWrap.children().not(skillInput).remove();
+    skillWrap.prepend('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-badge-check design-icon text-[18px] text-on-surface-variant absolute left-3" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"></path><path d="m9 12 2 2 4-4"></path></svg>');
+    skillInput.attr("class","w-full bg-surface-container-low rounded-lg pl-10 pr-3 py-2.5 font-body-md text-body-md text-on-surface focus:bg-surface-container-lowest focus:outline-none transition-all");
     skillInput.parent().children("span").remove();
     const upload=main.find("button").filter((_,el)=>/更换头像/.test(text($(el)))).attr("data-action","upload-avatar");
     upload.after('<input type="file" accept="image/png,image/jpeg,image/webp" data-avatar-file class="hidden" aria-label="选择头像图片" />');
