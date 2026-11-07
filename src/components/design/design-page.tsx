@@ -315,7 +315,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     const detailCard=detailDoc("#competition-detail-card").clone();
     detailCard.attr("id","competition-detail-modal-card");
     detailCard.find("footer button").remove();
-    detailCard.find("footer").find("div").last().append('<a class="px-4 py-2 rounded-lg bg-surface-container text-primary font-label-md text-label-md" data-action="view-competition-source" target="_blank" rel="noreferrer">查看赛事页面</a><button class="px-4 py-2 rounded-lg bg-primary text-on-primary font-label-md text-label-md" type="button" data-action="start-team">开始组队</button>');
+    detailCard.find("footer").find("div").last().append('<button class="px-4 py-2 rounded-lg bg-primary text-on-primary font-label-md text-label-md" type="button" data-action="start-team">开始组队</button>');
     detailCard.find("header button").filter((_,el)=>/closeModal/.test($(el).attr("data-design-handler")||"")).attr("data-action","close-competition-detail").removeAttr("data-design-handler");
     detailCard.find("span").filter((_,el)=>/ESC 可关闭/.test(text($(el)))).remove();
     detailCard.find("#fav-btn").attr("data-action","detail-favorite").removeAttr("data-design-handler");
