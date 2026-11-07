@@ -46,6 +46,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-v
 .design-screen [data-competition-card] { min-height: 176px; }
 .design-screen [data-competition-card] h3 { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-height: 2.6em; }
 #competition-detail-modal-card { height: min(90vh, 942px); max-height: 90vh; }
+#competition-detail-modal-card [data-detail-right-column] { overflow-y: visible !important; }
 #competition-detail-modal-card [data-ai-analysis-result] { max-height: 180px; overflow-y: auto; overscroll-behavior: contain; }
 *[class*="focus-within:ring"]:focus-within { box-shadow: none !important; }
 

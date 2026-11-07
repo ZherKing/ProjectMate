@@ -331,6 +331,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     aiSection.find("div.rounded-xl").last().attr("data-ai-analysis-empty", "");
     const trackTabList = detailCard.find('[role="tablist"]').first();
     trackTabList.after('<div class="flex items-center justify-between gap-2 pt-1" data-track-pagination><button type="button" data-action="track-page-prev" class="px-2.5 py-1 rounded-lg bg-surface-container-low text-label-sm text-on-surface-variant disabled:opacity-40" disabled>上一页</button><span class="font-mono-metric text-mono-metric text-on-surface-variant" data-track-page-label>第 1 / 1 页</span><button type="button" data-action="track-page-next" class="px-2.5 py-1 rounded-lg bg-surface-container-low text-label-sm text-on-surface-variant disabled:opacity-40" disabled>下一页</button></div>');
+    detailCard.find("div.lg\\:col-span-7").attr("data-detail-right-column", "");
     aiSection.find("div.flex.items-center.justify-between").first().append('<button type="button" data-action="analyze-track" class="px-3 py-1.5 rounded-lg bg-primary text-on-primary font-label-sm text-label-sm">生成分析</button>');
     detailCard.find("a").filter((_,el)=>/^ccf.org.cn/.test(text($(el)))).attr("data-modal-authority-source","");
     detailCard.find("a").filter((_,el)=>/下载官方赛题说明书/.test(text($(el)))).attr("data-modal-spec-link","");
