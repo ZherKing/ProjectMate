@@ -59,6 +59,7 @@ docker-compose.override.yml
 /.next-icon-text-qa/
 /.next-settings-qa/
 /.next-settings-focus-qa/
+/.next-settings-focus2-qa/
 /.next-register-qa/
 /.next-motion-qa/
 /.next-filter-qa/

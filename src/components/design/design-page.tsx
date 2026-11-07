@@ -66,8 +66,8 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     main.find('input').eq(3).attr("value", profile?.skills || "");
     main.find('input').eq(0).attr("data-settings-field","name").attr("maxlength","40");
     main.find('input').eq(1).attr("data-settings-field","school").attr("maxlength","120").removeAttr("readonly").removeClass("cursor-not-allowed select-none");
-    const skillInput=main.find('input').eq(3).attr("data-settings-field","skills").attr("maxlength","500").attr("placeholder","输入技能，用逗号分隔");
-    main.find('input[placeholder*="添加技能标签"]').attr("data-settings-field","skills").attr("maxlength","500").attr("data-settings-tags","").attr("placeholder","+ 添加技能标签...").parent().attr("data-settings-tags-container","").addClass("settings-tags-container");
+    const skillInput=main.find('input').eq(3).attr("data-settings-field","skills").attr("maxlength","500").attr("placeholder","输入技能，用逗号分隔").attr("data-settings-tags","");
+    skillInput.parent().attr("data-settings-tags-container","").addClass("settings-tags-container");
     skillInput.parent().children("span").remove();
     const upload=main.find("button").filter((_,el)=>/更换头像/.test(text($(el)))).attr("data-action","upload-avatar");
     upload.after('<input type="file" accept="image/png,image/jpeg,image/webp" data-avatar-file class="hidden" aria-label="选择头像图片" />');
