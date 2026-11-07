@@ -299,7 +299,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       favoriteTab.attr("data-selected","true").removeAttr("data-action").removeAttr("data-route").removeClass("text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low").addClass("bg-primary text-on-primary shadow-sm");
       favoriteTab.find("span").last().removeClass("bg-surface-container-high text-on-surface-variant").addClass("bg-on-primary/20 text-on-primary").text(String(competitions.length));
     } else {
-      favoriteTab.attr("data-action","favorites-unavailable").removeAttr("data-route");
+      favoriteTab.attr("data-route","/competitions/favorites").removeAttr("data-action");
     }
     main.find("button").filter((_,el)=>/发起组队/.test(text($(el)))).attr("data-route","/teams/create");
     main.find("#filter-tabs button").filter((_,el)=>/AI 推荐/.test(text($(el)))).attr("data-selected","false");

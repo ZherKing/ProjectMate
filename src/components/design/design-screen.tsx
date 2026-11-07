@@ -357,7 +357,6 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     if(action==="analyze-track"){
       const modalCard=el.closest<HTMLElement>('[data-competition-modal]');let output=modalCard?.querySelector<HTMLElement>('[data-ai-analysis-result]');if(!output&&modalCard){output=document.createElement('div');output.dataset.aiAnalysisResult="";output.className='rounded-xl bg-surface-container-low p-4 font-body-sm text-body-sm text-on-surface-variant whitespace-pre-line leading-relaxed';modalCard.querySelector('[data-ai-analysis-section]')?.append(output);}setAiLoading(output||null,true);const status=modalCard?.querySelector<HTMLElement>('[data-ai-analysis-status]');if(status)status.textContent='分析中';const result=await run("analyze-competition",{competitionId:modalCard?.dataset.competitionId||"",trackIndex:modalCard?.dataset.selectedTrackIndex||"0"},button);if(result?.ok&&result.summary&&modalCard){modalCard.querySelector('[data-ai-analysis-empty]')?.classList.add('hidden');await revealText(output||null,result.summary);if(status)status.textContent='已生成';}else{setAiLoading(output||null,false);if(output)output.textContent=result?.message||'分析未完成，请稍后重试。';if(status)status.textContent='未完成';}return;
     }
-    if(action==="favorites-unavailable"){toast("收藏页面正在重新设计，当前入口已保留。","功能调整");return;}
     if(action==="close-competition-detail"){
       const detail=root.current.querySelector<HTMLElement>('#competition-detail-modal');
       if(!detail||detail.classList.contains("pm-detail-closing"))return;
