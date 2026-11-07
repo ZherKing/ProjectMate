@@ -43,6 +43,8 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   }
   const allCompetitions = name === "competitions" || name === "favorites" || name === "home" || name === "teams" ? listCompetitions() : [];
   const favoriteIds = favoritesView && user?.id ? listFavoriteCompetitionIds(user.id) : null;
+  const userFavoriteIds = user?.id ? listFavoriteCompetitionIds(user.id) : new Set<string>();
+  const favoriteCompetitionCount = allCompetitions.filter((item) => userFavoriteIds.has(item.id) || userFavoriteIds.has(item.name)).length;
   const competitions = favoriteIds
     ? allCompetitions.filter((item) => favoriteIds.has(item.id) || favoriteIds.has(item.name))
     : allCompetitions;
@@ -299,11 +301,13 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       allTab.attr("data-route","/competitions").removeAttr("data-action").attr("data-selected","false").removeClass("bg-primary text-on-primary shadow-sm").addClass("text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low");
       favoriteTab.attr("data-selected","true").removeAttr("data-action").removeAttr("data-route").removeClass("text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low").addClass("bg-primary text-on-primary shadow-sm");
       favoriteTab.find("span").last().removeClass("bg-surface-container-high text-on-surface-variant").addClass("bg-on-primary/20 text-on-primary").text(String(competitions.length));
+      allTab.find("span").last().removeClass("bg-on-primary/20 text-on-primary").addClass("bg-surface-container-high text-on-surface-variant");
     } else {
       favoriteTab.attr("data-route","/competitions/favorites").removeAttr("data-action");
+      favoriteTab.find("span").last().text(String(favoriteCompetitionCount));
     }
     main.find("button").filter((_,el)=>/发起组队/.test(text($(el)))).attr("data-route","/teams/create");
-    main.find("#filter-tabs button").filter((_,el)=>/AI 推荐/.test(text($(el)))).attr("data-selected","false");
+    main.find("#filter-tabs button").filter((_,el)=>/AI 推荐/.test(text($(el)))).attr("data-selected","false").find("span").last().text("暂无").removeClass("bg-secondary-fixed text-on-secondary-fixed").addClass("bg-surface-container-high text-on-surface-variant");
     const activeTracks=competitions.reduce((sum,item)=>sum+(trackGroups.get(item.id)?.names.length||0),0);
     const favoriteStats = { total: competitions.length, open: competitions.filter(item => /报名|进行中/.test(item.status)).length, preparing: competitions.filter(item => /备赛/.test(item.status)).length };
     const statMap = favoritesView
