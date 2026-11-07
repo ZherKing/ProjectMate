@@ -407,7 +407,13 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
         tracks.forEach((track,index)=>trackSelect.append(`<option value="${escapeHtml(track.name)}"${index===0?" selected":""}>${escapeHtml(track.name)}</option>`));
         if(!tracks.length)trackSelect.append('<option value="自拟赛道" selected>自拟赛道</option>');
       }
-      else if (!competitionId) existingCreator.find('[data-section="target-competition"]').addClass("hidden");
+      else if (!competitionId) {
+        const competitionCard=existingCreator.find('[data-section="target-competition"]').removeClass("hidden");
+        competitionCard.find("h3").first().text("请选择关联比赛");
+        competitionCard.find("p").first().text("可输入关键词筛选真实赛事，再选择对应比赛。");
+        competitionCard.find("[data-team-competition-status],[data-team-competition-season],[data-team-competition-source]").remove();
+        competitionCard.find(".pt-2").remove();
+      }
       else {
         const tracks=getCompetitionTrackDetails(competitionId);const trackSelect=existingCreator.find("#team-track").empty();
         tracks.forEach(track=>trackSelect.append(`<option value="${escapeHtml(track.name)}">${escapeHtml(track.name)}</option>`));
@@ -417,6 +423,11 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     const projects = listRecruitmentProjects();
     const seatTotal = projects.reduce((sum, project) => sum + project.seatCount, 0);
     main.find("h2").filter((_,el)=>/精选活跃战队/.test(text($(el)))).parent().find("span").filter((_,el)=>/共 \d+ 个精选席位/.test(text($(el)))).text(projects.length ? `共 ${seatTotal} 个席位` : "暂无席位数据");
+    const activeProjectCount = projects.filter((project) => project.status === "招募中").length;
+    const openRoleCount = projects.reduce((sum, project) => sum + (project.roles ? project.roles.split(/[，,、/]+/).map((role) => role.trim()).filter(Boolean).length : 0), 0);
+    main.find("p").filter((_,el)=>text($(el)) === "正在寻光组队中").next().text(String(activeProjectCount));
+    main.find("p").filter((_,el)=>text($(el)) === "急需核心技术岗").next().text(String(openRoleCount));
+    main.find("p").filter((_,el)=>text($(el)) === "平均匹配响应").next().text("暂无数据");
     const teamFilters=main.find('[data-section="team-filters"]');
     const trackFilterButtons=main.find("button.filter-pill");
     trackFilterButtons.each((index,el)=>{const label=text($(el));if(label!=="全部赛事")$(el).attr("data-team-track-filter",label);});
