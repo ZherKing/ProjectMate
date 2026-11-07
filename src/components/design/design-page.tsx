@@ -340,8 +340,8 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     detailCard.find("div.lg\\:col-span-7").attr("data-detail-right-column", "");
     aiSection.find("div.flex.items-center.justify-between").first().append('<button type="button" data-action="analyze-track" class="px-3 py-1.5 rounded-lg bg-primary text-on-primary font-label-sm text-label-sm">生成分析</button>');
     detailCard.find("a").filter((_,el)=>/^ccf.org.cn/.test(text($(el)))).attr("data-modal-authority-source","");
-    detailCard.find("a").filter((_,el)=>/下载官方赛题说明书/.test(text($(el)))).attr("data-modal-spec-link","");
-    detailCard.find("a").filter((_,el)=>/样例开发集/.test(text($(el)))).attr("data-modal-sample-link","");
+    detailCard.find("a").filter((_,el)=>/下载官方赛题说明书/.test(text($(el)))).attr("data-modal-spec-link","").removeAttr("href");
+    detailCard.find("a").filter((_,el)=>/样例开发集/.test(text($(el)))).attr("data-modal-sample-link","").removeAttr("href");
     detailCard.find("span").filter((_,el)=>/^TRACK-A/.test(text($(el)))).attr("data-modal-track-label","");
     detailCard.find("span").filter((_,el)=>/^作品提交截止：$/.test(text($(el)))).next().attr("data-modal-track-deadline","");
     detailCard.find("span").filter((_,el)=>/^信息来源已通过/.test(text($(el)))).attr("data-modal-source-note","");
