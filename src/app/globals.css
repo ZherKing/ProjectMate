@@ -107,6 +107,8 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-v
 .design-screen [role="status"] { animation: pm-toast-in .28s cubic-bezier(.22,1,.36,1) both; }
 @keyframes settings-save-bar-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 .settings-save-bar-enter { animation: settings-save-bar-enter .22s cubic-bezier(.22,1,.36,1) both; }
+.settings-tags-dirty { border-color: var(--primary) !important; box-shadow: 0 0 0 3px rgba(79,70,229,.12); animation: settings-tags-sync .22s ease-out both; }
+@keyframes settings-tags-sync { from { transform: translateY(2px); opacity: .72; } to { transform: translateY(0); opacity: 1; } }
 .settings-admin-save-bar { align-items: center; justify-content: space-between; gap: 16px; padding: 16px; border: 1px solid #e5e3ef; border-radius: 12px; background: rgba(255,255,255,.96); box-shadow: 0 8px 24px rgba(39,30,111,.13); backdrop-filter: blur(12px); }
 .settings-admin-save-bar:not(.hidden) { display: flex; }
 @media (prefers-reduced-motion: reduce) {
