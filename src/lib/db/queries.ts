@@ -73,3 +73,9 @@ export function getCompetitionTrackDetails(competitionId: string) {
   initializeDatabase();
   return sqlite.prepare("SELECT id, name, description, deadline FROM competition_tracks WHERE competition_id = ? ORDER BY name").all(competitionId) as Array<{ id: string; name: string; description: string | null; deadline: number | null }>;
 }
+
+export function getUserRegistrationNumber(userId: string) {
+  initializeDatabase();
+  const row = sqlite.prepare("SELECT COUNT(*) AS number FROM users u JOIN users target ON target.id=? WHERE u.created_at < target.created_at OR (u.created_at = target.created_at AND u.id <= target.id)").get(userId) as { number: number };
+  return row.number;
+}

@@ -33,6 +33,7 @@ export function initializeDatabase() {
   }
   const projectColumns = sqlite.prepare("PRAGMA table_info(recruitment_projects)").all() as Array<{ name: string }>;
   if (!projectColumns.some((column) => column.name === "nickname")) sqlite.exec("ALTER TABLE recruitment_projects ADD COLUMN nickname TEXT");
+  sqlite.exec("UPDATE competitions SET review_status='pending' WHERE review_status='approved' AND status LIKE '%待核验%'");
   sqlite.exec("CREATE INDEX IF NOT EXISTS admin_audit_logs_created_at_idx ON admin_audit_logs(created_at DESC)");
   const userColumns = sqlite.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
   if (!userColumns.some((column) => column.name === "role")) {

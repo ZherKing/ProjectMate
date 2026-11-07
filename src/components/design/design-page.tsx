@@ -3,7 +3,7 @@ import * as cheerio from "cheerio";
 import screens from "@/design/screens.json";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { getCompetition, getCompetitionTrackDetails, listCompetitionTracks, listCompetitions, listFavoriteCompetitionIds } from "@/lib/db/queries";
+import { getCompetition, getCompetitionTrackDetails, listCompetitionTracks, listCompetitions, listFavoriteCompetitionIds, getUserRegistrationNumber } from "@/lib/db/queries";
 import { getProfile } from "@/lib/db/profile";
 import { requireAdmin } from "@/lib/auth/guards";
 import { listRecruitmentProjects, getAccessibleProjectId, getProjectStats } from "@/lib/db/projects";
@@ -28,7 +28,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   if ((name === "dashboard" || name === "projects" || name === "settings" || name === "competitionDetail") && !user) redirect("/login");
   if (favoritesView && !user) redirect("/login?next=/competitions/favorites");
   if (name === "admin" && !(await requireAdmin())) redirect("/login?next=/admin");
-  const $ = cheerio.load(screens[name]);
+  const $ = cheerio.load(favoritesView ? screens.competitions : screens[name]);
   const hasHeader = $("body > header").length > 0;
   $("body > header").remove();
   $("body > footer").remove();
@@ -40,11 +40,6 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     $("body > header").remove();
     $("body > footer").remove();
     main.removeClass("pt-16").attr("data-design-main", name);
-    if (name === "favorites") {
-      main.find("#toastNotification").remove();
-      const content=main.children("div").first().children("div").filter((_,el)=>($(el).attr("class")||"").includes("max-w-[1240px]")).first();
-      content.attr("class", "w-full max-w-[1240px] mx-auto px-6 py-8");
-    }
   }
   const allCompetitions = name === "competitions" || name === "favorites" || name === "home" || name === "teams" ? listCompetitions() : [];
   const favoriteIds = favoritesView && user?.id ? listFavoriteCompetitionIds(user.id) : null;
@@ -61,6 +56,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   if (name === "settings" && user?.id) {
     main.find("nav").filter((_, el) => /控制台/.test(text($(el)))).first().remove();
     const profile = getProfile(user.id);
+    main.find("p").filter((_,el)=>/UID:\s*/.test(text($(el)))).each((_,el)=>{ const html = String($(el).html() ?? ""); const updated = html.replace(/UID:\s*[^<]+/,`UID: ${getUserRegistrationNumber(user.id!)}`); $(el).html(updated); });
     main.find('input[type="text"]').filter((_,el)=>$(el).attr("value")==="计算机科学与软件学院 (2022级本硕)").attr("value", profile?.school || "");
     main.find('input[type="text"]').filter((_,el)=>$(el).attr("value")==="林星宇").attr("value", user.name || "");
     main.find('input').eq(3).attr("value", profile?.skills || "");
@@ -92,32 +88,9 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     main.find("button").filter((_,el)=>/退出当前登录会话/.test(text($(el)))).attr("data-action","logout");
     configureSettingsPage($, settingsSection);
   }
-  if (name === "favorites" && user?.id) {
-    const firstHeading=main.find("h3").first();
-    const template=firstHeading.parent().clone();
-    const cardSection=firstHeading.parent().parent();
-    cardSection.children().remove();
-    const favoriteIds=listFavoriteCompetitionIds(user.id);
-    competitions.forEach((item,index)=>{
-      const card=template.clone();
-      const track=listCompetitionTracks().find((group)=>group.competitionId===item.id);
-      card.attr("data-competition-id",item.id).attr("data-source-url",item.sourceUrl).attr("data-favorite","true").attr("data-action","open-competition-detail");
-      card.find("h3").first().text(item.name);
-      card.find("p").first().text(item.platform+" · "+(item.status||"状态未知"));
-      card.find("span").filter((_,el)=>/报名中|进行中|已截止|收藏于/.test(text($(el)))).first().text(item.status);
-      card.find("span").filter((_,el)=>/收藏于/.test(text($(el)))).text("收藏于最近更新");
-      card.find("button").filter((_,el)=>/取消收藏/.test($(el).attr("title")||"")).attr("data-action","favorite").attr("data-favorite-key",item.id).removeAttr("data-design-handler");
-      card.find("button").filter((_,el)=>/立即发起组队/.test(text($(el)))).attr("data-route","/teams/create").removeAttr("data-design-handler");
-      card.find("button").filter((_,el)=>/官方赛题|查看赛道/.test(text($(el)))).attr("data-route","/competitions").removeAttr("data-design-handler");
-      card.find("span").filter((_,el)=>/奖池|推荐 \d/.test(text($(el)))).each((_,el)=>{ $(el).text("来源："+item.platform); });
-      cardSection.append(card);
-    });
-    if (!competitions.length) cardSection.append('<p class="rounded-xl bg-surface-container-low p-6 text-body-md text-on-surface-variant" role="status">还没有收藏赛事，返回比赛中心收藏你感兴趣的比赛。</p>');
-    main.find("h1").first().text("我的赛事收藏");
-    main.find("button").filter((_,el)=>/返回比赛中心|浏览更多/.test(text($(el)))).attr("data-route","/competitions");
-  }
   if (name === "admin" && user?.id) {
     populateAdminContent($, user.id, adminSection);
+    main.find("p").filter((_,el)=>/只有通过审核的赛事才会/.test(text($(el)))).closest("div.bg-surface-container-lowest").remove();
     main.find("[data-admin-heading] > nav[aria-label=\"Breadcrumb\"]").remove();
     main.find("[data-admin-heading] > div > div.flex-wrap").remove();
   }
@@ -228,7 +201,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     const flow = main.find("h2").filter((_,el)=>/四步标准闭环/.test(text($(el))));
     flow.closest("section").attr("id","workflow");
   }
-  if (name === "competitions") {
+  if (name === "competitions" || name === "favorites") {
     main.find("span").filter((_, el) => text($(el)) === "LIVE RADAR").parent().remove();
     main.find("span").filter((_, el) => /官方数据更新于/.test(text($(el)))).parent().remove();
     main.find("p").filter((_, el) => /平台所收录比赛均已通过/.test(text($(el)))).parent().remove();
@@ -236,8 +209,8 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     const listColumn=headings.first().closest("article").parent();
     listColumn.removeClass("xl:col-span-5").addClass("xl:col-span-12");
     if (favoritesView) {
-      main.find("h1").first().text("我收藏的赛事");
-      main.find("h1").first().next("p").text("集中查看你保存的比赛，继续了解赛道并开始组队。");
+      main.find("h1").first().text("我的赛事收藏");
+      main.find("h1").first().next("p").text(competitions.length ? `已收藏 ${competitions.length} 项赛事，继续查看赛事详情或发起组队。` : "还没有收藏赛事，返回比赛中心收藏你感兴趣的比赛。");
       main.find("h2").filter((_,el)=>/多维筛选/.test(text($(el)))).closest("aside").remove();
       main.find("#filter-tabs").remove();
     }
@@ -323,8 +296,11 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     main.find("button").filter((_,el)=>/发起组队/.test(text($(el)))).attr("data-route","/teams/create");
     main.find("#filter-tabs button").filter((_,el)=>/AI 推荐/.test(text($(el)))).attr("data-selected","false");
     const activeTracks=competitions.reduce((sum,item)=>sum+(trackGroups.get(item.id)?.names.length||0),0);
-    const statMap=new Map([["进行中赛道",String(activeTracks)], ["奖池总额","暂无数据"], ["AI匹配率","暂无数据"]]);
-    main.find("span").each((_,el)=>{const label=text($(el));const value=statMap.get(label);if(value!==undefined)$(el).next().text(value);});
+    const favoriteStats = { total: competitions.length, open: competitions.filter(item => /报名|进行中/.test(item.status)).length, preparing: competitions.filter(item => /备赛/.test(item.status)).length };
+    const statMap = favoritesView
+      ? new Map([["进行中赛道", ["收藏总数", String(favoriteStats.total)]], ["奖池总额", ["可报名数", String(favoriteStats.open)]], ["AI匹配率", ["正在备赛数", String(favoriteStats.preparing)]]])
+      : new Map([["进行中赛道", ["进行中赛道", String(activeTracks)]], ["奖池总额", ["奖池总额", "暂无数据"]], ["AI匹配率", ["AI匹配率", "暂无数据"]]]);
+    main.find("span").each((_,el)=>{const stat=statMap.get(text($(el)));if(stat){$(el).text(stat[0]);$(el).next().text(stat[1]);}});
     main.find("h2").filter((_,el)=>/生产力智能体赛道/.test(text($(el)))).closest("section").remove();
     const detailDoc=cheerio.load(screens.competitionDetail);
     const detailCard=detailDoc("#competition-detail-card").clone();

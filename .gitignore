@@ -79,3 +79,4 @@ docker-compose.override.yml
 /.next-new-favorites-ui-qa/
 /.next-shell-favorites-ui-qa/
 /.next-delete-favorites-qa/
+/.next-review-qa/

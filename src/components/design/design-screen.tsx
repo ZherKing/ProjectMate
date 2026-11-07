@@ -59,7 +59,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     if(name==="teams"&&query.get("create")==="1"&&loggedIn){
       const el=root.current?.querySelector<HTMLElement>("#creator-modal");el?.classList.remove("hidden");el?.querySelector<HTMLElement>("#creator-modal-card")?.classList.remove("hidden");el?.setAttribute("role","dialog");
     }
-    if(name!=="competitions")return;
+    if(name!=="competitions"&&name!=="favorites")return;
     const restore=()=>{
       const params=new URLSearchParams(location.search);
       const scope=root.current;if(!scope)return;
@@ -71,12 +71,12 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       scope.querySelectorAll<HTMLInputElement>('[data-status-filter]').forEach(i=>i.checked=i.dataset.statusFilter===status);
       const sort=params.get("sort")||"default";
       scope.dataset.competitionPage=params.get("page")||"1";
-      scope.dataset.favoritesMode=params.get("tab")==="favorites"?"true":"false";
+      scope.dataset.favoritesMode=name==="favorites"||params.get("tab")==="favorites"?"true":"false";
       scope.querySelectorAll<HTMLElement>('[data-sort-filter]').forEach(i=>{
         const on=i.dataset.sortFilter===sort;i.dataset.selected=String(on);
         i.classList.toggle("bg-surface-container-lowest",on);i.classList.toggle("text-primary",on);i.classList.toggle("font-semibold",on);
       });
-      const heading=scope.querySelector("h1");if(heading)heading.textContent=scope.dataset.favoritesMode==="true"?"我收藏的赛事":"发现比赛";
+      const heading=scope.querySelector("h1");if(heading)heading.textContent=scope.dataset.favoritesMode==="true"?"我的赛事收藏":"发现比赛";
       filterCompetitions(false);
     };
     restore();window.addEventListener("popstate",restore);
@@ -129,7 +129,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     finally{if(button)button.disabled=false;}
   };
   const filterCompetitions=(syncUrl=true)=>{
-    const scope=root.current;if(name!=="competitions"||!scope)return;
+    const scope=root.current;if((name!=="competitions"&&name!=="favorites")||!scope)return;
     const q=scope.querySelector<HTMLInputElement>('[data-competition-search]')?.value.trim()||"";
     const terms=q.normalize("NFKC").toLowerCase().split(/\s+/).filter(Boolean);
     const inputs=[...scope.querySelectorAll<HTMLInputElement>('[data-platform-filter]')];

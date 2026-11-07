@@ -22,7 +22,9 @@ export function populateAdminContent($: CheerioAPI, currentUserId: string, secti
   $("[data-admin-source-count]").text(`${adapterSources.length} 个来源`);
   $("[data-admin-user-count]").text(`${users.length} 位用户`);
   $("[data-admin-queue-count]").text(`待审核 ${pending.length} 项`);
-  $("[data-admin-source-filter]").append([...new Set(pending.map(item => item.platform))].sort().map(platform => `<option value="${escapeHtml(platform)}">${escapeHtml(platform)}</option>`).join(""));
+  $("[data-admin-source-filter]").empty().append('<option value="">全部赛事</option>');
+  $("[data-admin-queue-search]").attr("data-admin-search-field", "");
+  $("[data-admin-compliance-note]").remove();
   const queue = $("[data-admin-queue]");
   const template = queue.find("[data-admin-review-template]").clone().removeAttr("data-admin-review-template");
   queue.empty();
