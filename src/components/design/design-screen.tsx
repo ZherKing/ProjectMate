@@ -71,7 +71,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       scope.querySelectorAll<HTMLInputElement>('[data-status-filter]').forEach(i=>i.checked=i.dataset.statusFilter===status);
       const sort=params.get("sort")||"default";
       scope.dataset.competitionPage=params.get("page")||"1";
-      scope.dataset.favoritesMode=name==="favorites"||params.get("tab")==="favorites"?"true":"false";
+      scope.dataset.favoritesMode=name==="favorites"&&params.get("tab")!=="recommendations"||params.get("tab")==="favorites"?"true":"false";
       scope.dataset.recommendationsMode=params.get("tab")==="recommendations"?"true":"false";
       scope.querySelectorAll<HTMLElement>('[data-sort-filter]').forEach(i=>{
         const on=i.dataset.sortFilter===sort;i.dataset.selected=String(on);

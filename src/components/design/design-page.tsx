@@ -24,8 +24,8 @@ export type ScreenName = keyof typeof screens;
 export async function DesignPage({ name, variant, query, adminSection = "review", settingsSection = "profile" }: { name: ScreenName; variant?: "register"; query?: Record<string, string | string[] | undefined>; adminSection?: "review" | "sources" | "users" | "logs" | "settings"; settingsSection?: SettingsSection }) {
   const session = await auth();
   const user = session?.user;
-  const favoritesView = name === "favorites" || (name === "competitions" && query?.tab === "favorites");
-  const recommendationsView = name === "competitions" && query?.tab === "recommendations";
+  const recommendationsView = (name === "competitions" || name === "favorites") && query?.tab === "recommendations";
+  const favoritesView = !recommendationsView && (name === "favorites" || (name === "competitions" && query?.tab === "favorites"));
   if ((name === "dashboard" || name === "projects" || name === "settings" || name === "competitionDetail") && !user) redirect("/login");
   if (favoritesView && !user) redirect("/login?next=/competitions/favorites");
   if (recommendationsView && !user) redirect("/login?next=/competitions?tab=recommendations");
@@ -232,6 +232,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     if (recommendationsView) {
       main.find("h1").first().text("AI 推荐赛事");
       main.find("h1").first().next("p").text(recommendationProfile && recommendationTokens.length ? (visibleCompetitions.length ? `根据你的技术标签、兴趣方向和赛事状态，筛选出 ${visibleCompetitions.length} 项推荐赛事。` : "暂时没有匹配的推荐赛事，尝试补充更多技术标签或兴趣方向。") : "先在个人设置中填写技术标签、兴趣方向和每周投入时间，再生成个性化推荐。");
+      main.find("h1").first().next("p").after('<p class="mt-1 text-body-sm text-on-surface-variant">推荐依据：技术标签、兴趣方向、角色、赛事赛道和报名状态。<button type="button" data-route="/settings" class="ml-2 text-primary underline underline-offset-2">调整推荐资料</button></p>');
       if (!recommendationProfile || !recommendationTokens.length) main.find("h1").first().next("p").after('<button type="button" data-route="/settings" class="self-start mt-1 inline-flex items-center rounded-lg bg-primary px-3 py-1.5 text-label-sm text-on-primary">完善推荐资料</button>');
     }
     const template=headings.first().closest("article").clone();
