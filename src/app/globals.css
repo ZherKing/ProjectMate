@@ -48,6 +48,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-v
 #competition-detail-modal-card { height: min(90vh, 942px); max-height: 90vh; }
 #competition-detail-modal-card [data-detail-right-column] { overflow-y: visible !important; }
 #competition-detail-modal-card [data-ai-analysis-result] { max-height: 180px; overflow-y: auto; overscroll-behavior: contain; }
+.design-screen #filter-tabs button > span[data-tab-count] { display: inline-flex; min-width: 20px; justify-content: center; }
 *[class*="focus-within:ring"]:focus-within { box-shadow: none !important; }
 
 .pm-display { font-family: "Plus Jakarta Sans", Inter, "Noto Sans SC", system-ui, sans-serif; }
