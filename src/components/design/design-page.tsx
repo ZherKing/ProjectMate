@@ -295,7 +295,8 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     main.find("#filter-tabs button").first().find("span").last().text(String(allCompetitions.length));
     const favoriteTab = main.find("#filter-tabs button").filter((_,el)=>/我收藏的/.test(text($(el))));
     if (favoritesView) {
-      main.find("#filter-tabs button").first().attr("data-route","/competitions").removeAttr("data-action");
+      const allTab = main.find("#filter-tabs button").first();
+      allTab.attr("data-route","/competitions").removeAttr("data-action").attr("data-selected","false").removeClass("bg-primary text-on-primary shadow-sm").addClass("text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low");
       favoriteTab.attr("data-selected","true").removeAttr("data-action").removeAttr("data-route").removeClass("text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low").addClass("bg-primary text-on-primary shadow-sm");
       favoriteTab.find("span").last().removeClass("bg-surface-container-high text-on-surface-variant").addClass("bg-on-primary/20 text-on-primary").text(String(competitions.length));
     } else {
