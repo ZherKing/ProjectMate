@@ -72,11 +72,12 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       const sort=params.get("sort")||"default";
       scope.dataset.competitionPage=params.get("page")||"1";
       scope.dataset.favoritesMode=name==="favorites"||params.get("tab")==="favorites"?"true":"false";
+      scope.dataset.recommendationsMode=params.get("tab")==="recommendations"?"true":"false";
       scope.querySelectorAll<HTMLElement>('[data-sort-filter]').forEach(i=>{
         const on=i.dataset.sortFilter===sort;i.dataset.selected=String(on);
         i.classList.toggle("bg-surface-container-lowest",on);i.classList.toggle("text-primary",on);i.classList.toggle("font-semibold",on);
       });
-      const heading=scope.querySelector("h1");if(heading)heading.textContent=scope.dataset.favoritesMode==="true"?"我的赛事收藏":"发现比赛";
+      const heading=scope.querySelector("h1");if(heading)heading.textContent=scope.dataset.favoritesMode==="true"?"我的赛事收藏":scope.dataset.recommendationsMode==="true"?"AI 推荐赛事":"发现比赛";
       filterCompetitions(false);
     };
     restore();window.addEventListener("popstate",restore);
@@ -137,7 +138,8 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     const status=scope.querySelector<HTMLInputElement>('[data-status-filter]:checked')?.dataset.statusFilter||"";
     const cards=[...scope.querySelectorAll<HTMLElement>('[data-competition-card]')];
     const favoritesMode=scope.dataset.favoritesMode==="true";
-    const matched=cards.filter(card=>{const text=(card.dataset.searchText||"").normalize("NFKC").toLowerCase();return (!favoritesMode||card.dataset.favorite==="true")&&terms.every(term=>text.includes(term))&&platforms.includes(card.dataset.platform||"")&&(!status||card.dataset.status===status);});
+    const recommendationsMode=scope.dataset.recommendationsMode==="true";
+    const matched=cards.filter(card=>{const text=(card.dataset.searchText||"").normalize("NFKC").toLowerCase();return (!favoritesMode||card.dataset.favorite==="true")&&(!recommendationsMode||card.dataset.recommended==="true")&&terms.every(term=>text.includes(term))&&platforms.includes(card.dataset.platform||"")&&(!status||card.dataset.status===status);});
     const sort=scope.querySelector<HTMLElement>('[data-sort-filter][data-selected="true"]')?.dataset.sortFilter||"default";
     const deadline=(card:HTMLElement)=>card.dataset.deadline?Number(card.dataset.deadline):Infinity;
     matched.sort((a,b)=>sort==="name"?(a.querySelector("h3")?.textContent||"").localeCompare(b.querySelector("h3")?.textContent||"","zh-CN"):sort==="updated"?Number(b.dataset.updatedAt)-Number(a.dataset.updatedAt):sort==="deadline"?(deadline(a)-deadline(b)||Number(a.dataset.defaultOrder)-Number(b.dataset.defaultOrder)):Number(a.dataset.defaultOrder)-Number(b.dataset.defaultOrder));
@@ -495,7 +497,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       root.current.querySelectorAll<HTMLElement>("[data-sort-filter]").forEach(item=>{const on=item===el;item.dataset.selected=String(on);item.classList.toggle("bg-surface-container-lowest",on);item.classList.toggle("text-primary",on);item.classList.toggle("font-semibold",on);});filterCompetitions();return;
     }
     if(el.classList.contains('filter-pill')||el.classList.contains('role-chip')||el.hasAttribute('data-team-hours-filter')){const group=el.hasAttribute('data-team-hours-filter')?'[data-team-hours-filter]':el.classList.contains('role-chip')?'[data-team-role-filter]': '[data-team-track-filter]';root.current.querySelectorAll<HTMLElement>(group).forEach(item=>{if(item!==el)item.dataset.selected="false";item.classList.remove('bg-primary','text-on-primary');});el.dataset.selected=el.dataset.selected==="true"?"false":"true";el.classList.toggle('bg-primary');el.classList.toggle('text-on-primary');filterTeams();return;}
-    if(el.closest('#filter-tabs')){syncCompetitionTabs(root.current,el as HTMLElement);const heading=root.current.querySelector('h1');if(/收藏/.test(label)){if(!guard())return;root.current.dataset.favoritesMode="true";root.current.dataset.competitionPage="1";if(heading)heading.textContent="我收藏的赛事";filterCompetitions(false);history.replaceState(history.state,"",location.pathname+"?tab=favorites");return;}root.current.dataset.favoritesMode="false";root.current.dataset.competitionPage="1";if(heading)heading.textContent="发现比赛";filterCompetitions(false);history.replaceState(history.state,"",location.pathname);toast("已返回全部赛事。","赛事列表");return;}
+    if(el.closest('#filter-tabs')){syncCompetitionTabs(root.current,el as HTMLElement);const heading=root.current.querySelector('h1');if(/收藏/.test(label)){if(!guard())return;root.current.dataset.favoritesMode="true";root.current.dataset.recommendationsMode="false";root.current.dataset.competitionPage="1";if(heading)heading.textContent="我收藏的赛事";filterCompetitions(false);history.replaceState(history.state,"",location.pathname+"?tab=favorites");return;}if(/AI 推荐/.test(label)){if(!guard())return;root.current.dataset.favoritesMode="false";root.current.dataset.recommendationsMode="true";root.current.dataset.competitionPage="1";if(heading)heading.textContent="AI 推荐赛事";filterCompetitions(false);history.replaceState(history.state,"",location.pathname+"?tab=recommendations");return;}root.current.dataset.favoritesMode="false";root.current.dataset.recommendationsMode="false";root.current.dataset.competitionPage="1";if(heading)heading.textContent="发现比赛";filterCompetitions(false);history.replaceState(history.state,"",location.pathname);toast("已返回全部赛事。","赛事列表");return;}
     if(action==="page-prev"||action==="page-next"){const current=Number(root.current.dataset.competitionPage||1);root.current.dataset.competitionPage=String(Math.max(1,current+(action==="page-next"?1:-1)));filterCompetitions(false);return;}
     if(/新建任务|任务看板|更新任务看板/.test(label)){router.push("/projects/tasks");return;}
     if(/导出项目报告/.test(label)){router.push("/projects/tasks");return;}

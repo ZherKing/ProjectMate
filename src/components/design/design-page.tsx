@@ -25,8 +25,10 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   const session = await auth();
   const user = session?.user;
   const favoritesView = name === "favorites" || (name === "competitions" && query?.tab === "favorites");
+  const recommendationsView = name === "competitions" && query?.tab === "recommendations";
   if ((name === "dashboard" || name === "projects" || name === "settings" || name === "competitionDetail") && !user) redirect("/login");
   if (favoritesView && !user) redirect("/login?next=/competitions/favorites");
+  if (recommendationsView && !user) redirect("/login?next=/competitions?tab=recommendations");
   if (name === "admin" && !(await requireAdmin())) redirect("/login?next=/admin");
   const $ = cheerio.load(favoritesView ? screens.competitions : screens[name]);
   const hasHeader = $("body > header").length > 0;
@@ -48,6 +50,18 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   const competitions = favoriteIds
     ? allCompetitions.filter((item) => favoriteIds.has(item.id) || favoriteIds.has(item.name))
     : allCompetitions;
+  const recommendationProfile = recommendationsView && user?.id ? getProfile(user.id) : null;
+  const recommendationTokens = [recommendationProfile?.skills, recommendationProfile?.interests, recommendationProfile?.roles].filter(Boolean).join(",").toLowerCase().split(/[\s,，、/|]+/).filter((token) => token.length >= 2);
+  const recommendationTrackGroups = listCompetitionTracks();
+  const visibleCompetitions = recommendationsView
+    ? allCompetitions.map((item) => {
+        const trackNames = recommendationTrackGroups.find((group) => group.competitionId === item.id)?.names || [];
+        const haystack = [item.name, item.platform, item.status, ...trackNames].join(" ").toLowerCase();
+        const skillMatches = recommendationTokens.filter((token) => haystack.includes(token)).length;
+        const openBonus = /报名中|进行中/.test(item.status) ? 1 : 0;
+        return { item, score: skillMatches * 3 + openBonus };
+      }).filter((entry) => entry.score > 0).sort((a, b) => b.score - a.score || b.item.updatedAt - a.item.updatedAt).map((entry) => entry.item)
+    : competitions;
   if (name === "competitionDetail") {
     // 详情页只呈现设计稿中的卡片，不重复渲染站点导航、页脚和背景模拟列表。
     $("body > header").remove();
@@ -213,7 +227,11 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     listColumn.removeClass("xl:col-span-5").addClass("xl:col-span-12");
     if (favoritesView) {
       main.find("h1").first().text("我的赛事收藏");
-      main.find("h1").first().next("p").text(competitions.length ? `已收藏 ${competitions.length} 项赛事，继续查看赛事详情或发起组队。` : "还没有收藏赛事，返回比赛中心收藏你感兴趣的比赛。");
+      main.find("h1").first().next("p").text(visibleCompetitions.length ? `已收藏 ${visibleCompetitions.length} 项赛事，继续查看赛事详情或发起组队。` : "还没有收藏赛事，返回比赛中心收藏你感兴趣的比赛。");
+    }
+    if (recommendationsView) {
+      main.find("h1").first().text("AI 推荐赛事");
+      main.find("h1").first().next("p").text(recommendationProfile && recommendationTokens.length ? (visibleCompetitions.length ? `根据你的技术标签、兴趣方向和赛事状态，筛选出 ${visibleCompetitions.length} 项推荐赛事。` : "暂时没有匹配的推荐赛事，尝试补充更多技术标签或兴趣方向。") : "先在个人设置中填写技术标签、兴趣方向和每周投入时间，再生成个性化推荐。");
     }
     const template=headings.first().closest("article").clone();
     const trackGroups=new Map(listCompetitionTracks().map(track=>[track.competitionId,track]));
@@ -225,7 +243,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     listColumn.append('<div class="flex items-center justify-between gap-3 pt-2" data-pagination><button type="button" class="px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant text-label-sm disabled:opacity-40" data-page-prev disabled>上一页</button><span class="font-mono-metric text-mono-metric text-on-surface-variant" data-page-label>第 1 页</span><button type="button" class="px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant text-label-sm disabled:opacity-40" data-page-next>下一页</button></div>');
     const listContainer=articleGrid;
     listContainer.children("article").remove();
-    competitions.forEach((item,index)=>{
+    visibleCompetitions.forEach((item,index)=>{
       const card=template.clone();
       const displayStatus = item.reviewStatus === "approved" && item.status === "待核验" ? "已核验" : item.status;
       card.find(".absolute,[class*=grid-cols-3]").remove();
@@ -238,6 +256,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       const searchText=[item.name,item.platform,displayStatus,item.season,...(tracks?.names||[])].join(" ");
       const deadline=tracks?.deadline ?? null;
       card.attr("data-competition-card", "").attr("data-competition-id",item.id).attr("data-action","open-competition-detail").attr("data-platform",item.platform).attr("data-status",displayStatus).attr("data-favorite",String(favoriteKeys.has(item.id)||favoriteKeys.has(item.name)))
+        .attr("data-recommended", recommendationsView ? "true" : "false")
         .attr("data-search-text",searchText).attr("data-updated-at",String(item.updatedAt)).attr("data-default-order",String(index))
         .attr("data-deadline",deadline==null?"":String(deadline)).attr("data-source-url",item.sourceUrl)
         .attr("tabindex","0").attr("role","button").attr("aria-label",item.name);
@@ -259,16 +278,16 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     const platformTemplate=platformInputs.first().closest("label").clone();
     const platformContainer=platformInputs.first().closest("label").parent();
     platformInputs.each((_,el)=>{ $(el).closest("label").remove(); });
-    const platforms=[...new Set(competitions.map(item=>item.platform))];
+    const platforms=[...new Set(visibleCompetitions.map(item=>item.platform))];
     platforms.forEach(platform=>{
       const option=platformTemplate.clone();
       option.find("input").attr("data-platform-filter",platform).attr("aria-label",platform).prop("checked",true);
       option.find("input").next("span").text(platform);
-      option.children("span").last().text(String(competitions.filter(item=>item.platform===platform).length));
+      option.children("span").last().text(String(visibleCompetitions.filter(item=>item.platform===platform).length));
       platformContainer.append(option);
     });
     main.find("span").filter((_,el)=>text($(el))==="5类").text(platforms.length+"类");
-    const statuses=[...new Set(competitions.map(item=>item.status))];
+    const statuses=[...new Set(visibleCompetitions.map(item=>item.status))];
     const statusInput=main.find('input[name="status"]').first();
     const statusTemplate=statusInput.closest("label").clone();
     const statusContainer=statusInput.closest("label").parent();
@@ -288,7 +307,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     main.find("span").filter((_,el)=>["仅本科","硕博不限","全员无门槛"].includes(text($(el)))).attr("title","来源未提供统一资格信息，暂不可筛选").addClass("opacity-50");
     const sortOptions=new Map([["AI 匹配优先",["默认顺序","default"]],["截止最近",["截止最近","deadline"]],["热度优先",["名称排序","name"]],["最新发布",["最近更新","updated"]]]);
     main.find("button").each((_,el)=>{const option=sortOptions.get(text($(el)));if(option)$(el).text(option[0]).attr("data-sort-filter",option[1]);});
-    const count=main.find("span").filter((_,el)=>/^共匹配 /.test(text($(el)))).first().attr("data-results-heading","").text("共匹配 "+competitions.length+" 项赛事");
+    const count=main.find("span").filter((_,el)=>/^共匹配 /.test(text($(el)))).first().attr("data-results-heading","").text("共匹配 "+visibleCompetitions.length+" 项赛事");
     count.parent().after('<p class="hidden rounded-xl bg-surface-container-low p-5 text-body-md text-on-surface-variant" data-no-competitions role="status">没有匹配的赛事，请调整关键词或筛选条件。</p>');
     main.find("button").filter((_,el)=>/重置条件/.test(text($(el)))).attr("data-action","reset-filters");
     main.find("button").filter((_,el)=>/精准筛选/.test(text($(el)))).attr("data-action","apply-filters").find("span").last().text("搜索");
@@ -300,19 +319,27 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       const allTab = main.find("#filter-tabs button").first();
       allTab.attr("data-route","/competitions").removeAttr("data-action").attr("data-selected","false").removeClass("bg-primary text-on-primary shadow-sm").addClass("text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low");
       favoriteTab.attr("data-selected","true").removeAttr("data-action").removeAttr("data-route").removeClass("text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low").addClass("bg-primary text-on-primary shadow-sm");
-      favoriteTab.find("span").last().removeClass("bg-surface-container-high text-on-surface-variant").addClass("bg-on-primary/20 text-on-primary").text(String(competitions.length));
+      favoriteTab.find("span").last().removeClass("bg-surface-container-high text-on-surface-variant").addClass("bg-on-primary/20 text-on-primary").text(String(visibleCompetitions.length));
       allTab.find("span").last().removeClass("bg-on-primary/20 text-on-primary").addClass("bg-surface-container-high text-on-surface-variant");
+    } else if (recommendationsView) {
+      main.find("#filter-tabs button").first().attr("data-route","/competitions").removeAttr("data-action");
+      favoriteTab.attr("data-route","/competitions/favorites").removeAttr("data-action");
+      const aiTab=main.find("#filter-tabs button").filter((_,el)=>/AI 推荐/.test(text($(el))));
+      aiTab.attr("data-selected","true").removeAttr("data-action").removeAttr("data-route").removeClass("text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low").addClass("bg-primary text-on-primary shadow-sm");
+      aiTab.find("span").last().removeClass("bg-secondary-fixed text-on-secondary-fixed").addClass("bg-on-primary/20 text-on-primary").text(visibleCompetitions.length ? String(visibleCompetitions.length) : "暂无");
     } else {
       favoriteTab.attr("data-route","/competitions/favorites").removeAttr("data-action");
       favoriteTab.find("span").last().text(String(favoriteCompetitionCount));
     }
     main.find("button").filter((_,el)=>/发起组队/.test(text($(el)))).attr("data-route","/teams/create");
-    main.find("#filter-tabs button").filter((_,el)=>/AI 推荐/.test(text($(el)))).attr("data-selected","false").find("span").last().text("暂无").removeClass("bg-secondary-fixed text-on-secondary-fixed").addClass("bg-surface-container-high text-on-surface-variant");
-    const activeTracks=competitions.reduce((sum,item)=>sum+(trackGroups.get(item.id)?.names.length||0),0);
-    const favoriteStats = { total: competitions.length, open: competitions.filter(item => /报名|进行中/.test(item.status)).length, preparing: competitions.filter(item => /备赛/.test(item.status)).length };
+    if (!recommendationsView) main.find("#filter-tabs button").filter((_,el)=>/AI 推荐/.test(text($(el)))).attr("data-selected","false").find("span").last().text("暂无").removeClass("bg-secondary-fixed text-on-secondary-fixed").addClass("bg-surface-container-high text-on-surface-variant");
+    const activeTracks=visibleCompetitions.reduce((sum,item)=>sum+(trackGroups.get(item.id)?.names.length||0),0);
+    const favoriteStats = { total: visibleCompetitions.length, open: visibleCompetitions.filter(item => /报名|进行中/.test(item.status)).length, preparing: visibleCompetitions.filter(item => /备赛/.test(item.status)).length };
     const statMap = favoritesView
       ? new Map([["进行中赛道", ["收藏总数", String(favoriteStats.total)]], ["奖池总额", ["可报名数", String(favoriteStats.open)]], ["AI匹配率", ["正在备赛数", String(favoriteStats.preparing)]]])
-      : new Map([["进行中赛道", ["进行中赛道", String(activeTracks)]], ["奖池总额", ["奖池总额", "暂无数据"]], ["AI匹配率", ["AI匹配率", "暂无数据"]]]);
+      : recommendationsView
+        ? new Map([["进行中赛道", ["推荐总数", String(visibleCompetitions.length)]], ["奖池总额", ["可报名数", String(favoriteStats.open)]], ["AI匹配率", ["匹配赛道数", String(activeTracks)]]])
+        : new Map([["进行中赛道", ["进行中赛道", String(activeTracks)]], ["奖池总额", ["奖池总额", "暂无数据"]], ["AI匹配率", ["AI匹配率", "暂无数据"]]]);
     main.find("span").each((_,el)=>{const stat=statMap.get(text($(el)));if(stat){$(el).text(stat[0]);$(el).next().text(stat[1]);}});
     main.find("h2").filter((_,el)=>/生产力智能体赛道/.test(text($(el)))).closest("section").remove();
     const detailDoc=cheerio.load(screens.competitionDetail);
@@ -352,13 +379,13 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     detailCard.find("span").filter((_,el)=>/报名进行中|待核验/.test(text($(el)))).first().attr("data-modal-status","");
     detailCard.find("button").filter((_,el)=>/赛题 Track-/.test(text($(el)))).each((index,el)=>{ $(el).attr("data-track-id",String(index)); });
     const trackButtonTemplate = detailCard.find('button[data-track-id]').first();
-    const maxTrackCount = Math.max(3, ...competitions.map((item) => getCompetitionTrackDetails(item.id).length));
+    const maxTrackCount = Math.max(3, ...visibleCompetitions.map((item) => getCompetitionTrackDetails(item.id).length));
     for (let index = detailCard.find('button[data-track-id]').length; index < maxTrackCount; index += 1) {
       detailCard.find('[role="tablist"]').first().append(trackButtonTemplate.clone().attr("id", `track-btn-${index}`).attr("data-track-id", String(index)).attr("aria-selected", "false").removeClass("bg-surface-container-high shadow-sm").addClass("bg-surface-container-low"));
     }
     detailCard.find("[data-design-handler]").removeAttr("data-design-handler");
-    const trackData=Object.fromEntries(competitions.map((item)=>[item.id,(trackGroups.get(item.id)?.names||[])]));
-    const competitionData=Object.fromEntries(competitions.map((item)=>[item.id,{name:item.name,platform:item.platform,status:item.reviewStatus === "approved" && item.status === "待核验" ? "已核验" : item.status,season:item.season,sourceUrl:item.sourceUrl,tracks:getCompetitionTrackDetails(item.id).map(track=>({...track,analysis:getCompetitionAnalysis(item.id,track.id,item.updatedAt)}))}]));
+    const trackData=Object.fromEntries(visibleCompetitions.map((item)=>[item.id,(trackGroups.get(item.id)?.names||[])]));
+    const competitionData=Object.fromEntries(visibleCompetitions.map((item)=>[item.id,{name:item.name,platform:item.platform,status:item.reviewStatus === "approved" && item.status === "待核验" ? "已核验" : item.status,season:item.season,sourceUrl:item.sourceUrl,tracks:getCompetitionTrackDetails(item.id).map(track=>({...track,analysis:getCompetitionAnalysis(item.id,track.id,item.updatedAt)}))}]));
     const modalHtml='<div id="competition-detail-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-inverse-surface/45 p-3 sm:p-6 backdrop-blur-[6px]" data-competition-modal data-track-data="'+escapeHtml(JSON.stringify(trackData))+'" data-competition-data="'+escapeHtml(JSON.stringify(competitionData))+'">'+detailCard.toString()+"</div>";
     main.append(modalHtml);
   }
