@@ -344,7 +344,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     const trackButtonTemplate = detailCard.find('button[data-track-id]').first();
     const maxTrackCount = Math.max(3, ...competitions.map((item) => getCompetitionTrackDetails(item.id).length));
     for (let index = detailCard.find('button[data-track-id]').length; index < maxTrackCount; index += 1) {
-      detailCard.find('[role="tablist"]').first().append(trackButtonTemplate.clone().attr("id", `track-btn-${index}`).attr("data-track-id", String(index)).attr("aria-selected", "false"));
+      detailCard.find('[role="tablist"]').first().append(trackButtonTemplate.clone().attr("id", `track-btn-${index}`).attr("data-track-id", String(index)).attr("aria-selected", "false").removeClass("bg-surface-container-high shadow-sm").addClass("bg-surface-container-low"));
     }
     detailCard.find("[data-design-handler]").removeAttr("data-design-handler");
     const trackData=Object.fromEntries(competitions.map((item)=>[item.id,(trackGroups.get(item.id)?.names||[])]));
