@@ -212,8 +212,6 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     if (favoritesView) {
       main.find("h1").first().text("我的赛事收藏");
       main.find("h1").first().next("p").text(competitions.length ? `已收藏 ${competitions.length} 项赛事，继续查看赛事详情或发起组队。` : "还没有收藏赛事，返回比赛中心收藏你感兴趣的比赛。");
-      main.find("h2").filter((_,el)=>/多维筛选/.test(text($(el)))).closest("aside").remove();
-      main.find("#filter-tabs").remove();
     }
     const template=headings.first().closest("article").clone();
     const trackGroups=new Map(listCompetitionTracks().map(track=>[track.competitionId,track]));
@@ -294,8 +292,15 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     main.find("button").filter((_,el)=>/精准筛选/.test(text($(el)))).attr("data-action","apply-filters").find("span").last().text("搜索");
     main.find("[data-page-prev]").attr("data-action","page-prev");
     main.find("[data-page-next]").attr("data-action","page-next");
-    main.find("#filter-tabs button").first().find("span").last().text(String(competitions.length));
-    main.find("#filter-tabs button").filter((_,el)=>/我收藏的/.test(text($(el)))).attr("data-action","favorites-unavailable").removeAttr("data-route");
+    main.find("#filter-tabs button").first().find("span").last().text(String(allCompetitions.length));
+    const favoriteTab = main.find("#filter-tabs button").filter((_,el)=>/我收藏的/.test(text($(el))));
+    if (favoritesView) {
+      main.find("#filter-tabs button").first().attr("data-route","/competitions").removeAttr("data-action");
+      favoriteTab.attr("data-selected","true").removeAttr("data-action").removeAttr("data-route").removeClass("text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low").addClass("bg-primary text-on-primary shadow-sm");
+      favoriteTab.find("span").last().removeClass("bg-surface-container-high text-on-surface-variant").addClass("bg-on-primary/20 text-on-primary").text(String(competitions.length));
+    } else {
+      favoriteTab.attr("data-action","favorites-unavailable").removeAttr("data-route");
+    }
     main.find("button").filter((_,el)=>/发起组队/.test(text($(el)))).attr("data-route","/teams/create");
     main.find("#filter-tabs button").filter((_,el)=>/AI 推荐/.test(text($(el)))).attr("data-selected","false");
     const activeTracks=competitions.reduce((sum,item)=>sum+(trackGroups.get(item.id)?.names.length||0),0);
