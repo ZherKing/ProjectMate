@@ -227,16 +227,17 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     listContainer.children("article").remove();
     competitions.forEach((item,index)=>{
       const card=template.clone();
+      const displayStatus = item.reviewStatus === "approved" && item.status === "待核验" ? "已核验" : item.status;
       card.find(".absolute,[class*=grid-cols-3]").remove();
       card.find("div").filter((_,el)=>($(el).attr("class")||"").includes("flex flex-wrap gap-1.5")).remove();
       const title=card.find("h3").first().text(item.name);
       title.parent().find("p").first().text(item.platform);
-      title.parent().find("span").first().text(item.status);
+      title.parent().find("span").first().text(displayStatus);
       title.parent().find("span").eq(1).remove();
       const tracks=trackGroups.get(item.id);
-      const searchText=[item.name,item.platform,item.status,item.season,...(tracks?.names||[])].join(" ");
+      const searchText=[item.name,item.platform,displayStatus,item.season,...(tracks?.names||[])].join(" ");
       const deadline=tracks?.deadline ?? null;
-      card.attr("data-competition-card", "").attr("data-competition-id",item.id).attr("data-action","open-competition-detail").attr("data-platform",item.platform).attr("data-status",item.status).attr("data-favorite",String(favoriteKeys.has(item.id)||favoriteKeys.has(item.name)))
+      card.attr("data-competition-card", "").attr("data-competition-id",item.id).attr("data-action","open-competition-detail").attr("data-platform",item.platform).attr("data-status",displayStatus).attr("data-favorite",String(favoriteKeys.has(item.id)||favoriteKeys.has(item.name)))
         .attr("data-search-text",searchText).attr("data-updated-at",String(item.updatedAt)).attr("data-default-order",String(index))
         .attr("data-deadline",deadline==null?"":String(deadline)).attr("data-source-url",item.sourceUrl)
         .attr("tabindex","0").attr("role","button").attr("aria-label",item.name);
@@ -251,8 +252,9 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       card.find("p").first().after('<p class="mt-2 text-body-sm text-on-surface-variant">更新于 '+escapeHtml(new Date(item.updatedAt).toLocaleDateString("zh-CN"))+ (tracks?.names.length?' · '+tracks.names.length+' 个赛道':'')+'</p>');
       listContainer.append(card);
     });
-    main.find('input[placeholder*="检索比赛名"]').attr("data-competition-search","").attr("aria-label","搜索比赛、平台或赛道").attr("placeholder","搜索比赛名称、平台或赛道…").closest("label").attr("data-search-field","");
-    main.find('input[placeholder*="检索比赛名"]').closest("label").find("[data-icon=search],svg").last().remove();
+    const competitionSearch = main.find('input[placeholder*="检索比赛名"]').attr("data-competition-search","").attr("aria-label","搜索比赛、平台或赛道").attr("placeholder","搜索比赛名称、平台或赛道…");
+    const competitionSearchField = competitionSearch.closest("div.flex.items-center").attr("data-search-field","");
+    competitionSearchField.find("svg").last().remove();
     const platformInputs=main.find('input[type="checkbox"]').slice(0,5);
     const platformTemplate=platformInputs.first().closest("label").clone();
     const platformContainer=platformInputs.first().closest("label").parent();
@@ -338,7 +340,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     detailCard.find("button").filter((_,el)=>/赛题 Track-/.test(text($(el)))).each((index,el)=>{ $(el).attr("data-track-id",String(index)); });
     detailCard.find("[data-design-handler]").removeAttr("data-design-handler");
     const trackData=Object.fromEntries(competitions.map((item)=>[item.id,(trackGroups.get(item.id)?.names||[])]));
-    const competitionData=Object.fromEntries(competitions.map((item)=>[item.id,{name:item.name,platform:item.platform,status:item.status,season:item.season,sourceUrl:item.sourceUrl,tracks:getCompetitionTrackDetails(item.id).map(track=>({...track,analysis:getCompetitionAnalysis(item.id,track.id,item.updatedAt)}))}]));
+    const competitionData=Object.fromEntries(competitions.map((item)=>[item.id,{name:item.name,platform:item.platform,status:item.reviewStatus === "approved" && item.status === "待核验" ? "已核验" : item.status,season:item.season,sourceUrl:item.sourceUrl,tracks:getCompetitionTrackDetails(item.id).map(track=>({...track,analysis:getCompetitionAnalysis(item.id,track.id,item.updatedAt)}))}]));
     const modalHtml='<div id="competition-detail-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-inverse-surface/45 p-3 sm:p-6 backdrop-blur-[6px]" data-competition-modal data-track-data="'+escapeHtml(JSON.stringify(trackData))+'" data-competition-data="'+escapeHtml(JSON.stringify(competitionData))+'">'+detailCard.toString()+"</div>";
     main.append(modalHtml);
   }
