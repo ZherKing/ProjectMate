@@ -72,7 +72,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       const sort=params.get("sort")||"default";
       scope.dataset.competitionPage=params.get("page")||"1";
       scope.dataset.favoritesMode=name==="favorites"&&params.get("tab")!=="recommendations"||params.get("tab")==="favorites"?"true":"false";
-      scope.dataset.recommendationsMode=params.get("tab")==="recommendations"?"true":"false";
+      scope.dataset.recommendationsMode=(params.get("tab")==="recommendations"||scope.querySelector('[data-design-main][data-recommendations-mode="true"]')!==null)?"true":"false";
       scope.querySelectorAll<HTMLElement>('[data-sort-filter]').forEach(i=>{
         const on=i.dataset.sortFilter===sort;i.dataset.selected=String(on);
         i.classList.toggle("bg-surface-container-lowest",on);i.classList.toggle("text-primary",on);i.classList.toggle("font-semibold",on);

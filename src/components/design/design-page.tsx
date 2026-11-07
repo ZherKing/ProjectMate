@@ -36,6 +36,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   $("body > footer").remove();
   const text = (el: cheerio.Cheerio<AnyNode>) => el.text().replace(/\s+/g, " ").trim();
   const main = $("main");
+  if (recommendationsView) main.attr("data-recommendations-mode", "true");
   $("[data-action=\"favorite\"]").each((index,el)=>{ $(el).attr("data-favorite-key",name+"-"+index); });
   const sharedShell = name === "favorites" || name === "admin";
   if (sharedShell) {
@@ -332,6 +333,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       const aiTab=main.find("#filter-tabs button").filter((_,el)=>/AI 推荐/.test(text($(el))));
       aiTab.attr("data-selected","true").removeAttr("data-action").removeAttr("data-route").removeClass("text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low").addClass("bg-primary text-on-primary shadow-sm");
       aiTabCount.removeClass("bg-secondary-fixed text-on-secondary-fixed").addClass("bg-on-primary/20 text-on-primary").text(visibleCompetitions.length ? String(visibleCompetitions.length) : "暂无");
+      aiTab.find("svg").removeClass("text-primary").addClass("text-on-primary");
     } else {
       favoriteTab.attr("data-route","/competitions/favorites").removeAttr("data-action");
       favoriteTabCount.text(String(favoriteCompetitionCount));
