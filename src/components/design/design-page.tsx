@@ -328,6 +328,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     } else if (recommendationsView) {
       const allTab=main.find("#filter-tabs button").first();
       allTab.attr("data-route","/competitions").removeAttr("data-action").attr("data-selected","false").removeClass("bg-primary text-on-primary shadow-sm").addClass("text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low");
+      allTabCount.removeClass("bg-on-primary/20 text-on-primary").addClass("bg-surface-container-high text-on-surface-variant").text(String(allCompetitions.length));
       favoriteTab.attr("data-route","/competitions/favorites").removeAttr("data-action").attr("data-selected","false").removeClass("bg-primary text-on-primary shadow-sm").addClass("text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low");
       favoriteTabCount.removeClass("bg-on-primary/20 text-on-primary").addClass("bg-surface-container-high text-on-surface-variant").text(String(favoriteCompetitionCount));
       const aiTab=main.find("#filter-tabs button").filter((_,el)=>/AI 推荐/.test(text($(el))));
