@@ -56,7 +56,8 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   if (name === "settings" && user?.id) {
     main.find("nav").filter((_, el) => /控制台/.test(text($(el)))).first().remove();
     const profile = getProfile(user.id);
-    main.find("p").filter((_,el)=>/UID:\s*/.test(text($(el)))).each((_,el)=>{ const html = String($(el).html() ?? ""); const updated = html.replace(/UID:\s*[^<]+/,`UID: ${getUserRegistrationNumber(user.id!)}`); $(el).html(updated); });
+    const registrationNumber = String(getUserRegistrationNumber(user.id));
+    main.find("div").filter((_, el) => /^UID:\s*/.test(text($(el)))).first().find("span").first().text(registrationNumber);
     main.find('input[type="text"]').filter((_,el)=>$(el).attr("value")==="计算机科学与软件学院 (2022级本硕)").attr("value", profile?.school || "");
     main.find('input[type="text"]').filter((_,el)=>$(el).attr("value")==="林星宇").attr("value", user.name || "");
     main.find('input').eq(3).attr("value", profile?.skills || "");
