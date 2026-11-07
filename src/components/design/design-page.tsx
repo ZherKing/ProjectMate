@@ -232,6 +232,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     if (recommendationsView) {
       main.find("h1").first().text("AI 推荐赛事");
       main.find("h1").first().next("p").text(recommendationProfile && recommendationTokens.length ? (visibleCompetitions.length ? `根据你的技术标签、兴趣方向和赛事状态，筛选出 ${visibleCompetitions.length} 项推荐赛事。` : "暂时没有匹配的推荐赛事，尝试补充更多技术标签或兴趣方向。") : "先在个人设置中填写技术标签、兴趣方向和每周投入时间，再生成个性化推荐。");
+      if (!recommendationProfile || !recommendationTokens.length) main.find("h1").first().next("p").after('<button type="button" data-route="/settings" class="self-start mt-1 inline-flex items-center rounded-lg bg-primary px-3 py-1.5 text-label-sm text-on-primary">完善推荐资料</button>');
     }
     const template=headings.first().closest("article").clone();
     const trackGroups=new Map(listCompetitionTracks().map(track=>[track.competitionId,track]));
