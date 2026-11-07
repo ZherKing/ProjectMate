@@ -367,6 +367,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   }
   if (name === "teams") {
     main.find("span").filter((_, el) => /LIVE TEAMMATCHING SYSTEM|实时组队就绪/.test(text($(el)))).parent().remove();
+    main.find("#open-creator-btn").find("span").filter((_, el) => /^\+\s*一键发布组队项目$/.test(text($(el)))).text("一键发布组队项目");
     const existingCreator = main.find("#creator-modal");
     if (existingCreator.length) {
       const competitionId = Array.isArray(query?.competition) ? query?.competition[0] : query?.competition || "";
