@@ -232,8 +232,6 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     if (recommendationsView) {
       main.find("h1").first().text("AI 推荐赛事");
       main.find("h1").first().next("p").text(recommendationProfile && recommendationTokens.length ? (visibleCompetitions.length ? `根据你的技术标签、兴趣方向和赛事状态，筛选出 ${visibleCompetitions.length} 项推荐赛事。` : "暂时没有匹配的推荐赛事，尝试补充更多技术标签或兴趣方向。") : "先在个人设置中填写技术标签、兴趣方向和每周投入时间，再生成个性化推荐。");
-      main.find("h1").first().next("p").after('<p class="mt-1 text-body-sm text-on-surface-variant">推荐依据：技术标签、兴趣方向、角色、赛事赛道和报名状态。<button type="button" data-route="/settings" class="ml-2 text-primary underline underline-offset-2">调整推荐资料</button></p>');
-      if (!recommendationProfile || !recommendationTokens.length) main.find("h1").first().next("p").after('<button type="button" data-route="/settings" class="self-start mt-1 inline-flex items-center rounded-lg bg-primary px-3 py-1.5 text-label-sm text-on-primary">完善推荐资料</button>');
     }
     const template=headings.first().closest("article").clone();
     const trackGroups=new Map(listCompetitionTracks().map(track=>[track.competitionId,track]));
@@ -311,6 +309,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     main.find("button").each((_,el)=>{const option=sortOptions.get(text($(el)));if(option)$(el).text(option[0]).attr("data-sort-filter",option[1]);});
     const count=main.find("span").filter((_,el)=>/^共匹配 /.test(text($(el)))).first().attr("data-results-heading","").text("共匹配 "+visibleCompetitions.length+" 项赛事");
     count.parent().after('<p class="hidden rounded-xl bg-surface-container-low p-5 text-body-md text-on-surface-variant" data-no-competitions role="status">没有匹配的赛事，请调整关键词或筛选条件。</p>');
+    if (recommendationsView) count.parent().next("[data-no-competitions]").before('<div class="mb-3 text-body-sm text-on-surface-variant" data-recommendation-guide>推荐依据：技术标签、兴趣方向、角色、赛事赛道和报名状态。<button type="button" data-route="/settings" class="ml-2 text-primary underline underline-offset-2">调整推荐资料</button></div>');
     main.find("button").filter((_,el)=>/重置条件/.test(text($(el)))).attr("data-action","reset-filters");
     main.find("button").filter((_,el)=>/精准筛选/.test(text($(el)))).attr("data-action","apply-filters").find("span").last().text("搜索");
     main.find("[data-page-prev]").attr("data-action","page-prev");
@@ -324,8 +323,10 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       favoriteTab.find("span").last().removeClass("bg-surface-container-high text-on-surface-variant").addClass("bg-on-primary/20 text-on-primary").text(String(visibleCompetitions.length));
       allTab.find("span").last().removeClass("bg-on-primary/20 text-on-primary").addClass("bg-surface-container-high text-on-surface-variant");
     } else if (recommendationsView) {
-      main.find("#filter-tabs button").first().attr("data-route","/competitions").removeAttr("data-action");
-      favoriteTab.attr("data-route","/competitions/favorites").removeAttr("data-action");
+      const allTab=main.find("#filter-tabs button").first();
+      allTab.attr("data-route","/competitions").removeAttr("data-action").attr("data-selected","false").removeClass("bg-primary text-on-primary shadow-sm").addClass("text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low");
+      favoriteTab.attr("data-route","/competitions/favorites").removeAttr("data-action").attr("data-selected","false").removeClass("bg-primary text-on-primary shadow-sm").addClass("text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low");
+      favoriteTab.find("span").last().removeClass("bg-on-primary/20 text-on-primary").addClass("bg-surface-container-high text-on-surface-variant");
       const aiTab=main.find("#filter-tabs button").filter((_,el)=>/AI 推荐/.test(text($(el))));
       aiTab.attr("data-selected","true").removeAttr("data-action").removeAttr("data-route").removeClass("text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low").addClass("bg-primary text-on-primary shadow-sm");
       aiTab.find("span").last().removeClass("bg-secondary-fixed text-on-secondary-fixed").addClass("bg-on-primary/20 text-on-primary").text(visibleCompetitions.length ? String(visibleCompetitions.length) : "暂无");
