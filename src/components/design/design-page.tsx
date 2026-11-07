@@ -30,7 +30,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   if (favoritesView && !user) redirect("/login?next=/competitions/favorites");
   if (recommendationsView && !user) redirect("/login?next=/competitions?tab=recommendations");
   if (name === "admin" && !(await requireAdmin())) redirect("/login?next=/admin");
-  const $ = cheerio.load(favoritesView ? screens.competitions : screens[name]);
+  const $ = cheerio.load(favoritesView || recommendationsView ? screens.competitions : screens[name]);
   const hasHeader = $("body > header").length > 0;
   $("body > header").remove();
   $("body > footer").remove();
@@ -59,7 +59,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
         const haystack = [item.name, item.platform, item.status, ...trackNames].join(" ").toLowerCase();
         const skillMatches = recommendationTokens.filter((token) => haystack.includes(token)).length;
         const openBonus = /报名中|进行中/.test(item.status) ? 1 : 0;
-        return { item, score: skillMatches * 3 + openBonus };
+        return { item, score: recommendationTokens.length ? skillMatches * 3 + openBonus : 0 };
       }).filter((entry) => entry.score > 0).sort((a, b) => b.score - a.score || b.item.updatedAt - a.item.updatedAt).map((entry) => entry.item)
     : competitions;
   if (name === "competitionDetail") {
