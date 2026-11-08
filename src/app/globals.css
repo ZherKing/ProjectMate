@@ -189,6 +189,10 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-v
 /* 赛事详情的动画只作用于模态层，不影响背景赛事列表。 */
 #competition-detail-modal:not(.hidden) { animation: pm-detail-backdrop-in .18s ease-out both; }
 #competition-detail-modal:not(.hidden) > #competition-detail-modal-card { animation: pm-detail-card-in .18s ease-out both; }
+#team-detail-modal:not(.hidden) { animation: pm-detail-backdrop-in .18s ease-out both; }
+#team-detail-modal:not(.hidden) > #team-detail-modal-card { animation: pm-detail-card-in .18s ease-out both; }
+#team-detail-modal.pm-detail-closing { animation: pm-detail-backdrop-out .18s ease-in both; pointer-events: none; }
+#team-detail-modal.pm-detail-closing > #team-detail-modal-card { animation: pm-detail-card-out .18s ease-in both; }
 #competition-detail-modal.pm-detail-closing { animation: pm-detail-backdrop-out .18s ease-in both; pointer-events: none; }
 #competition-detail-modal.pm-detail-closing > #competition-detail-modal-card { animation: pm-detail-card-out .18s ease-in both; }
 *[data-team-create-modal] { animation: none; }

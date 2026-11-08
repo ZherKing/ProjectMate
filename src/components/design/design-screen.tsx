@@ -97,7 +97,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
     },duration+220);
     return()=>{clearTimeout(closeTimer);clearTimeout(removeTimer);};
   },[notice,router]);
-  useEffect(()=>{const onKey=(event:KeyboardEvent)=>{if(event.key==="Escape")root.current?.querySelectorAll('[role="dialog"]:not(#competition-detail-modal-card):not(#creator-modal):not(#creator-modal-card),#ai-synergy-modal,#demo-modal,#poster-modal').forEach(el=>el.classList.add("hidden"));};document.addEventListener("keydown",onKey);return()=>document.removeEventListener("keydown",onKey);},[]);
+  useEffect(()=>{const onKey=(event:KeyboardEvent)=>{if(event.key==="Escape")root.current?.querySelectorAll('[role="dialog"]:not(#competition-detail-modal-card):not(#creator-modal):not(#creator-modal-card):not(#team-detail-modal-card),#ai-synergy-modal,#demo-modal,#poster-modal,#team-detail-modal').forEach(el=>el.classList.add("hidden"));};document.addEventListener("keydown",onKey);return()=>document.removeEventListener("keydown",onKey);},[]);
   useEffect(()=>{
     const header=root.current?.querySelector<HTMLElement>('[data-design-header]');
     if(!header)return;
@@ -429,7 +429,9 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       const result=await run("favorite",{key},button);if(result?.ok){el.classList.toggle("text-error");const card=el.closest<HTMLElement>('[data-competition-id]');if(card)card.dataset.favorite=String(card.dataset.favorite!=="true");}return;
     }
     if(action==="apply"||el.classList.contains("apply-team-btn")){const card=el.closest<HTMLElement>('[data-project-id]');await run("apply",{projectId:el.dataset.projectId||card?.dataset.projectId||"design-sample"},button);return;}
-    if(action==="team-details"||el.classList.contains("view-detail-btn")){toast(el.closest('[data-project-id]')?.querySelector('h3')?.textContent||"此卡片为设计示例，发布真实项目后可申请加入。","项目详情");return;}
+    if(action==="team-details"||el.classList.contains("view-detail-btn")){const projectId=el.dataset.projectId||el.closest<HTMLElement>('[data-project-id]')?.dataset.projectId||"";const modalRoot=root.current.querySelector<HTMLElement>("#team-detail-modal");const card=el.closest<HTMLElement>('[data-project-id]');const details=JSON.parse(modalRoot?.dataset.teamDetails||"{}")[projectId];if(modalRoot&&details){modalRoot.dataset.projectId=projectId;modalRoot.classList.remove("hidden","pm-detail-closing");const set=(selector:string,value:string)=>{const node=modalRoot.querySelector<HTMLElement>(selector);if(node)node.textContent=value;};set("[data-team-detail-title]",details.title);set("[data-team-detail-description]",details.description);set("[data-team-detail-status]",details.status);set("[data-team-detail-track]",details.trackName);set("[data-team-detail-hours]",details.weeklyHours?`${details.weeklyHours} 小时 / 周`:"未设置");set("[data-team-detail-creator]",details.creatorName);set("[data-team-detail-roles]",details.roles);set("[data-team-detail-members]",String(details.memberCount||0));set("[data-team-detail-seats]",String(details.seatCount||0));}return;}
+    if(action==="close-team-detail"){const modalRoot=root.current.querySelector<HTMLElement>("#team-detail-modal");if(modalRoot){modalRoot.classList.add("pm-detail-closing");setTimeout(()=>{modalRoot.classList.add("hidden");modalRoot.classList.remove("pm-detail-closing");},180);}return;}
+    if(action==="apply-team-detail"){const modalRoot=root.current.querySelector<HTMLElement>("#team-detail-modal");await run("apply",{projectId:modalRoot?.dataset.projectId||""},button);return;}
     if(action==="coach"||id==="btn-apply-suggestion"){
       if(id==="btn-apply-suggestion"){toast("此处排期是设计示例，请在任务看板选择具体任务后修改；未自动更改任务。","请确认具体调整");router.push("/projects/tasks");return;}
       const input=root.current.querySelector<HTMLInputElement>('[data-coach-input]');
