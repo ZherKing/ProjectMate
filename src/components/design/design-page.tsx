@@ -174,6 +174,10 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   if (name === "login") {
     main.addClass("overflow-x-clip");
     main.find("span").filter((_,el)=>/新用户登录自动开启 6-Step 极客能力画像/.test(text($(el)))).closest("div.border-t").remove();
+    const brandPanel = main.find("div.relative.z-10.flex.flex-col").first();
+    brandPanel.find("span").filter((_,el)=>text($(el)) === "AI ENGINE").remove();
+    brandPanel.find("div.flex.items-center.gap-3").first().find("span").first().replaceWith('<img src="/assets/logo.svg" alt="ProjectMate Brand Logo" class="h-8 w-8 object-contain" width="32" height="32">');
+    brandPanel.find("div").filter((_,el)=>text($(el)) === "PROJECTMATE INNOVATION NETWORK").remove();
     $("#principalInput").attr("autocomplete","username").attr("maxlength","254").attr("type","email").attr("placeholder","请输入注册邮箱");
     $('label[for="principalInput"]').text("登录邮箱");
     $("#passwordInput").attr("autocomplete","current-password").attr("maxlength","256");
