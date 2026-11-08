@@ -422,7 +422,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       existingCreator.find("#ai-output-box").addClass("pm-ai-copy-scroll");
       existingCreator.find("#ai-generated-text").attr("data-ai-team-copy", "").text("填写项目名称和描述后，可以生成可编辑的招募文案草稿。");
       const competitionSection=existingCreator.find('[data-section="target-competition"]');
-      competitionSection.prepend('<div class="mb-3" data-publish-competition-picker><input data-publish-competition-search class="w-full rounded-lg bg-white px-3 py-2 text-sm" placeholder="输入比赛名称关键词筛选"><select data-publish-competition-select class="mt-2 w-full rounded-lg bg-white px-3 py-2 text-sm" aria-label="选择关联比赛"></select></div>');
+      competitionSection.prepend('<div class="mt-4 mb-3" data-publish-competition-picker><input data-publish-competition-search class="w-full rounded-lg bg-white px-3 py-2 text-sm" placeholder="输入比赛名称关键词筛选"><select data-publish-competition-select class="mt-2 w-full rounded-lg bg-white px-3 py-2 text-sm" aria-label="选择关联比赛"></select></div>');
       competitionSection.find('[data-publish-competition-picker]').insertAfter(competitionSection.find("p").first());
       const picker=existingCreator.find('[data-publish-competition-select]');
       competitions.forEach((competition)=>picker.append(`<option value="${escapeHtml(competition.id)}">${escapeHtml(competition.name)}</option>`));
