@@ -157,6 +157,10 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-v
 .pm-coach-message-assistant { margin-right: auto; color: #303044; background: #f3f3fa; }
 .pm-coach-message-user { margin-left: auto; color: #fff; background: #3525cd; }
 .pm-coach-empty { max-width: 560px; padding: 14px; border: 1px dashed #d8d7e6; border-radius: 10px; color: #646477; font-size: 13px; line-height: 1.65; }
+[data-coach-field] { box-sizing: border-box; min-height: 48px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); transition: border-color .16s ease; }
+[data-coach-field] input:not([type="checkbox"]):not([type="radio"]) { border: 0 !important; box-shadow: none !important; }
+[data-coach-field]:focus-within { border-color: var(--primary) !important; box-shadow: none !important; }
+[data-coach-submit] { min-width: 68px; flex-shrink: 0; white-space: nowrap; justify-content: center; }
 .pm-workspace-modal { position: relative; width: min(100%, 460px); padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: 0 20px 60px rgba(19,27,46,.2); animation: pm-detail-card-in .18s ease-out both; }
 .pm-workspace-modal h2 { margin: 0; font-size: 20px; font-weight: 750; }
 .pm-workspace-modal p { margin: 8px 0 16px; color: var(--muted); font-size: 13px; line-height: 1.6; }

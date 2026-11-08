@@ -630,9 +630,9 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       main.find("span").filter((_,el)=>/^来源：代码库/.test(text($(el)))).text("来源："+report.source+" · 项目任务数据库");
       main.find("span").filter((_,el)=>/^更新于 14:30/.test(text($(el)))).text("更新于 "+new Date(report.createdAt).toLocaleTimeString("zh-CN",{hour:"2-digit",minute:"2-digit"}));
     }
-    const input=main.find('input[placeholder*="AI 教练"]');input.attr("data-coach-input","");
+    const input=main.find('input[placeholder*="AI 教练"]');input.attr("data-coach-input","");input.closest("div.flex.items-center").attr("data-coach-field","");
     input.closest("div").find("button").attr("data-action","coach");
-    main.find("button").filter((_,el)=>/发送/.test(text($(el)))).attr("data-action","coach");
+    main.find("button").filter((_,el)=>/发送/.test(text($(el)))).attr("data-action","coach").attr("data-coach-submit","");
     input.closest("div").next().find("button").each((_,el)=>{ $(el).attr("data-action","coach-prompt").attr("data-prompt",text($(el))); });
     if (!projectId) main.find('[data-coach-project-id]').find("input[data-coach-input],button[data-action='coach']").prop("disabled", true).addClass("opacity-50 cursor-not-allowed");
     main.find("button").filter((_,el)=>/任务看板|新建任务卡片|筛选视图/.test(text($(el)))).attr("data-route","/projects/tasks");
