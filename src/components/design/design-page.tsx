@@ -173,6 +173,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   });
   if (name === "login") {
     main.addClass("overflow-x-clip");
+    main.find("span").filter((_,el)=>/新用户登录自动开启 6-Step 极客能力画像/.test(text($(el)))).closest("div.border-t").remove();
     $("#principalInput").attr("autocomplete","username").attr("maxlength","254").attr("type","email").attr("placeholder","请输入注册邮箱");
     $('label[for="principalInput"]').text("登录邮箱");
     $("#passwordInput").attr("autocomplete","current-password").attr("maxlength","256");
