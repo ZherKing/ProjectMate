@@ -125,7 +125,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
   const run=async(action:string,data:Record<string,string>={},button?:HTMLButtonElement,silent=false)=>{
     if(!guard())return null;
     if(button)button.disabled=true;
-    try{const result=await screenAction(action,data);if(!silent)toast(result.message,result.ok?"操作成功":"操作未完成",!!result.href);return result;}
+    try{const result=await screenAction(action,data);const loginRedirect=typeof result.href==="string"&&result.href.startsWith("/login");if(!silent)toast(result.message,result.ok?"操作成功":"操作未完成",loginRedirect);return result;}
     catch{if(!silent)toast("请求未完成，请稍后重试。","连接失败");return null;}
     finally{if(button)button.disabled=false;}
   };
@@ -290,6 +290,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
       editor?.classList.toggle("hidden");editor?.querySelector<HTMLInputElement>("[data-custom-role-input]")?.focus();return;
     }
     if(action==="project-invite"){root.current.querySelector<HTMLElement>("#project-invite-modal")?.classList.remove("hidden");return;}
+    if(action==="edit-project-nickname"){const title=el.previousElementSibling as HTMLElement|null;if(!title)return;const value=title.textContent?.trim()||"";const input=document.createElement("input");input.dataset.projectNickname="";input.setAttribute("aria-label","项目昵称");input.maxLength=80;input.value=value;input.className="pm-project-nickname-input";const save=document.createElement("button");save.type="button";save.dataset.action="save-project-nickname";save.className="pm-button-primary pm-project-nickname-save";save.textContent="保存昵称";title.replaceWith(input);el.replaceWith(save);input.focus();input.select();return;}
     if(action==="save-project-nickname"){const input=root.current.querySelector<HTMLInputElement>("[data-project-nickname]");const result=await run("update-project-nickname",{nickname:input?.value||""},button);if(result?.ok)router.refresh();return;}
     if(action==="new-project-task"){root.current.querySelector<HTMLElement>("#project-task-modal")?.classList.remove("hidden");return;}
     if(action==="close-workspace-modal"){el.closest<HTMLElement>("[id$='-modal']")?.classList.add("hidden");return;}

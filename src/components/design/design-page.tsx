@@ -518,14 +518,15 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   }
   if (name === "projects") {
     const projectStats = user?.id ? (() => { const id=getAccessibleProjectId(user.id); return id ? getProjectStats(id) : null; })() : null;
-    const projectContext = user?.id ? (() => { const id=getAccessibleProjectId(user.id); return id ? sqlite.prepare("SELECT nickname,title,competition_id AS competitionId,track_name AS trackName,status FROM recruitment_projects WHERE id=? AND creator_id=?").get(id,user.id) as { nickname: string | null; title: string; competitionId: string | null; trackName: string | null; status: string } | undefined : undefined; })() : undefined;
+    const projectContext = user?.id ? (() => { const id=getAccessibleProjectId(user.id); return id ? sqlite.prepare("SELECT id,nickname,title,competition_id AS competitionId,track_name AS trackName,status FROM recruitment_projects WHERE id=? AND creator_id=?").get(id,user.id) as { id: string; nickname: string | null; title: string; competitionId: string | null; trackName: string | null; status: string } | undefined : undefined; })() : undefined;
     const titleHeading = main.find("h1").first();
     if (projectContext && titleHeading.length) {
-      titleHeading.text(projectContext.nickname || projectContext.title).after('<div class="pm-project-nickname-row"><input data-project-nickname maxlength="80" value="'+escapeHtml(projectContext.nickname || projectContext.title)+'" aria-label="项目昵称"><button type="button" class="pm-button-outline" data-action="save-project-nickname">保存昵称</button></div>');
+      titleHeading.text(projectContext.nickname || projectContext.title).after('<button type="button" class="pm-button-outline pm-project-nickname-edit" data-action="edit-project-nickname">修改昵称</button>');
       titleHeading.parent().find("span").filter((_,el)=>/正在冲刺|Sprint/.test(text($(el)))).text(projectContext.status);
       const competition=projectContext.competitionId?getCompetition(projectContext.competitionId):undefined;
       const info=titleHeading.parent().find("p").first();
       info.text(competition?[competition.name,projectContext.trackName].filter(Boolean).join(" · "):"比赛与赛道信息暂无");
+      main.find("span").filter((_,el)=>/^ID:\s*PM-/.test(text($(el)))).text("ID: "+projectContext.id);
     } else if (titleHeading.length) {
       titleHeading.text("暂无项目");
       titleHeading.parent().find("span").filter((_,el)=>/正在冲刺|Sprint/.test(text($(el)))).remove();
