@@ -1,0 +1,3 @@
+import { publicOrigin } from "@/lib/mcp/oauth";
+export const dynamic = "force-dynamic";
+export function GET() { const origin = publicOrigin(); return Response.json({ issuer: origin, authorization_endpoint: origin+"/mcp/authorize", token_endpoint: origin+"/api/mcp/oauth/token", registration_endpoint: origin+"/api/mcp/oauth/register", revocation_endpoint: origin+"/api/mcp/oauth/revoke", response_types_supported: ["code"], grant_types_supported: ["authorization_code","refresh_token"], code_challenge_methods_supported: ["S256"], token_endpoint_auth_methods_supported: ["none"], scopes_supported: ["files:read","files:write"] }, { headers: { "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" } }); }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { auth } from "@/auth";
 import { hasAdminRole } from "@/lib/auth/permissions";
 import { ScrollHeader } from "./scroll-header";
@@ -32,5 +33,5 @@ export async function SiteHeader() {
         </> : <><Link href="/login" className={styles.login}>登录</Link><Link href="/register" className={styles.primary}>免费注册</Link></>}
       </div>
     </div>
-  </ScrollHeader><NavigationProgress /></>;
+  </ScrollHeader><Suspense fallback={null}><NavigationProgress /></Suspense></>;
 }

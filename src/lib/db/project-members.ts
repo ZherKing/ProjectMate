@@ -62,6 +62,9 @@ export function changeProjectMember(input: { projectId: string; actorId: string;
     } else {
       if (actor === "管理员" && target !== "成员") return { ok: false, message: "管理员只能移除普通成员。" };
       sqlite.prepare("DELETE FROM project_members WHERE project_id=? AND user_id=?").run(input.projectId, input.memberId);
+      if (sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='mcp_grants'").get()) {
+        sqlite.prepare("UPDATE mcp_grants SET revoked_at=? WHERE project_id=? AND user_id=? AND revoked_at IS NULL").run(Date.now(),input.projectId,input.memberId);
+      }
       sqlite.prepare("DELETE FROM project_invites WHERE project_id=? AND inviter_id=? AND used_by IS NULL").run(input.projectId, input.memberId);
     }
     sqlite.prepare("INSERT INTO admin_audit_logs(id,actor_id,action,target_type,target_id,details,created_at) VALUES(?,?,?,?,?,?,?)")

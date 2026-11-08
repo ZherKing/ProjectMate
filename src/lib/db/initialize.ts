@@ -21,6 +21,13 @@ export function initializeDatabase() {
     "CREATE TABLE IF NOT EXISTS ai_usage_events (id TEXT PRIMARY KEY NOT NULL, user_id TEXT NOT NULL, action TEXT NOT NULL, created_at INTEGER NOT NULL);" +
     "CREATE TABLE IF NOT EXISTS competition_ai_analyses (competition_id TEXT NOT NULL, track_id TEXT NOT NULL, source_updated_at INTEGER NOT NULL, analysis TEXT NOT NULL, model TEXT NOT NULL, generated_at INTEGER NOT NULL, PRIMARY KEY(competition_id,track_id));",
   );
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS project_files (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, kind TEXT NOT NULL, path TEXT NOT NULL, owner_id TEXT NOT NULL, latest_version_id TEXT NOT NULL, created_at INTEGER NOT NULL, UNIQUE(project_id,kind,path));
+    CREATE TABLE IF NOT EXISTS project_file_versions (id TEXT PRIMARY KEY, file_id TEXT NOT NULL, version INTEGER NOT NULL, uploader_id TEXT NOT NULL, size INTEGER NOT NULL, mime TEXT NOT NULL, sha256 TEXT NOT NULL, storage_key TEXT NOT NULL, created_at INTEGER NOT NULL, UNIQUE(file_id,version));
+    CREATE TABLE IF NOT EXISTS project_file_uploads (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, uploader_id TEXT NOT NULL, path TEXT NOT NULL, kind TEXT NOT NULL, expected_size INTEGER NOT NULL, received INTEGER NOT NULL, storage_key TEXT NOT NULL, expires_at INTEGER NOT NULL);
+    CREATE INDEX IF NOT EXISTS project_files_project_idx ON project_files(project_id);
+    CREATE INDEX IF NOT EXISTS project_file_versions_file_idx ON project_file_versions(file_id);
+  `);
   const competitionColumns = sqlite.prepare("PRAGMA table_info(competitions)").all() as Array<{ name: string }>;
   const existingCompetitionColumns = new Set(competitionColumns.map((column) => column.name));
   for (const [name, definition] of [

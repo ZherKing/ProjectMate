@@ -1,0 +1,60 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, readdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createHash } from "node:crypto";
+
+test("项目文件：权限、路径、内容校验、版本、配额及分片",async()=>{
+ const directory=mkdtempSync(join(tmpdir(),"projectmate-files-test-"));
+ const previous={db:process.env.DATABASE_URL,storage:process.env.STORAGE_PATH,file:process.env.PROJECT_FILE_MAX_MB,quota:process.env.PROJECT_STORAGE_MAX_MB};
+ process.env.DATABASE_URL=`file:${join(directory,"test.sqlite")}`;process.env.STORAGE_PATH=join(directory,"storage");
+ const {sqlite}=await import("../src/lib/db/client");
+ try{
+ const {initializeDatabase}=await import("../src/lib/db/initialize");const {createRecruitmentProject}=await import("../src/lib/db/projects");
+ const files=await import("../src/lib/files/store");initializeDatabase();
+ for(const id of ["owner","admin","member","outside"])sqlite.prepare("INSERT INTO users(id,email,name,password_hash,created_at) VALUES(?,?,?,?,?)").run(id,`${id}@test.invalid`,id,"unused",Date.now());
+ const projectId=createRecruitmentProject({creatorId:"owner",competitionId:"",trackName:"",title:"文件验证",description:"测试",roles:"",weeklyHours:10});
+ for(const [id,role]of [["admin","管理员"],["member","成员"]])sqlite.prepare("INSERT INTO project_members(project_id,user_id,role,joined_at) VALUES(?,?,?,?)").run(projectId,id,role,Date.now());
+ const save=(userId:string,path:string,content:string,kind:"code"|"document"="code")=>files.saveProjectFile({projectId,userId,path,kind,bytes:Buffer.from(content)});
+ for(const path of ["../a.ts","/etc/a.ts","a/../../b.py","C:\\a.ts","src\\a.ts",".git/config","src/.env","a//b.ts","src/./a.ts","a/../b.ts"]){assert.throws(()=>save("owner",path,"test"),files.FileError);}
+ assert.throws(()=>save("outside","src/main.ts","test"),{status:403});
+ assert.throws(()=>files.listProjectFiles(projectId,"outside"),{status:403});
+ assert.throws(()=>files.saveProjectFile({projectId,userId:"owner",path:"fake.pdf",kind:"document",bytes:Buffer.from("<script>x</script>")}),files.FileError);
+ assert.throws(()=>files.saveProjectFile({projectId,userId:"owner",path:"binary.py",kind:"code",bytes:Buffer.from([255,0,1])}),files.FileError);
+ const first=save("owner","src/main.ts","export const x = 1;"),same=save("owner","src/main.ts","export const x = 1;");
+ assert.equal(same.unchanged,true);assert.equal(same.versionId,first.versionId);
+ const second=save("owner","src/main.ts","export const x = 2;");assert.equal(second.version,2);
+ assert.equal(files.readProjectFile(projectId,"member",first.fileId,first.versionId).bytes.toString(),"export const x = 1;");
+ assert.throws(()=>save("member","src/main.ts","unauthorized"),{status:403});
+ const admin=save("admin","src/main.ts","export const x = 3;");assert.equal(admin.version,3);
+ const list=files.listProjectFiles(projectId,"member");assert.equal(list[0].ownerId,"owner");assert.equal(list[0].uploaderId,"admin");
+ assert.equal(files.listFileVersions(projectId,"member",first.fileId).length,3);
+ assert.throws(()=>save("owner","src/main.ts/a.py","x"),files.FileError);
+ save("member","empty.py","");
+ const own=save("member","docs/说明.md","# 中文说明","document");
+ assert.throws(()=>files.deleteProjectFile(projectId,"member",first.fileId),{status:403});
+ files.deleteProjectFile(projectId,"member",own.fileId);assert.throws(()=>files.readProjectFile(projectId,"owner",own.fileId),{status:404});
+ const bytes=Buffer.from("# 分片内容 😀\n"),upload=files.beginFileUpload({projectId,userId:"member",path:"chunked.md",kind:"document",size:bytes.length});
+ assert.throws(()=>files.appendFileChunk(projectId,"owner",upload.uploadId,0,bytes),{status:404});
+ files.appendFileChunk(projectId,"member",upload.uploadId,0,bytes.subarray(0,4));
+ assert.equal(files.appendFileChunk(projectId,"member",upload.uploadId,0,bytes.subarray(0,4)).receivedBytes,4);
+ assert.throws(()=>files.appendFileChunk(projectId,"member",upload.uploadId,5,bytes.subarray(4)),files.FileError);
+ assert.throws(()=>files.finishFileUpload(projectId,"member",upload.uploadId),files.FileError);
+ files.appendFileChunk(projectId,"member",upload.uploadId,4,bytes.subarray(4));
+ assert.throws(()=>files.finishFileUpload(projectId,"member",upload.uploadId,"0".repeat(64)),files.FileError);
+ const done=files.finishFileUpload(projectId,"member",upload.uploadId,createHash("sha256").update(bytes).digest("hex"));
+ assert.equal(files.readProjectFile(projectId,"owner",done.fileId).bytes.toString(),bytes.toString());
+ assert.throws(()=>files.finishFileUpload(projectId,"member",upload.uploadId),{status:404});
+ const cancelled=files.beginFileUpload({projectId,userId:"owner",path:"cancel.py",kind:"code",size:10});files.cancelFileUpload(projectId,"owner",cancelled.uploadId);
+ const expired=files.beginFileUpload({projectId,userId:"owner",path:"expire.py",kind:"code",size:10});sqlite.prepare("UPDATE project_file_uploads SET expires_at=0 WHERE id=?").run(expired.uploadId);files.pruneExpiredUploads();
+ assert.throws(()=>files.appendFileChunk(projectId,"owner",expired.uploadId,0,Buffer.from("a")),{status:404});
+ assert.equal(files.decodeBase64(Buffer.alloc(512*1024,1).toString("base64"),512*1024).length,512*1024);
+ assert.throws(()=>files.decodeBase64("not-base64"),files.FileError);
+ process.env.PROJECT_FILE_MAX_MB="0.001";assert.throws(()=>save("owner","too-large.txt","a".repeat(2000)),{status:413});
+ process.env.PROJECT_STORAGE_MAX_MB="0.001";assert.throws(()=>save("owner","quota.txt","a".repeat(1000)),{status:413});
+ const usedBefore=files.fileUsage(projectId,"owner").usedBytes;assert.ok(usedBefore>0);
+ files.deleteProjectFile(projectId,"admin",first.fileId);assert.throws(()=>files.listFileVersions(projectId,"owner",first.fileId),{status:404});assert.ok(files.fileUsage(projectId,"owner").usedBytes<usedBefore);
+ const keys=readdirSync(join(directory,"storage","project-files"));assert.ok(keys.every(key=>/^[a-f0-9-]{36}$/.test(key)));assert.ok(keys.length>=2);
+ }finally{sqlite.close();for(const [key,value]of Object.entries({DATABASE_URL:previous.db,STORAGE_PATH:previous.storage,PROJECT_FILE_MAX_MB:previous.file,PROJECT_STORAGE_MAX_MB:previous.quota})){if(value===undefined)delete process.env[key];else process.env[key]=value;}rmSync(directory,{recursive:true,force:true});}
+});

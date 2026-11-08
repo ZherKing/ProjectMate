@@ -59,7 +59,7 @@ export function configureSettingsPage($: CheerioAPI, section: SettingsSection) {
     connections.find("h2").siblings("span").remove();
     connections.children().first().find("div.w-8").text("03");
     connections.find("button").remove();
-    connections.append('<div class="p-5 rounded-xl bg-surface-container-low flex flex-col gap-3"><h3 class="font-title-md text-title-md text-on-surface">尚未接入外部授权服务</h3><p class="font-body-md text-body-md text-on-surface-variant">当前没有可用的 OAuth 授权入口或 MCP 连接。完成服务端授权配置后才能绑定账号与连接服务器。</p><span class="self-start px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">未接入</span></div>');
+    connections.append('<div class="p-5 rounded-xl bg-surface-container-low flex flex-col gap-3"><h3 class="font-title-md text-title-md text-on-surface">外部账号与本站 MCP</h3><p class="font-body-md text-body-md text-on-surface-variant">第三方账号绑定尚未配置。本站项目文件 MCP 已可使用，请在项目空间的文档产出页面配置与管理授权。</p><span class="self-start px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">第三方账号未接入</span><a href="/projects/files" class="pm-button-outline self-start">管理项目文件 MCP</a></div>');
     return;
   }
   connections.remove();
