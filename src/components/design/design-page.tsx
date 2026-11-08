@@ -535,9 +535,10 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     }
     main.find("button").filter((_, el) => /邀请新成员/.test(text($(el)))).attr("data-action", "project-invite");
     main.find("button").filter((_, el) => /新建任务卡片/.test(text($(el)))).attr("data-action", "new-project-task");
-    main.find("span").filter((_, el) => text($(el)) === "整体完成度").next().text(projectStats ? `${projectStats.completion}%` : "暂无数据");
+    const completionCard=main.find("span").filter((_, el) => text($(el)) === "整体完成度").closest("div.bg-surface-container-low.rounded-xl");
+    completionCard.find("span").filter((_,el)=>/^\d{1,3}%$/.test(text($(el)))).first().attr("class","font-headline-xl text-headline-xl text-primary font-bold").text(projectStats ? `${projectStats.completion}%` : "暂无数据");
+    completionCard.find("div.w-48 > div").first().css("width", projectStats ? `${projectStats.completion}%` : "0%");
     if (projectStats) {
-      main.find("span").filter((_, el) => /^\d{1,3}%$/.test(text($(el)))).text(`${projectStats.completion}%`);
       main.find("p").filter((_, el) => /预计可如期交付主算法/.test(text($(el)))).text(`${projectStats.completed}/${projectStats.tasks.length} 项任务已完成`);
       const countdown=main.find("span").filter((_,el)=>text($(el))==="决赛作品提交倒计时").closest(".bg-surface-container-low.rounded-xl");
       if(projectContext?.competitionId){
