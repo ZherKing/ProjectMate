@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
 import { auth } from "@/auth";
 import { hasAdminRole } from "@/lib/auth/permissions";
 import { ScrollHeader } from "./scroll-header";
@@ -23,7 +22,6 @@ export async function SiteHeader() {
       </div>
       <div className={styles.actions}>
         {user ? <>
-          <Link href="/teams?create=1" className={`${styles.primary} ${styles.publish}`}><Plus size={16} aria-hidden="true" />发布项目</Link>
           <details className="pm-user-menu">
             <summary className={styles.user}>
               <span className={styles.avatar}>{user.image ? <img src={user.image} alt="个人头像" width={32} height={32} /> : (user.name || "我").slice(0, 1)}</span>
