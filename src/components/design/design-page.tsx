@@ -453,6 +453,10 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
         const competitionCard=existingCreator.find('[data-section="target-competition"]').removeClass("hidden");
         competitionCard.find("h3").first().text("请选择关联比赛");
         competitionCard.find("p").first().text("可输入关键词筛选真实赛事，再选择对应比赛。");
+        const sourceRow=competitionCard.find("[data-team-competition-source]").closest("div.flex.items-center");
+        const verifiedIcon=sourceRow.find("svg").first().clone();
+        sourceRow.remove();
+        competitionCard.find("p").first().prepend(verifiedIcon.addClass("mr-1.5 align-middle"));
         competitionCard.find("[data-team-competition-status],[data-team-competition-season],[data-team-competition-source]").remove();
         competitionCard.find(".pt-2").remove();
       }
