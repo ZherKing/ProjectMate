@@ -115,6 +115,24 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         revalidatePath("/projects"); revalidatePath("/projects/tasks");
         return { ok: true, message: "任务已创建。", id };
       }
+      case "save-todo":
+      case "toggle-todo": {
+        const projectId = getAccessibleProjectId(userId, data.projectId);
+        if (!projectId) return { ok: false, message: "没有当前项目的编辑权限。" };
+        if (action === "toggle-todo") {
+          const result = sqlite.prepare("UPDATE project_tasks SET status=? WHERE id=? AND project_id=?").run(data.completed === "true" ? "已完成" : "待分配", data.taskId, projectId);
+          if (!result.changes) return { ok:false, message:"待办不存在或无权修改。" };
+        } else {
+          const title = (data.title || "").trim(), notes = (data.notes || "").trim();
+          if (!title || title.length > 160 || notes.length > 1000) return { ok:false, message:"标题需为 1—160 字，备注最多 1000 字。" };
+          if (data.taskId) {
+            const result = sqlite.prepare("UPDATE project_tasks SET title=?, notes=? WHERE id=? AND project_id=?").run(title, notes, data.taskId, projectId);
+            if (!result.changes) return { ok:false, message:"待办不存在或无权修改。" };
+          } else sqlite.prepare("INSERT INTO project_tasks(id,project_id,title,notes,status,priority,created_at) VALUES(?,?,?,?,?,?,?)").run(randomUUID(),projectId,title,notes,"待分配","中",Date.now());
+        }
+        revalidatePath("/projects"); revalidatePath("/projects/tasks");
+        return { ok:true, message:"待办已保存。" };
+      }
       case "create-project-invite": {
         const projectId = getAccessibleProjectId(userId, data.projectId);
         if (!projectId) return { ok: false, message: "当前账号没有可邀请成员的项目。" };

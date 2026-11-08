@@ -215,3 +215,33 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-v
 @media (prefers-reduced-motion: reduce) {
   #competition-detail-modal:not(.hidden), #competition-detail-modal:not(.hidden) > #competition-detail-modal-card { animation: none; }
 }
+
+/* Project workspace task list shares the coach page's width wrapper. */
+.pm-todo-board { width: 100%; margin: 0 0 32px; padding: 24px; border-radius: 12px; background: #fff; box-shadow: 0 1px 3px rgba(19,27,46,.08); }
+.pm-todo-heading, .pm-todo-tools { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.pm-todo-heading h2 { display: flex; align-items: center; gap: 8px; font-size: 20px; line-height: 28px; font-weight: 700; }
+.pm-todo-heading p, .pm-todo-tools > span { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.pm-todo-section-number { padding: 2px 7px; background: var(--surface-mid); color: var(--primary); border-radius: 4px; font: 12px monospace; }
+.pm-todo-list { display: flex; flex-direction: column; gap: 14px; margin-top: 20px; }
+.pm-todo-item { padding: 16px; border-radius: 12px; background: var(--canvas); min-width: 0; }
+.pm-todo-item-top { display: flex; align-items: flex-start; gap: 12px; }
+.pm-todo-icon { display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 10px; background: #e2deff; color: var(--primary); }
+.pm-todo-item-copy { flex: 1; min-width: 0; }
+.pm-todo-item h3 { font-size: 16px; line-height: 24px; font-weight: 650; overflow-wrap: anywhere; }
+.pm-todo-item-copy p { font-size: 13px; line-height: 20px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 60px; overflow-y: auto; margin-top: 4px; }
+.pm-todo-status { flex-shrink: 0; border-radius: 999px; padding: 3px 10px; background: var(--amber-soft); color: var(--amber); font-size: 11px; }
+.pm-todo-status.is-done { color: var(--green); background: var(--green-soft); }
+.pm-todo-completed { text-decoration: line-through; color: var(--muted); }
+.pm-todo-item-actions, .pm-todo-editor-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.pm-todo-board button, .pm-todo-editor button { white-space: nowrap; }
+.pm-todo-board .pm-button-primary, .pm-todo-board .pm-button-outline { display: inline-flex; align-items: center; gap: 6px; }
+.pm-todo-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; font-size: 12px; color: var(--muted); }
+.pm-todo-pagination > div { display: flex; gap: 8px; }
+.pm-todo-empty { min-height: 180px; display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center; color: var(--muted); background: var(--surface-soft); border-radius: 12px; text-align: center; padding: 24px; }
+.pm-todo-backdrop { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(19,27,46,.45); backdrop-filter: blur(6px); }
+.pm-todo-editor { max-height: calc(100dvh - 32px); overflow-y: auto; }
+.pm-todo-editor .pm-workspace-form { margin-top: 20px; }
+.pm-todo-editor input, .pm-todo-editor textarea { width: 100%; padding: 10px 12px; border-radius: 9px; background: #fff; font: inherit; }
+.pm-todo-editor textarea { resize: vertical; min-height: 100px; }
+.pm-todo-editor button:disabled, .pm-todo-board button:disabled { opacity: .45; cursor: not-allowed; }
+@media(max-width: 640px) { .pm-todo-board { padding: 16px; } .pm-todo-item-top { flex-wrap: wrap; } .pm-todo-tools { width: 100%; } }

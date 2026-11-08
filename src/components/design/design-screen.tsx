@@ -4,10 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { createPortal } from "react-dom";
+import type { ReactNode } from "react";
 import { Info, X } from "lucide-react";
 import { screenAction } from "./actions";
 import { useSettingsEditor } from "./use-settings-editor";
 import { useAdminWorkspace } from "./use-admin-workspace";
+import { DesignNoticeContext } from "./design-notice-context";
 
 type Notice = { title: string; message: string; login?: boolean };
 function setAiLoading(target: HTMLElement | null, active: boolean) {
@@ -28,8 +31,10 @@ async function revealText(target: HTMLElement | null, value: string) {
     await new Promise((resolve) => setTimeout(resolve, 12));
   }
 }
-export function DesignScreen({ name, html, loggedIn, variant }: { name: string; html: string; loggedIn: boolean; variant?: "register" }) {
+export function DesignScreen({ name, html, loggedIn, variant, taskBoard }: { name: string; html: string; loggedIn: boolean; variant?: "register"; taskBoard?: ReactNode }) {
   const root=useRef<HTMLDivElement>(null);
+  const [taskSlot,setTaskSlot]=useState<HTMLElement|null>(null);
+  useEffect(()=>{setTaskSlot(root.current?.querySelector<HTMLElement>("[data-todo-slot]")||null);},[html]);
   const detailCloseTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const competitionFilterTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   useEffect(()=>()=>{if(detailCloseTimer.current)clearTimeout(detailCloseTimer.current);if(competitionFilterTimer.current)clearTimeout(competitionFilterTimer.current);},[]);
@@ -514,6 +519,7 @@ export function DesignScreen({ name, html, loggedIn, variant }: { name: string; 
   }
   return <div className="design-screen" data-screen={name} data-variant={variant}>
     <div ref={root} onSubmit={onAuthSubmit} onClick={onClick} onKeyDown={event=>{if(event.key==="Enter"&&(event.target as HTMLElement).matches("[data-coach-input]")){event.preventDefault();root.current?.querySelector<HTMLButtonElement>("button[data-action='coach']")?.click();}}} onInput={event=>{const target=event.target as HTMLElement;if(target.matches('[data-publish-competition-search]')){const query=(target as HTMLInputElement).value.trim().toLowerCase();root.current?.querySelectorAll<HTMLOptionElement>('[data-publish-competition-select] option').forEach(option=>{option.hidden=Boolean(query&&!option.textContent?.toLowerCase().includes(query));});}else if(target.matches('[data-publish-competition-select]'))refreshPublishCompetition(target as HTMLSelectElement);else if(target.matches('[data-competition-search]')){if(competitionFilterTimer.current)clearTimeout(competitionFilterTimer.current);competitionFilterTimer.current=setTimeout(()=>filterCompetitions(),100);}else if(target.matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}} onChange={event=>{const target=event.target as HTMLElement;if(target.matches('[data-publish-competition-select]'))refreshPublishCompetition(target as HTMLSelectElement);else if(target.matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}}>{markup}</div>
+    <DesignNoticeContext.Provider value={toast}>{taskSlot && taskBoard && createPortal(taskBoard,taskSlot)}</DesignNoticeContext.Provider>
     {notice&&<div className={`fixed top-20 right-6 z-[100] w-80 max-w-[calc(100vw-2rem)] flex gap-3 overflow-hidden p-4 pb-5 bg-white rounded-xl shadow-xl border-l-4 border-primary ${noticeClosing?"pm-toast-closing":""}`} role="status" aria-live="polite" style={{"--pm-toast-duration":`${notice.login?1200:5000}ms`} as CSSProperties}><Info className="text-primary shrink-0" size={20}/><div className="flex-1"><p className="text-label-md font-semibold">{notice.title}</p><p className="text-body-sm text-on-surface-variant mt-1">{notice.message}</p></div>{!notice.login&&<button aria-label="关闭通知" onClick={()=>{setNoticeClosing(true);setTimeout(()=>setNotice(null),220);}}><X size={16}/></button>}<span className="pm-toast-progress absolute bottom-0 left-0 h-[3px] w-full origin-left bg-primary" aria-hidden="true"/></div>}
   </div>;
 }

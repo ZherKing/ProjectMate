@@ -31,6 +31,8 @@ export function initializeDatabase() {
   ] as const) {
     if (!existingCompetitionColumns.has(name)) sqlite.exec(`ALTER TABLE competitions ADD COLUMN ${name} ${definition}`);
   }
+  const taskColumns = sqlite.prepare("PRAGMA table_info(project_tasks)").all() as Array<{ name: string }>;
+  if (!taskColumns.some(column => column.name === "notes")) sqlite.exec("ALTER TABLE project_tasks ADD COLUMN notes TEXT");
   const projectColumns = sqlite.prepare("PRAGMA table_info(recruitment_projects)").all() as Array<{ name: string }>;
   if (!projectColumns.some((column) => column.name === "nickname")) sqlite.exec("ALTER TABLE recruitment_projects ADD COLUMN nickname TEXT");
   sqlite.exec("UPDATE competitions SET review_status='pending' WHERE review_status='approved' AND status LIKE '%待核验%'");

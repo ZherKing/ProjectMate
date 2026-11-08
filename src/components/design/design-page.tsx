@@ -8,6 +8,7 @@ import { getProfile } from "@/lib/db/profile";
 import { requireAdmin } from "@/lib/auth/guards";
 import { listRecruitmentProjects, getAccessibleProjectId, getProjectStats } from "@/lib/db/projects";
 import { listProjectTasks, getLatestCoachReport } from "@/lib/db/tasks";
+import { ProjectTodoBoard } from "./project-todo-board";
 import { DesignScreen } from "./design-screen";
 import { SiteShell } from "@/components/layout/site-shell";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -22,6 +23,7 @@ import { sqlite } from "@/lib/db/client";
 export type ScreenName = keyof typeof screens;
 
 export async function DesignPage({ name, variant, query, adminSection = "review", settingsSection = "profile" }: { name: ScreenName; variant?: "register"; query?: Record<string, string | string[] | undefined>; adminSection?: "review" | "sources" | "users" | "logs" | "settings"; settingsSection?: SettingsSection }) {
+  const tasksView = name === "projects" && query?.tab === "tasks";
   const session = await auth();
   const user = session?.user;
   const recommendationsView = (name === "competitions" || name === "favorites") && query?.tab === "recommendations";
@@ -699,8 +701,30 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     $(el).attr("data-favorite-key",card.attr("data-competition-id")||card.find("h3").text().trim().slice(0,250)||name+"-"+index);
   });
   $("#poster-modal p").filter((_,el)=>/AI 正在全网/.test(text($(el)))).text("招募项目已保存，可复制链接邀请搭档加入。");
+  let taskBoard;
+  if (name === "projects") {
+    const projectId = user?.id ? getAccessibleProjectId(user.id) : null;
+    const tasks = projectId ? listProjectTasks(projectId) : [];
+    const taskTab = main.find("button").filter((_,el)=>/任务看板/.test(text($(el)))).first();
+    const tabs = taskTab.parent();
+    const coachTab = tabs.children("button").filter((_,el)=>/AI 教练/.test(text($(el)))).first();
+    taskTab.find("span").first().text("任务看板");
+    taskTab.find("span").last().text(String(tasks.length));
+    tabs.attr("data-workspace-tabs", "");
+    [taskTab, coachTab].forEach((tab,index)=>{
+      const active = index === 0 ? tasksView : !tasksView;
+      tab.attr("class", "px-4 py-2 rounded-lg flex items-center gap-1.5 whitespace-nowrap " + (active ? "font-title-md text-title-md bg-surface-container-lowest text-primary shadow-sm" : "font-body-md text-body-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest"));
+      tab.attr("aria-current", active ? "page" : "false").attr("data-route", index===0 ? "/projects/tasks" : "/projects").removeAttr("data-action");
+    });
+    if (tasksView) {
+      // Replace content within the existing width wrapper; keep shared header and tabs.
+      tabs.nextAll().remove();
+      tabs.after('<div data-todo-slot></div>');
+      taskBoard = <ProjectTodoBoard projectId={projectId} tasks={tasks} />;
+    }
+  }
   const renderedHtml = sharedShell ? main.toString() : $("body").html() || "";
-  const screen = <DesignScreen name={name} html={renderedHtml} loggedIn={!!user} variant={variant} />;
+  const screen = <DesignScreen key={tasksView ? "project-tasks" : name} name={name} html={renderedHtml} loggedIn={!!user} variant={variant} taskBoard={taskBoard} />;
   return sharedShell ? <SiteShell>{screen}</SiteShell> : <>{hasHeader && name !== "competitionDetail" && <SiteHeader />}{screen}{name !== "competitionDetail" && <SiteFooter />}</>;
 }
 
