@@ -195,7 +195,6 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       `);
       $("#registerForm").closest(".lg\\:col-span-6").find(".flex.items-center.justify-between.pb-4").find("button").first().attr("data-route", "/login").removeAttr("data-design-handler").text("账号登录").removeClass("text-primary border-b-2 border-primary").addClass("text-on-surface-variant");
       $("#registerForm").closest(".lg\\:col-span-6").find(".flex.items-center.justify-between.pb-4").find("button").last().text("快速注册").removeAttr("data-design-handler").addClass("text-primary border-b-2 border-primary").removeClass("text-on-surface-variant");
-      main.find("span").filter((_,el)=>/新用户登录自动开启/.test(text($(el)))).parent().html('<span>已有账号？</span><a class="text-primary hover:underline font-label-sm" href="/login">返回账号登录</a>');
     }
   }
   if (name === "home") {
