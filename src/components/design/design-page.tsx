@@ -456,7 +456,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
         const sourceRow=competitionCard.find("[data-team-competition-source]").closest("div.flex.items-center");
         const verifiedIcon=sourceRow.find("svg").first().clone();
         sourceRow.remove();
-        competitionCard.find("p").first().prepend(verifiedIcon.addClass("mr-1.5 align-middle"));
+        competitionCard.find("p").first().addClass("inline-flex items-center gap-1.5").prepend(verifiedIcon.addClass("shrink-0"));
         competitionCard.find("[data-team-competition-status],[data-team-competition-season],[data-team-competition-source]").remove();
         competitionCard.find(".pt-2").remove();
       }
