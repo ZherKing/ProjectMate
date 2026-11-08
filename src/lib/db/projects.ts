@@ -1,5 +1,6 @@
 import { sqlite } from "./client";
 import { initializeDatabase } from "./initialize";
+import { getProjectAccess } from "./project-members";
 
 export function createRecruitmentProject(input: {
   creatorId: string;
@@ -19,7 +20,7 @@ export function createRecruitmentProject(input: {
 
 export function listRecruitmentProjects() {
   initializeDatabase();
-  const rows = sqlite.prepare("SELECT id, creator_id AS creatorId, competition_id AS competitionId, track_name AS trackName, title, description, roles, weekly_hours AS weeklyHours, status, (SELECT name FROM users WHERE users.id = recruitment_projects.creator_id) AS creatorName, (SELECT COUNT(*) FROM project_members WHERE project_members.project_id = recruitment_projects.id) AS memberCount FROM recruitment_projects ORDER BY created_at DESC").all() as Array<{ id: string; title: string; description: string; roles: string | null; trackName: string | null; status: string; weeklyHours: number | null; creatorName: string | null; memberCount: number }>;
+  const rows = sqlite.prepare("SELECT id, creator_id AS creatorId, competition_id AS competitionId, track_name AS trackName, title, description, roles, weekly_hours AS weeklyHours, status, (SELECT name FROM users WHERE users.id = recruitment_projects.creator_id) AS creatorName, (SELECT COUNT(*) FROM users u WHERE u.id=recruitment_projects.creator_id OR EXISTS (SELECT 1 FROM project_members m WHERE m.project_id=recruitment_projects.id AND m.user_id=u.id)) AS memberCount FROM recruitment_projects ORDER BY created_at DESC").all() as Array<{ id: string; title: string; description: string; roles: string | null; trackName: string | null; status: string; weeklyHours: number | null; creatorName: string | null; memberCount: number }>;
   return rows.map((row) => ({ ...row, seatCount: Math.max(row.memberCount + (row.roles ? row.roles.split(/[，,、/]+/).map((role) => role.trim()).filter(Boolean).length : 1), row.memberCount) }));
 }
 
@@ -41,7 +42,7 @@ export function getOwnedProjectContext(userId: string, projectId: string) {
 export function getProjectStats(projectId: string) {
   initializeDatabase();
   const tasks = sqlite.prepare("SELECT id,title,status,priority,assignee FROM project_tasks WHERE project_id=? ORDER BY created_at ASC").all(projectId) as Array<{ id: string; title: string; status: string; priority: string; assignee: string | null }>;
-  const memberCount = sqlite.prepare("SELECT COUNT(*) AS count FROM project_members WHERE project_id=?").get(projectId) as { count: number };
+  const memberCount = sqlite.prepare("SELECT COUNT(*) AS count FROM users u WHERE u.id=(SELECT creator_id FROM recruitment_projects WHERE id=?) OR EXISTS (SELECT 1 FROM project_members m WHERE m.project_id=? AND m.user_id=u.id)").get(projectId,projectId) as { count: number };
   const members = sqlite.prepare("SELECT users.name AS name, project_members.role AS role FROM project_members LEFT JOIN users ON users.id=project_members.user_id WHERE project_members.project_id=? ORDER BY project_members.joined_at ASC").all(projectId) as Array<{ name: string | null; role: string }>;
   const completed = tasks.filter((task) => task.status === "已完成").length;
   const active = tasks.filter((task) => task.status !== "已完成");
@@ -57,6 +58,8 @@ export function updateProjectNickname(projectId: string, userId: string, nicknam
 
 export function createProjectInvite(projectId: string, inviterId: string) {
   initializeDatabase();
+  const access = getProjectAccess(projectId, inviterId);
+  if (access !== "创建者" && access !== "管理员") return null;
   const token = crypto.randomUUID().replace(/-/g, "");
   sqlite.prepare("INSERT INTO project_invites(token,project_id,inviter_id,expires_at,created_at) VALUES(?,?,?,?,?)").run(token, projectId, inviterId, Date.now() + 7 * 24 * 60 * 60 * 1000, Date.now());
   return token;
@@ -64,11 +67,16 @@ export function createProjectInvite(projectId: string, inviterId: string) {
 
 export function acceptProjectInvite(token: string, userId: string) {
   initializeDatabase();
-  const invite = sqlite.prepare("SELECT token,project_id AS projectId,expires_at AS expiresAt,used_by AS usedBy FROM project_invites WHERE token=?").get(token) as { token: string; projectId: string; expiresAt: number; usedBy: string | null } | undefined;
-  if (!invite || invite.expiresAt < Date.now() || invite.usedBy) return { ok: false, message: "邀请链接已失效或已使用。" };
-  sqlite.prepare("INSERT OR IGNORE INTO project_members(project_id,user_id,role,joined_at) VALUES(?,?,?,?)").run(invite.projectId, userId, "成员", Date.now());
-  sqlite.prepare("UPDATE project_invites SET used_by=?,used_at=? WHERE token=?").run(userId, Date.now(), token);
-  return { ok: true, projectId: invite.projectId };
+  return sqlite.transaction(() => {
+    const invite = sqlite.prepare("SELECT token,project_id AS projectId,inviter_id AS inviterId,expires_at AS expiresAt,used_by AS usedBy FROM project_invites WHERE token=?").get(token) as { token: string; projectId: string; inviterId: string; expiresAt: number; usedBy: string | null } | undefined;
+    if (!invite || invite.expiresAt < Date.now() || invite.usedBy) return { ok: false, message: "邀请链接已失效或已使用。" };
+    const access = getProjectAccess(invite.projectId, invite.inviterId);
+    if (access !== "创建者" && access !== "管理员") return { ok: false, message: "邀请人的项目管理权限已失效，请联系创建者。" };
+    if (getProjectAccess(invite.projectId, userId)) return { ok: true, projectId: invite.projectId };
+    sqlite.prepare("INSERT OR IGNORE INTO project_members(project_id,user_id,role,joined_at) VALUES(?,?,?,?)").run(invite.projectId, userId, "成员", Date.now());
+    sqlite.prepare("UPDATE project_invites SET used_by=?,used_at=? WHERE token=?").run(userId, Date.now(), token);
+    return { ok: true, projectId: invite.projectId };
+  })();
 }
 
 export function addProjectTask(projectId: string, userId: string, input: { title: string; priority: string; assignee: string }) {

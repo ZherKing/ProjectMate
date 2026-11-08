@@ -16,6 +16,7 @@ import { analyzeCompetitionTrack, generateRecruitmentDraft, generateRecruitmentC
 import { isAiConfigured } from "@/lib/ai/provider";
 import { consumeAiQuota } from "@/lib/ai/limits";
 import { getCompetitionAnalysis } from "@/lib/ai/analysis-cache";
+import { changeProjectMember, getViewableProjectId } from "@/lib/db/project-members";
 
 type Payload = Record<string, string>;
 export type ScreenResult = { ok: boolean; message: string; href?: string; summary?: string; generatedText?: string; generatedTitle?: string; generatedAt?: string; id?: string };
@@ -134,10 +135,21 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         return { ok:true, message:"待办已保存。" };
       }
       case "create-project-invite": {
-        const projectId = getAccessibleProjectId(userId, data.projectId);
+        const projectId = getViewableProjectId(userId, data.projectId);
         if (!projectId) return { ok: false, message: "当前账号没有可邀请成员的项目。" };
         const token = createProjectInvite(projectId, userId);
+        if (!token) return { ok: false, message: "只有创建者或管理员可以邀请成员。" };
         return { ok: true, message: "邀请链接已生成。", href: "/projects/invite?token=" + token };
+      }
+      case "change-project-member-role":
+      case "remove-project-member": {
+        if (!data.projectId || !data.memberId) return { ok: false, message: "无法识别项目或成员，请刷新后重试。" };
+        const result = changeProjectMember({ projectId: data.projectId, actorId: userId, memberId: data.memberId,
+          operation: action === "remove-project-member" ? "remove" : "role", role: data.role });
+        if (result.ok) {
+          revalidatePath("/projects"); revalidatePath("/projects/tasks"); revalidatePath("/projects/members"); revalidatePath("/teams");
+        }
+        return result;
       }
       case "save-profile": {
         saveProfile(userId, {

@@ -245,3 +245,32 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-v
 .pm-todo-editor textarea { resize: vertical; min-height: 100px; }
 .pm-todo-editor button:disabled, .pm-todo-board button:disabled { opacity: .45; cursor: not-allowed; }
 @media(max-width: 640px) { .pm-todo-board { padding: 16px; } .pm-todo-item-top { flex-wrap: wrap; } .pm-todo-tools { width: 100%; } }
+
+/* Members use the same workspace surface, row rhythm and modal as the task board. */
+.pm-members-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; padding: 12px; border-radius: 12px; background: var(--surface-soft); }
+.pm-member-search { display: flex; align-items: center; gap: 8px; width: 300px; max-width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: var(--muted); transition: border-color .18s; }
+.pm-member-search:focus-within { border-color: var(--primary); }
+.design-screen .pm-member-search input:not([type="checkbox"]):not([type="radio"]) { min-width: 0; width: 100%; border: 0 !important; box-shadow: none !important; outline: none !important; background: transparent; font-size: 13px; padding: 0; }
+.pm-member-filter { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.design-screen .pm-member-filter select, .pm-members-dialog select { padding: 9px 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff; font-size: 13px; }
+.design-screen .pm-member-filter select:focus, .pm-members-dialog select:focus { border-color: var(--primary); outline: none; box-shadow: none; }
+.pm-members-filter-count { margin-left: auto; font-size: 12px; color: var(--muted); }
+.pm-member-avatar { position: relative; display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 10px; overflow: hidden; color: var(--primary); background: #e2deff; font-size: 18px; font-weight: 600; }
+.pm-member-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pm-member-self { margin-left: 8px; padding: 2px 6px; border-radius: 4px; background: #e2deff; color: var(--primary); font-size: 11px; font-weight: 400; vertical-align: middle; }
+.pm-member-role { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; background: #ebedf4; color: #525b70; font-size: 11px; white-space: nowrap; }
+.pm-member-role.is-owner { background: #e2deff; color: var(--primary); }
+.pm-member-role.is-admin { background: var(--green-soft); color: var(--green); }
+.pm-member-bottom { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
+.pm-member-skills { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; flex: 1; min-width: 160px; }
+.pm-member-bottom .pm-todo-item-actions { margin-top: 0; }
+.pm-todo-board .pm-member-remove { color: #ae263d; border-color: #efd9df; }
+.pm-members-dialog .pm-member-confirm-remove { background: #ae263d; }
+.pm-members-permission-note { margin-top: 16px; color: var(--muted); font-size: 12px; line-height: 20px; }
+.pm-members-dialog .pm-workspace-form select { width: 100%; }
+.pm-members-dialog .pm-workspace-form > p { font-size: 12px; line-height: 20px; color: var(--muted); }
+.pm-members-dialog .pm-button-primary { display: inline-flex; align-items: center; gap: 6px; }
+.pm-members-backdrop { animation: pm-detail-backdrop-in .18s ease-out both; }
+.pm-members-dialog { animation: pm-detail-card-in .18s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .pm-members-backdrop, .pm-members-dialog { animation: none; } }
+@media (max-width: 640px) { .pm-member-search { width: 100%; } .pm-members-filter-count { margin-left: 0; } .pm-member-bottom .pm-todo-item-actions { width: 100%; } }

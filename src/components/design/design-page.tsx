@@ -6,9 +6,11 @@ import { redirect } from "next/navigation";
 import { getCompetition, getCompetitionTrackDetails, listCompetitionTracks, listCompetitions, listFavoriteCompetitionIds, getUserRegistrationNumber } from "@/lib/db/queries";
 import { getProfile } from "@/lib/db/profile";
 import { requireAdmin } from "@/lib/auth/guards";
-import { listRecruitmentProjects, getAccessibleProjectId, getProjectStats } from "@/lib/db/projects";
+import { listRecruitmentProjects, getProjectStats } from "@/lib/db/projects";
 import { listProjectTasks, getLatestCoachReport } from "@/lib/db/tasks";
 import { ProjectTodoBoard } from "./project-todo-board";
+import { ProjectMembersPanel } from "./project-members-panel";
+import { getProjectAccess, getViewableProjectId, listProjectMembers } from "@/lib/db/project-members";
 import { DesignScreen } from "./design-screen";
 import { SiteShell } from "@/components/layout/site-shell";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -24,8 +26,12 @@ export type ScreenName = keyof typeof screens;
 
 export async function DesignPage({ name, variant, query, adminSection = "review", settingsSection = "profile" }: { name: ScreenName; variant?: "register"; query?: Record<string, string | string[] | undefined>; adminSection?: "review" | "sources" | "users" | "logs" | "settings"; settingsSection?: SettingsSection }) {
   const tasksView = name === "projects" && query?.tab === "tasks";
+  const membersView = name === "projects" && query?.tab === "members";
+  const requestedProjectId = typeof query?.project === "string" ? query.project : undefined;
   const session = await auth();
   const user = session?.user;
+  const workspaceProjectId = name === "projects" && user?.id ? getViewableProjectId(user.id, requestedProjectId) : null;
+  const workspaceRole = workspaceProjectId && user?.id ? getProjectAccess(workspaceProjectId, user.id) : null;
   const recommendationsView = (name === "competitions" || name === "favorites") && query?.tab === "recommendations";
   const favoritesView = !recommendationsView && (name === "favorites" || (name === "competitions" && query?.tab === "favorites"));
   if ((name === "dashboard" || name === "projects" || name === "settings" || name === "competitionDetail") && !user) redirect("/login");
@@ -519,12 +525,13 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     const select=$("#creator-comp-select");select.empty();competitions.forEach(c=>select.append('<option value="'+escapeHtml(c.id)+'">'+escapeHtml(c.name)+'</option>'));
   }
   if (name === "projects") {
-    const projectStats = user?.id ? (() => { const id=getAccessibleProjectId(user.id); return id ? getProjectStats(id) : null; })() : null;
-    const projectContext = user?.id ? (() => { const id=getAccessibleProjectId(user.id); return id ? sqlite.prepare("SELECT id,nickname,title,competition_id AS competitionId,track_name AS trackName,status FROM recruitment_projects WHERE id=? AND creator_id=?").get(id,user.id) as { id: string; nickname: string | null; title: string; competitionId: string | null; trackName: string | null; status: string } | undefined : undefined; })() : undefined;
+    const projectStats = user?.id ? (() => { const id=workspaceProjectId; return id ? getProjectStats(id) : null; })() : null;
+    const projectContext = user?.id ? (() => { const id=workspaceProjectId; return id ? sqlite.prepare("SELECT id,nickname,title,competition_id AS competitionId,track_name AS trackName,status FROM recruitment_projects WHERE id=?").get(id) as { id: string; nickname: string | null; title: string; competitionId: string | null; trackName: string | null; status: string } | undefined : undefined; })() : undefined;
     const projectCompetition = projectContext?.competitionId ? getCompetition(projectContext.competitionId) : undefined;
     const titleHeading = main.find("h1").first();
     if (projectContext && titleHeading.length) {
-      titleHeading.text(projectContext.nickname || projectContext.title).after('<button type="button" class="pm-button-outline pm-project-nickname-edit" data-action="edit-project-nickname">修改昵称</button>');
+      titleHeading.text(projectContext.nickname || projectContext.title);
+      if (workspaceRole === "创建者") titleHeading.after('<button type="button" class="pm-button-outline pm-project-nickname-edit" data-action="edit-project-nickname">修改昵称</button>');
       titleHeading.parent().find("span").filter((_,el)=>/正在冲刺|Sprint/.test(text($(el)))).text(projectContext.status);
       const competition=projectCompetition;
       const info=titleHeading.parent().find("p").first();
@@ -607,7 +614,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       coachColumn.removeClass("xl:col-span-6").addClass("xl:col-span-9");
       rightColumn.remove();
     }
-    const projectId = user?.id ? getAccessibleProjectId(user.id) : null;
+    const projectId = workspaceProjectId;
     const report = projectId ? getLatestCoachReport(projectId) : undefined;
     const liveTasks = projectId ? listProjectTasks(projectId) : [];
     if (conversation.length) {
@@ -703,7 +710,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   $("#poster-modal p").filter((_,el)=>/AI 正在全网/.test(text($(el)))).text("招募项目已保存，可复制链接邀请搭档加入。");
   let taskBoard;
   if (name === "projects") {
-    const projectId = user?.id ? getAccessibleProjectId(user.id) : null;
+    const projectId = workspaceProjectId;
     const tasks = projectId ? listProjectTasks(projectId) : [];
     const taskTab = main.find("button").filter((_,el)=>/任务看板/.test(text($(el)))).first();
     const tabs = taskTab.parent();
@@ -711,20 +718,32 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     taskTab.find("span").first().text("任务看板");
     taskTab.find("span").last().text(String(tasks.length));
     tabs.attr("data-workspace-tabs", "");
-    [taskTab, coachTab].forEach((tab,index)=>{
-      const active = index === 0 ? tasksView : !tasksView;
+    const memberTab = tabs.children("button").filter((_,el)=>text($(el)) === "成员架构").first();
+    const projectSuffix = projectId ? "?project=" + encodeURIComponent(projectId) : "";
+    [taskTab, coachTab, memberTab].forEach((tab,index)=>{
+      const active = index === 0 ? tasksView : index === 2 ? membersView : !tasksView && !membersView;
       tab.attr("class", "px-4 py-2 rounded-lg flex items-center gap-1.5 whitespace-nowrap " + (active ? "font-title-md text-title-md bg-surface-container-lowest text-primary shadow-sm" : "font-body-md text-body-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest"));
-      tab.attr("aria-current", active ? "page" : "false").attr("data-route", index===0 ? "/projects/tasks" : "/projects").removeAttr("data-action");
+      tab.attr("aria-current", active ? "page" : "false").attr("data-route", (index === 0 ? "/projects/tasks" : index === 2 ? "/projects/members" : "/projects") + projectSuffix).removeAttr("data-action");
     });
-    if (tasksView) {
-      // Replace content within the existing width wrapper; keep shared header and tabs.
+    main.attr("data-workspace-project-id", projectId || "");
+    main.find('[data-route="/projects/tasks"]').attr("data-route", "/projects/tasks" + projectSuffix);
+    if (workspaceRole !== "创建者") {
+      main.find('[data-action="new-project-task"], [data-action="edit-project-nickname"]').remove();
+    }
+    if (workspaceRole !== "创建者" && workspaceRole !== "管理员") {
+      main.find('[data-action="project-invite"]').remove();
+    }
+    if (tasksView || membersView) {
+      // Replace only the content beneath the shared tabs inside the existing width wrapper.
       tabs.nextAll().remove();
       tabs.after('<div data-todo-slot></div>');
-      taskBoard = <ProjectTodoBoard projectId={projectId} tasks={tasks} />;
+      taskBoard = membersView
+        ? <ProjectMembersPanel projectId={projectId} viewerId={user?.id || ""} viewerRole={workspaceRole} members={projectId && user?.id ? listProjectMembers(projectId, user.id) : []} />
+        : <ProjectTodoBoard projectId={projectId} tasks={tasks} canEdit={workspaceRole === "创建者"} />;
     }
   }
   const renderedHtml = sharedShell ? main.toString() : $("body").html() || "";
-  const screen = <DesignScreen key={tasksView ? "project-tasks" : name} name={name} html={renderedHtml} loggedIn={!!user} variant={variant} taskBoard={taskBoard} />;
+  const screen = <DesignScreen key={(membersView ? "project-members" : tasksView ? "project-tasks" : name) + (workspaceProjectId || "")} name={name} html={renderedHtml} loggedIn={!!user} variant={variant} taskBoard={taskBoard} />;
   return sharedShell ? <SiteShell>{screen}</SiteShell> : <>{hasHeader && name !== "competitionDetail" && <SiteHeader />}{screen}{name !== "competitionDetail" && <SiteFooter />}</>;
 }
 
