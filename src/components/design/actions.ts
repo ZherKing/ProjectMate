@@ -63,7 +63,7 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         if (!projectId) return { ok: false, message: "当前账号还没有可分析的项目任务。请先创建项目并添加任务。" };
         if(!consumeAiQuota(userId,"project-coach"))return {ok:false,message:"AI 教练请求较频繁，请 10 分钟后再试。"};
         const summary = await runProjectCoach(projectId, userId, (data.prompt || "").slice(0,2000));
-        revalidatePath("/projects"); revalidatePath("/projects/tasks");
+        revalidatePath("/projects"); revalidatePath("/projects/coach"); revalidatePath("/projects/tasks");
         return { ok: true, message: "分析完成，报告已保存。", summary };
       }
       case "analyze-competition": {
@@ -94,7 +94,7 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         const task = projectId ? sqlite.prepare("SELECT id FROM project_tasks WHERE id = ? AND project_id = ?").get(data.taskId, projectId) : null;
         if (!task) return { ok: false, message: "该任务是设计演示，尚未保存到任务数据库。" };
         updateProjectTaskStatus(data.taskId, "已完成");
-        revalidatePath("/projects"); revalidatePath("/projects/tasks");
+        revalidatePath("/projects"); revalidatePath("/projects/coach"); revalidatePath("/projects/tasks");
         return { ok: true, message: "任务已标记为完成。" };
       }
       case "update-project-nickname": {
@@ -103,7 +103,7 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         const nickname = (data.nickname || "").trim();
         if (nickname.length < 2) return { ok: false, message: "项目昵称至少需要 2 个字。" };
         if (!updateProjectNickname(projectId, userId, nickname)) return { ok: false, message: "项目昵称保存失败。" };
-        revalidatePath("/projects");
+        revalidatePath("/projects"); revalidatePath("/projects/coach");
         return { ok: true, message: "项目昵称已保存。" };
       }
       case "create-project-task": {
@@ -113,7 +113,7 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         if (title.length < 2) return { ok: false, message: "请填写任务名称。" };
         const id = addProjectTask(projectId, userId, { title, priority: data.priority === "高" ? "高" : data.priority === "低" ? "低" : "中", assignee: data.assignee || "" });
         if (!id) return { ok: false, message: "任务创建失败。" };
-        revalidatePath("/projects"); revalidatePath("/projects/tasks");
+        revalidatePath("/projects"); revalidatePath("/projects/coach"); revalidatePath("/projects/tasks");
         return { ok: true, message: "任务已创建。", id };
       }
       case "save-todo":
@@ -131,7 +131,7 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
             if (!result.changes) return { ok:false, message:"待办不存在或无权修改。" };
           } else sqlite.prepare("INSERT INTO project_tasks(id,project_id,title,notes,status,priority,created_at) VALUES(?,?,?,?,?,?,?)").run(randomUUID(),projectId,title,notes,"待分配","中",Date.now());
         }
-        revalidatePath("/projects"); revalidatePath("/projects/tasks");
+        revalidatePath("/projects"); revalidatePath("/projects/coach"); revalidatePath("/projects/tasks");
         return { ok:true, message:"待办已保存。" };
       }
       case "create-project-invite": {
@@ -147,7 +147,7 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         const result = changeProjectMember({ projectId: data.projectId, actorId: userId, memberId: data.memberId,
           operation: action === "remove-project-member" ? "remove" : "role", role: data.role });
         if (result.ok) {
-          revalidatePath("/projects"); revalidatePath("/projects/tasks"); revalidatePath("/projects/members"); revalidatePath("/teams");
+          revalidatePath("/projects"); revalidatePath("/projects/coach"); revalidatePath("/projects/tasks"); revalidatePath("/projects/members"); revalidatePath("/teams");
         }
         return result;
       }

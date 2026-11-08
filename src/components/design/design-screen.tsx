@@ -40,6 +40,7 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard }: { nam
   useEffect(()=>()=>{if(detailCloseTimer.current)clearTimeout(detailCloseTimer.current);if(competitionFilterTimer.current)clearTimeout(competitionFilterTimer.current);},[]);
   const markup = useMemo(() => <div dangerouslySetInnerHTML={{__html:html}} />, [html]);
   const router=useRouter();
+  const taskRoute=()=>{const projectId=root.current?.querySelector<HTMLElement>("[data-workspace-project-id]")?.dataset.workspaceProjectId;return "/projects/tasks"+(projectId?"?project="+encodeURIComponent(projectId):"");};
   const [notice,setNotice]=useState<Notice|null>(null);
   const [noticeClosing,setNoticeClosing]=useState(false);
   const step=useRef(1);
@@ -439,7 +440,7 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard }: { nam
     if(action==="close-team-detail"){const modalRoot=root.current.querySelector<HTMLElement>("#team-detail-modal");if(modalRoot){modalRoot.classList.add("pm-detail-closing");setTimeout(()=>{modalRoot.classList.add("hidden");modalRoot.classList.remove("pm-detail-closing");},180);}return;}
     if(action==="apply-team-detail"){const modalRoot=root.current.querySelector<HTMLElement>("#team-detail-modal");await run("apply",{projectId:modalRoot?.dataset.projectId||""},button);return;}
     if(action==="coach"||id==="btn-apply-suggestion"){
-      if(id==="btn-apply-suggestion"){toast("此处排期是设计示例，请在任务看板选择具体任务后修改；未自动更改任务。","请确认具体调整");router.push("/projects/tasks");return;}
+      if(id==="btn-apply-suggestion"){toast("此处排期是设计示例，请在任务看板选择具体任务后修改；未自动更改任务。","请确认具体调整");router.push(taskRoute());return;}
       const input=root.current.querySelector<HTMLInputElement>('[data-coach-input]');
       const panel=el.closest<HTMLElement>("[data-coach-project-id]")||root.current.querySelector<HTMLElement>("[data-coach-project-id]");
       const projectId=panel?.dataset.coachProjectId||"";const messages=panel?.querySelector<HTMLElement>("[data-coach-messages]");
@@ -458,7 +459,7 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard }: { nam
     if(action==="coach-prompt"){
       const input=root.current.querySelector<HTMLInputElement>("[data-coach-input]");if(input){input.value=el.dataset.prompt||el.textContent?.trim()||"";root.current.querySelector<HTMLButtonElement>("button[data-action='coach']")?.click();}return;
     }
-    if(action==="apply-advice"){toast("请在任务看板选择具体任务进行调整，当前建议不会自动修改数据。","排期建议");router.push("/projects/tasks");return;}
+    if(action==="apply-advice"){toast("请在任务看板选择具体任务进行调整，当前建议不会自动修改数据。","排期建议");router.push(taskRoute());return;}
     if(action==="dismiss-advice"||id==="btn-dismiss-suggestion"){const card=root.current.querySelector<HTMLElement>('#ai-suggestion-card');if(card)card.style.opacity="0.55";toast("已忽略当前建议。","建议已忽略");return;}
     if(action==="reset-filters"){
       root.current.querySelectorAll<HTMLInputElement>('[data-platform-filter]').forEach(i=>i.checked=true);
@@ -513,8 +514,8 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard }: { nam
     if(el.classList.contains('filter-pill')||el.classList.contains('role-chip')||el.hasAttribute('data-team-hours-filter')){const group=el.hasAttribute('data-team-hours-filter')?'[data-team-hours-filter]':el.classList.contains('role-chip')?'[data-team-role-filter]': '[data-team-track-filter]';root.current.querySelectorAll<HTMLElement>(group).forEach(item=>{if(item!==el)item.dataset.selected="false";item.classList.remove('bg-primary','text-on-primary','bg-surface-container-lowest','text-primary');});el.dataset.selected=el.dataset.selected==="true"?"false":"true";el.classList.toggle('bg-primary');el.classList.toggle('text-on-primary');el.classList.toggle('bg-surface-container-lowest',el.dataset.selected==="true");el.classList.toggle('text-primary',el.dataset.selected==="true");filterTeams();return;}
     if(el.closest('#filter-tabs')){syncCompetitionTabs(root.current,el as HTMLElement);const heading=root.current.querySelector('h1');if(/收藏/.test(label)){if(!guard())return;root.current.dataset.favoritesMode="true";root.current.dataset.recommendationsMode="false";root.current.dataset.competitionPage="1";if(heading)heading.textContent="我收藏的赛事";router.push("/competitions/favorites");return;}if(/AI 推荐/.test(label)){if(!guard())return;router.push("/competitions/recommendations");return;}root.current.dataset.favoritesMode="false";root.current.dataset.recommendationsMode="false";root.current.dataset.competitionPage="1";if(heading)heading.textContent="发现比赛";router.push("/competitions");return;}
     if(action==="page-prev"||action==="page-next"){const current=Number(root.current.dataset.competitionPage||1);root.current.dataset.competitionPage=String(Math.max(1,current+(action==="page-next"?1:-1)));filterCompetitions(false);return;}
-    if(/新建任务|任务看板|更新任务看板/.test(label)){router.push("/projects/tasks");return;}
-    if(/导出项目报告/.test(label)){router.push("/projects/tasks");return;}
+    if(/新建任务|任务看板|更新任务看板/.test(label)){router.push(taskRoute());return;}
+    if(/导出项目报告/.test(label)){router.push(taskRoute());return;}
     if(action==="unavailable"||button){toast("此功能尚在完善中，当前操作未修改数据。","功能说明");}
   }
   return <div className="design-screen" data-screen={name} data-variant={variant}>

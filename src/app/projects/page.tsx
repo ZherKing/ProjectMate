@@ -1,6 +1,6 @@
 import { DesignPage } from "@/components/design/design-page";
 
-export const metadata = { title: "项目空间" };
+export const metadata = { title: "项目概览" };
 export const dynamic = "force-dynamic";
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ project?: string }> }) {

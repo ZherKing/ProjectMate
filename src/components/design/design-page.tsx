@@ -10,6 +10,8 @@ import { listRecruitmentProjects, getProjectStats } from "@/lib/db/projects";
 import { listProjectTasks, getLatestCoachReport } from "@/lib/db/tasks";
 import { ProjectTodoBoard } from "./project-todo-board";
 import { ProjectMembersPanel } from "./project-members-panel";
+import { ProjectOverviewPanel } from "./project-overview-panel";
+import { getProjectOverview } from "@/lib/db/project-overview";
 import { getProjectAccess, getViewableProjectId, listProjectMembers } from "@/lib/db/project-members";
 import { DesignScreen } from "./design-screen";
 import { SiteShell } from "@/components/layout/site-shell";
@@ -27,6 +29,8 @@ export type ScreenName = keyof typeof screens;
 export async function DesignPage({ name, variant, query, adminSection = "review", settingsSection = "profile" }: { name: ScreenName; variant?: "register"; query?: Record<string, string | string[] | undefined>; adminSection?: "review" | "sources" | "users" | "logs" | "settings"; settingsSection?: SettingsSection }) {
   const tasksView = name === "projects" && query?.tab === "tasks";
   const membersView = name === "projects" && query?.tab === "members";
+  const coachView = name === "projects" && query?.tab === "coach";
+  const overviewView = name === "projects" && !tasksView && !membersView && !coachView;
   const requestedProjectId = typeof query?.project === "string" ? query.project : undefined;
   const session = await auth();
   const user = session?.user;
@@ -720,10 +724,12 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     tabs.attr("data-workspace-tabs", "");
     const memberTab = tabs.children("button").filter((_,el)=>text($(el)) === "成员架构").first();
     const projectSuffix = projectId ? "?project=" + encodeURIComponent(projectId) : "";
-    [taskTab, coachTab, memberTab].forEach((tab,index)=>{
-      const active = index === 0 ? tasksView : index === 2 ? membersView : !tasksView && !membersView;
+    const overviewTab = tabs.children("button").filter((_,el)=>text($(el)) === "概览").first();
+    tabs.children("button").filter((_,el)=>text($(el)) === "复盘归档").remove();
+    [taskTab, coachTab, memberTab, overviewTab].forEach((tab,index)=>{
+      const active = index === 0 ? tasksView : index === 1 ? coachView : index === 2 ? membersView : overviewView;
       tab.attr("class", "px-4 py-2 rounded-lg flex items-center gap-1.5 whitespace-nowrap " + (active ? "font-title-md text-title-md bg-surface-container-lowest text-primary shadow-sm" : "font-body-md text-body-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest"));
-      tab.attr("aria-current", active ? "page" : "false").attr("data-route", (index === 0 ? "/projects/tasks" : index === 2 ? "/projects/members" : "/projects") + projectSuffix).removeAttr("data-action");
+      tab.attr("aria-current", active ? "page" : "false").attr("data-route", (index === 0 ? "/projects/tasks" : index === 1 ? "/projects/coach" : index === 2 ? "/projects/members" : "/projects") + projectSuffix).removeAttr("data-action");
     });
     main.attr("data-workspace-project-id", projectId || "");
     main.find('[data-route="/projects/tasks"]').attr("data-route", "/projects/tasks" + projectSuffix);
@@ -733,17 +739,19 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     if (workspaceRole !== "创建者" && workspaceRole !== "管理员") {
       main.find('[data-action="project-invite"]').remove();
     }
-    if (tasksView || membersView) {
+    if (tasksView || membersView || overviewView) {
       // Replace only the content beneath the shared tabs inside the existing width wrapper.
       tabs.nextAll().remove();
       tabs.after('<div data-todo-slot></div>');
-      taskBoard = membersView
+      taskBoard = overviewView
+        ? <ProjectOverviewPanel data={projectId && user?.id ? getProjectOverview(projectId, user.id) : null} />
+        : membersView
         ? <ProjectMembersPanel projectId={projectId} viewerId={user?.id || ""} viewerRole={workspaceRole} members={projectId && user?.id ? listProjectMembers(projectId, user.id) : []} />
         : <ProjectTodoBoard projectId={projectId} tasks={tasks} canEdit={workspaceRole === "创建者"} />;
     }
   }
   const renderedHtml = sharedShell ? main.toString() : $("body").html() || "";
-  const screen = <DesignScreen key={(membersView ? "project-members" : tasksView ? "project-tasks" : name) + (workspaceProjectId || "")} name={name} html={renderedHtml} loggedIn={!!user} variant={variant} taskBoard={taskBoard} />;
+  const screen = <DesignScreen key={(overviewView ? "project-overview" : membersView ? "project-members" : tasksView ? "project-tasks" : name) + (workspaceProjectId || "")} name={name} html={renderedHtml} loggedIn={!!user} variant={variant} taskBoard={taskBoard} />;
   return sharedShell ? <SiteShell>{screen}</SiteShell> : <>{hasHeader && name !== "competitionDetail" && <SiteHeader />}{screen}{name !== "competitionDetail" && <SiteFooter />}</>;
 }
 
