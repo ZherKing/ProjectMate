@@ -519,11 +519,12 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   if (name === "projects") {
     const projectStats = user?.id ? (() => { const id=getAccessibleProjectId(user.id); return id ? getProjectStats(id) : null; })() : null;
     const projectContext = user?.id ? (() => { const id=getAccessibleProjectId(user.id); return id ? sqlite.prepare("SELECT id,nickname,title,competition_id AS competitionId,track_name AS trackName,status FROM recruitment_projects WHERE id=? AND creator_id=?").get(id,user.id) as { id: string; nickname: string | null; title: string; competitionId: string | null; trackName: string | null; status: string } | undefined : undefined; })() : undefined;
+    const projectCompetition = projectContext?.competitionId ? getCompetition(projectContext.competitionId) : undefined;
     const titleHeading = main.find("h1").first();
     if (projectContext && titleHeading.length) {
       titleHeading.text(projectContext.nickname || projectContext.title).after('<button type="button" class="pm-button-outline pm-project-nickname-edit" data-action="edit-project-nickname">修改昵称</button>');
       titleHeading.parent().find("span").filter((_,el)=>/正在冲刺|Sprint/.test(text($(el)))).text(projectContext.status);
-      const competition=projectContext.competitionId?getCompetition(projectContext.competitionId):undefined;
+      const competition=projectCompetition;
       const info=titleHeading.parent().find("p").first();
       info.text(competition?[competition.name,projectContext.trackName].filter(Boolean).join(" · "):"比赛与赛道信息暂无");
       main.find("span").filter((_,el)=>/^ID:\s*PM-/.test(text($(el)))).text("ID: "+projectContext.id);
@@ -580,6 +581,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       main.find("span").filter((_,el)=>/位成员|位核心在席/.test(text($(el)))).text("暂无成员");
       main.find("span").filter((_,el)=>/正在进行中|待分配 \/ 需求池|阻塞与依赖|已验收闭环/.test(text($(el)))).each((_,el)=>{const col=$(el).closest("div.bg-surface-container-low.rounded-xl");col.children("div").slice(1).remove();col.append('<p class="px-2 py-3 text-xs text-on-surface-variant">暂无项目任务</p>');});
     }
+    main.find("p,span").filter((_,el)=>/2025 全国高校机器人与AI创新大赛|软硬件协同赛道/.test(text($(el)))).each((_,el)=>{ $(el).text(projectCompetition ? [projectCompetition.name, projectContext?.trackName].filter(Boolean).join(" · ") : "暂无项目赛事信息"); });
     main.append('<div id="project-invite-modal" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"><div class="pm-workspace-modal" role="dialog" aria-modal="true" aria-labelledby="project-invite-title"><button type="button" class="pm-workspace-modal-close" data-action="close-workspace-modal" aria-label="关闭">×</button><h2 id="project-invite-title">邀请新成员</h2><p>生成一个 7 天内有效的项目邀请链接，发送给你的队友。</p><div class="pm-invite-link-row"><input readonly data-project-invite-link aria-label="项目邀请链接" /><button type="button" data-action="copy-project-invite">复制</button></div><p class="pm-workspace-modal-status" data-project-invite-status></p><button type="button" class="pm-button-primary" data-action="generate-project-invite">生成邀请链接</button></div></div>');
     main.append('<div id="project-task-modal" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"><div class="pm-workspace-modal" role="dialog" aria-modal="true" aria-labelledby="project-task-title"><button type="button" class="pm-workspace-modal-close" data-action="close-workspace-modal" aria-label="关闭">×</button><h2 id="project-task-title">新建任务卡片</h2><div class="pm-workspace-form"><label>任务名称<input data-project-task-title placeholder="例如：冻结接口文档" maxlength="160" /></label><label>优先级<select data-project-task-priority><option>中</option><option>高</option><option>低</option></select></label><label>负责人<input data-project-task-assignee placeholder="可留空" maxlength="80" /></label></div><p class="pm-workspace-modal-status" data-project-task-status></p><button type="button" class="pm-button-primary" data-action="create-project-task">创建任务</button></div></div>');
     const metricSection=main.find("section").filter((_,el)=>/整体完成度/.test(text($(el)))).first();
