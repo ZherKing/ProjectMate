@@ -438,3 +438,11 @@ button[aria-busy="true"] { cursor: progress; }
 @media(max-width:700px){.pm-invitation-card>header,.pm-invitation-body{padding:20px}.pm-invitation-card h1{font-size:20px}.pm-invitation-facts{grid-template-columns:1fr}}
 .pm-team-filter {padding:7px 14px;border-radius:999px;background:var(--surface-mid);color:var(--muted);font-size:13px;transition:background .15s,color .15s}.pm-team-filter[data-selected="true"]{background:var(--primary)!important;color:#fff!important}.pm-team-filter[data-selected="true"] svg{color:#fff}.pm-team-filter-panel{min-height:190px;gap:20px!important}.pm-team-search{width:100%;max-width:none}.pm-team-search input{font-size:14px!important}.pm-team-match-dialog{width:min(100%,760px)}.pm-team-match-list{display:flex;flex-direction:column;gap:12px;max-height:52vh;overflow:auto;margin:16px 0}.pm-team-match-list h3{font-size:16px;font-weight:650}.pm-team-match-list article p{font-size:13px;line-height:22px;margin:8px 0}.pm-team-match-list article a{margin-top:10px}
 #technical-skills{scroll-margin-top:100px}.pm-team-match-dialog .pm-todo-editor-actions{flex-wrap:wrap}
+
+/* Shared with the dashboard's restrained lavender welcome banner. */
+.pm-lavender-surface,
+.pm-invitation-card > header.pm-lavender-surface {
+  background: radial-gradient(ellipse at 100% 0%, rgba(79,70,229,.08), transparent 65%), linear-gradient(135deg, #eaedff 0%, #f2f3ff 52%, #e2e7ff 100%);
+  color: var(--ink);
+}
+.pm-workspace-modal .pm-lavender-note { padding: 14px 16px; border-radius: 12px; color: var(--muted); line-height: 1.7; overflow-wrap: anywhere; }
