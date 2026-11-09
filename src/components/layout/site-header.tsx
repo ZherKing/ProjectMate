@@ -6,6 +6,7 @@ import { ScrollHeader } from "./scroll-header";
 import { SiteNav } from "./site-nav";
 import styles from "./site-header.module.css";
 import { getSiteSetting } from "@/lib/site-settings";
+import { AccountAvatar } from "./account-avatar";
 import { NavigationProgress } from "./navigation-progress";
 
 const nav = [["比赛中心", "/competitions"], ["组队大厅", "/teams"], ["项目空间", "/projects"]] as const;
@@ -25,7 +26,7 @@ export async function SiteHeader() {
         {user ? <>
           <details className="pm-user-menu">
             <summary className={styles.user}>
-              <span className={styles.avatar}>{user.image ? <img src={user.image} alt="个人头像" width={32} height={32} /> : (user.name || "我").slice(0, 1)}</span>
+              <span className={styles.avatar}><AccountAvatar userId={user.id!} name={user.name} image={user.image}/></span>
               <strong className={styles.name}>{user.name || "项目成员"}</strong>
             </summary>
             <div className="pm-user-menu-panel"><Link href="/settings">个人设置</Link>{isAdmin && <Link href="/admin">管理员后台</Link>}<a href="/api/auth/signout?callbackUrl=/">退出登录</a></div>

@@ -202,3 +202,5 @@ export function cancelFileUpload(projectId: string, userId: string, uploadId: st
   sqlite.prepare("DELETE FROM project_file_uploads WHERE id=?").run(uploadId); removeBlob(row.key);
   return { cancelled: true };
 }
+
+export function removeStoredProjectBlobs(keys:readonly string[]){keys.forEach(key=>removeBlob(key));}

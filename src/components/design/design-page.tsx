@@ -9,6 +9,8 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { listRecruitmentProjects, getProjectStats } from "@/lib/db/projects";
 import { listProjectTasks, getLatestCoachReport } from "@/lib/db/tasks";
 import { ProjectTodoBoard } from "./project-todo-board";
+import {ProjectApplicationsPanel} from "./project-applications-panel";
+import {listTeamApplications} from "@/lib/db/team-applications";
 import { ProjectMembersPanel } from "./project-members-panel";
 import { ProjectOverviewPanel } from "./project-overview-panel";
 import { ProjectFilesWorkspace as ProjectFilesPanel } from "./project-files-workspace";
@@ -26,6 +28,7 @@ import { configureSettingsPage, type SettingsSection } from "./settings-content"
 import { teamCreateModalTemplate } from "@/design/team-create-modal-template";
 import { getCompetitionAnalysis } from "@/lib/ai/analysis-cache";
 import { isAiConfigured } from "@/lib/ai/provider";
+import { accountAvatarSrc } from "@/lib/account/avatar";
 import { sqlite } from "@/lib/db/client";
 
 export type ScreenName = keyof typeof screens;
@@ -108,16 +111,19 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     const upload=main.find("button").filter((_,el)=>/更换头像/.test(text($(el)))).attr("data-action","upload-avatar");
     upload.after('<input type="file" accept="image/png,image/jpeg,image/webp" data-avatar-file class="hidden" aria-label="选择头像图片" />');
     const avatarArea=upload.parent().parent();
-    avatarArea.find("img").attr("src",user.image||"/assets/logo.svg").attr("alt","个人头像").attr("data-settings-avatar","");
+    avatarArea.find("img").attr("src",accountAvatarSrc(user.name,user.image)).attr("alt","个人头像").attr("data-settings-avatar","").removeAttr("data-alt");
+    avatarArea.find('[data-icon="verified"]').parent().remove();
     avatarArea.find("span").filter((_,el)=>/林星宇 \(StarSky\)/.test(text($(el)))).text(user.name||"项目成员");
     avatarArea.find("span").filter((_,el)=>/认证高校学生/.test(text($(el)))).remove();
     main.find("span").filter((_,el)=>/^已核验$|ENTERPRISE SSO BOUND/.test(text($(el)))).text("账号资料");
-    main.find("p").filter((_,el)=>/全国大学生计算机系统与算法竞赛参赛资格已同步/.test(text($(el)))).text("填写你的学校或所在组织。");
+    main.find("p,span").filter((_,el)=>/全国大学生计算机系统与算法竞赛参赛资格已同步/.test(text($(el)))).text("填写你的学校或所在组织。");
     main.find("p").filter((_,el)=>/绑定后不可直接修改/.test(text($(el)))).text("邮箱用于账号登录，当前页面不支持变更登录邮箱。");
     main.find("span").filter((_,el)=>/草稿配置已实时写入客户端本地缓存/.test(text($(el)))).text("你有尚未保存的个人资料修改");
     main.find("span").filter((_,el)=>/^MAX 5 TAGS$/.test(text($(el)))).text("用逗号分隔");
     main.find("button").filter((_,el)=>/放弃未保存修改/.test(text($(el)))).attr("data-action","discard-settings");
     main.find('input[type="email"]').attr("value", user.email || "");
+    main.find("label").filter((_,el)=>/认证机构组织/.test(text($(el)))).text("学校或所在组织");
+    main.find("label").filter((_,el)=>/主认证邮箱/.test(text($(el)))).text("登录邮箱");
     main.find("button").filter((_,el)=>/保存个人设置/.test(text($(el)))).attr("data-action","save-settings");
     main.find("#save-settings-btn").closest("div.sticky").attr("data-settings-save-bar","").addClass("hidden");
     main.find("button").filter((_,el)=>/立即接入 OAuth 认证|接入新 MCP 协议|更新密码|重置密钥|注销 Token|申请永久注销/.test(text($(el)))).attr("data-action","unavailable");
@@ -202,7 +208,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     $("#passwordInput").attr("autocomplete","current-password").attr("maxlength","256");
     $("#smsInput").prop("disabled",true);
     $('[data-action="toggle-password"]').attr("aria-label","显示密码").attr("aria-pressed","false");
-    $("#authForm").attr("data-auth-form","");
+    $("#authForm").attr("data-auth-form","").attr("method","post");
     if (variant === "register") {
       $("#authForm").attr("id", "registerForm").removeAttr("data-auth-form").attr("data-register-form", "");
       $("#btnMethodPwd").parent().html('<span class="font-label-md text-label-md text-primary">邮箱注册</span>');
@@ -603,7 +609,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       main.find("span").filter((_,el)=>/正在进行中|待分配 \/ 需求池|阻塞与依赖|已验收闭环/.test(text($(el)))).each((_,el)=>{const col=$(el).closest("div.bg-surface-container-low.rounded-xl");col.children("div").slice(1).remove();col.append('<p class="px-2 py-3 text-xs text-on-surface-variant">暂无项目任务</p>');});
     }
     main.find("p,span").filter((_,el)=>/2025 全国高校机器人与AI创新大赛|软硬件协同赛道/.test(text($(el)))).each((_,el)=>{ $(el).text(projectCompetition ? [projectCompetition.name, projectContext?.trackName].filter(Boolean).join(" · ") : "暂无项目赛事信息"); });
-    main.append('<div id="project-invite-modal" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"><div class="pm-workspace-modal" role="dialog" aria-modal="true" aria-labelledby="project-invite-title"><button type="button" class="pm-workspace-modal-close" data-action="close-workspace-modal" aria-label="关闭">×</button><h2 id="project-invite-title">邀请新成员</h2><p>生成一个 7 天内有效的项目邀请链接，发送给你的队友。</p><div class="pm-invite-link-row"><input readonly data-project-invite-link aria-label="项目邀请链接" /><button type="button" data-action="copy-project-invite">复制</button></div><p class="pm-workspace-modal-status" data-project-invite-status></p><button type="button" class="pm-button-primary" data-action="generate-project-invite">生成邀请链接</button></div></div>');
+    main.append('<div id="project-invite-modal" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"><div class="pm-workspace-modal" role="dialog" aria-modal="true" aria-labelledby="project-invite-title"><button type="button" class="pm-workspace-modal-close" data-action="close-workspace-modal" aria-label="关闭">×</button><h2 id="project-invite-title">邀请新成员</h2><p>生成一个 7 天内有效的项目邀请链接，发送给你的队友。</p><div class="pm-workspace-form"><label>邀请站内队友（可选）<input type="email" data-project-invite-recipient placeholder="输入对方已注册的登录邮箱" maxlength="254" /></label></div><p>填写后向该账号发送邀请通知；留空只生成可分享链接。</p><div class="pm-invite-link-row"><input readonly data-project-invite-link aria-label="项目邀请链接" /><button type="button" data-action="copy-project-invite">复制</button></div><p class="pm-workspace-modal-status" data-project-invite-status></p><button type="button" class="pm-button-primary" data-action="generate-project-invite">生成邀请链接</button></div></div>');
     main.append('<div id="project-task-modal" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"><div class="pm-workspace-modal" role="dialog" aria-modal="true" aria-labelledby="project-task-title"><button type="button" class="pm-workspace-modal-close" data-action="close-workspace-modal" aria-label="关闭">×</button><h2 id="project-task-title">新建任务卡片</h2><div class="pm-workspace-form"><label>任务名称<input data-project-task-title placeholder="例如：冻结接口文档" maxlength="160" /></label><label>优先级<select data-project-task-priority><option>中</option><option>高</option><option>低</option></select></label><label>负责人<input data-project-task-assignee placeholder="可留空" maxlength="80" /></label></div><p class="pm-workspace-modal-status" data-project-task-status></p><button type="button" class="pm-button-primary" data-action="create-project-task">创建任务</button></div></div>');
     const metricSection=main.find("section").filter((_,el)=>/整体完成度/.test(text($(el)))).first();
     const metricGrid=metricSection.children("div.grid").first();
@@ -759,12 +765,20 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
         : overviewView
         ? <ProjectOverviewPanel data={projectId && user?.id ? getProjectOverview(projectId, user.id) : null} />
         : membersView
-        ? <ProjectMembersPanel canInvite={!!workspaceSettings&&workspaceSettings.status==="招募中"&&(workspaceSettings.maxMembers===null||workspaceSettings.memberCount<workspaceSettings.maxMembers)} projectId={projectId} viewerId={user?.id || ""} viewerRole={workspaceRole} members={projectId && user?.id ? listProjectMembers(projectId, user.id) : []} />
+        ? <><ProjectMembersPanel canInvite={!!workspaceSettings&&workspaceSettings.status==="招募中"&&(workspaceSettings.maxMembers===null||workspaceSettings.memberCount<workspaceSettings.maxMembers)} projectId={projectId} viewerId={user?.id || ""} viewerRole={workspaceRole} members={projectId && user?.id ? listProjectMembers(projectId, user.id) : []} />{projectId&&user?.id&&(workspaceRole==="创建者"||workspaceRole==="管理员")&&<ProjectApplicationsPanel projectId={projectId} applications={listTeamApplications(projectId,user.id)}/>}</>
         : <ProjectTodoBoard projectId={projectId} tasks={tasks} canEdit={workspaceRole === "创建者"} />;
     }
   }
+  if(name==="login"){
+    main.find("button").filter((_,el)=>text($(el))==="GitHub").attr("data-action","auth-github").removeAttr("data-route");
+    main.find("#btnGetCode").attr("data-action","auth-email-send");
+    main.find("a").filter((_,el)=>/忘记密码/.test(text($(el)))).attr("data-action","auth-forgot").attr("href","#");
+    main.find("#btnMethodSms").text("邮箱验证码");
+    main.find("#principalInput").attr("placeholder","请输入已注册的登录邮箱");
+    main.find("label[for='principalInput']").text("登录邮箱");
+  }
   const renderedHtml = sharedShell ? main.toString() : $("body").html() || "";
-  const screen = <DesignScreen key={(filesView ? "project-files" : overviewView ? "project-overview" : membersView ? "project-members" : tasksView ? "project-tasks" : name) + (workspaceProjectId || "")} name={name} workspaceProjectId={workspaceProjectId} html={renderedHtml} loggedIn={!!user} variant={variant} taskBoard={taskBoard} />;
+  const screen = <DesignScreen key={(filesView ? "project-files" : overviewView ? "project-overview" : membersView ? "project-members" : tasksView ? "project-tasks" : name) + (workspaceProjectId || "")} name={name} settingsSection={settingsSection} workspaceProjectId={workspaceProjectId} html={renderedHtml} loggedIn={!!user} variant={variant} taskBoard={taskBoard} />;
   return sharedShell ? <SiteShell>{screen}</SiteShell> : <>{hasHeader && name !== "competitionDetail" && <SiteHeader />}{screen}{name !== "competitionDetail" && <SiteFooter />}</>;
 }
 

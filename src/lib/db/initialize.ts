@@ -31,6 +31,21 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS project_files_project_idx ON project_files(project_id);
     CREATE INDEX IF NOT EXISTS project_file_versions_file_idx ON project_file_versions(file_id);
   `);
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS security_codes(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,email TEXT NOT NULL,purpose TEXT NOT NULL,code_hash TEXT NOT NULL,status TEXT NOT NULL,expires_at INTEGER NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL);
+    CREATE INDEX IF NOT EXISTS security_codes_user_idx ON security_codes(user_id,purpose,created_at);
+    CREATE TABLE IF NOT EXISTS security_limits(key TEXT PRIMARY KEY,count INTEGER NOT NULL,expires_at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS security_pending(user_id TEXT NOT NULL,purpose TEXT NOT NULL,value TEXT NOT NULL,session_version INTEGER NOT NULL,expires_at INTEGER NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(user_id,purpose));
+    CREATE TABLE IF NOT EXISTS security_tickets(hash TEXT PRIMARY KEY,user_id TEXT NOT NULL,kind TEXT NOT NULL,data TEXT NOT NULL,session_version INTEGER NOT NULL,expires_at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS security_recovery_codes(user_id TEXT NOT NULL,hash TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(user_id,hash));
+    CREATE TABLE IF NOT EXISTS github_accounts(user_id TEXT PRIMARY KEY,github_id TEXT NOT NULL UNIQUE,login TEXT NOT NULL,token TEXT NOT NULL,linked_at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS github_states(hash TEXT PRIMARY KEY,cookie_hash TEXT NOT NULL,user_id TEXT,mode TEXT NOT NULL,verifier TEXT NOT NULL,next_path TEXT NOT NULL,session_version INTEGER,expires_at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS notification_preferences(user_id TEXT PRIMARY KEY,email TEXT,email_verified INTEGER NOT NULL DEFAULT 0,email_enabled INTEGER NOT NULL DEFAULT 0,webhook_url TEXT,webhook_enabled INTEGER NOT NULL DEFAULT 0,webhook_secret TEXT,updated_at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS notifications(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,actor_id TEXT,project_id TEXT,type TEXT NOT NULL,title TEXT NOT NULL,message TEXT NOT NULL,href TEXT NOT NULL,data TEXT NOT NULL,event_key TEXT NOT NULL,created_at INTEGER NOT NULL,read_at INTEGER,UNIQUE(user_id,event_key));
+    CREATE TABLE IF NOT EXISTS notification_deliveries(id TEXT PRIMARY KEY,notification_id TEXT NOT NULL,channel TEXT NOT NULL,status TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,next_attempt_at INTEGER NOT NULL,lease_until INTEGER,last_error TEXT,delivered_at INTEGER,UNIQUE(notification_id,channel));
+    CREATE INDEX IF NOT EXISTS notifications_user_idx ON notifications(user_id,created_at);
+    CREATE INDEX IF NOT EXISTS notification_delivery_due_idx ON notification_deliveries(status,next_attempt_at);
+  `);
   const competitionColumns = sqlite.prepare("PRAGMA table_info(competitions)").all() as Array<{ name: string }>;
   const existingCompetitionColumns = new Set(competitionColumns.map((column) => column.name));
   for (const [name, definition] of [
@@ -62,5 +77,11 @@ export function initializeDatabase() {
   const columnsAfterEnabled = sqlite.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
   if (!columnsAfterEnabled.some((column) => column.name === "two_factor_secret")) sqlite.exec("ALTER TABLE users ADD COLUMN two_factor_secret TEXT");
   sqlite.exec("CREATE TABLE IF NOT EXISTS user_avatars (user_id TEXT PRIMARY KEY NOT NULL, content BLOB NOT NULL, content_type TEXT NOT NULL, updated_at INTEGER NOT NULL)");
+  const finalUserColumns=sqlite.prepare("PRAGMA table_info(users)").all() as Array<{name:string}>;
+  for(const [name,definition]of [["session_version","INTEGER NOT NULL DEFAULT 0"],["last_totp_step","INTEGER NOT NULL DEFAULT -1"],["deleted_at","INTEGER"],["security_updated_at","INTEGER"]])if(!finalUserColumns.some(column=>column.name===name))sqlite.exec(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
+  const inviteColumns=sqlite.prepare("PRAGMA table_info(project_invites)").all() as Array<{name:string}>;
+  if(!inviteColumns.some(column=>column.name==="invited_user_id"))sqlite.exec("ALTER TABLE project_invites ADD COLUMN invited_user_id TEXT");
+  const applicationColumns=sqlite.prepare("PRAGMA table_info(team_applications)").all() as Array<{name:string}>;
+  if(!applicationColumns.some(column=>column.name==="review_note"))sqlite.exec("ALTER TABLE team_applications ADD COLUMN review_note TEXT");
   initialized = true;
 }

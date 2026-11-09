@@ -1,5 +1,7 @@
 import { sqlite } from "./client";
 import { initializeDatabase } from "./initialize";
+import { recordNotification, projectManagers } from "@/lib/notifications/store";
+import { limitSecurity, userByEmail } from "@/lib/security/service";
 import { getProjectAccess, getViewableProjectId } from "./project-members";
 
 import { requireOpenProjectSeat, selectActiveProject, ProjectSettingsError } from "./project-settings";
@@ -61,21 +63,30 @@ export function updateProjectNickname(projectId: string, userId: string, nicknam
   return sqlite.prepare("UPDATE recruitment_projects SET nickname=? WHERE id=? AND creator_id=?").run(nickname.slice(0, 80), projectId, userId).changes > 0;
 }
 
-export function createProjectInvite(projectId: string, inviterId: string) {
+export function createProjectInvite(projectId: string, inviterId: string, recipientEmail = "") {
   initializeDatabase();
   const access = getProjectAccess(projectId, inviterId);
   if (access !== "创建者" && access !== "管理员") return null;
   requireOpenProjectSeat(projectId);
+  limitSecurity("team-invites:"+inviterId,100,3600000);
+  const recipient=recipientEmail.trim()?userByEmail(recipientEmail):null;
+  if(recipientEmail.trim()&&!recipient)throw new ProjectSettingsError("未找到该站内账号，请使用已注册的登录邮箱。",404);
+  if(recipient&&getProjectAccess(projectId,recipient.id))throw new ProjectSettingsError("对方已经是项目成员，无需重复邀请。",409);
+  if(recipient)limitSecurity("team-invite-pair:"+inviterId+":"+recipient.id,10,86400000);
   const token = crypto.randomUUID().replace(/-/g, "");
-  sqlite.prepare("INSERT INTO project_invites(token,project_id,inviter_id,expires_at,created_at) VALUES(?,?,?,?,?)").run(token, projectId, inviterId, Date.now() + 7 * 24 * 60 * 60 * 1000, Date.now());
+  return sqlite.transaction(()=>{
+  sqlite.prepare("INSERT INTO project_invites(token,project_id,inviter_id,expires_at,created_at,invited_user_id) VALUES(?,?,?,?,?,?)").run(token, projectId, inviterId, Date.now() + 7 * 24 * 60 * 60 * 1000, Date.now(),recipient?.id||null);
+  if(recipient){const project=sqlite.prepare("SELECT COALESCE(nickname,title) AS name FROM recruitment_projects WHERE id=?").get(projectId) as {name:string};recordNotification({key:"invite:"+token,type:"team.invited",projectId,actorId:inviterId,title:"收到组队邀请",message:`你收到加入“${project.name}”的邀请。请登录对应站内账号确认。`,href:"/projects/invite?token="+encodeURIComponent(token),recipients:[recipient.id],data:{projectId}});}
   return token;
+  }).immediate();
 }
 
 export function acceptProjectInvite(token: string, userId: string) {
   initializeDatabase();
   return sqlite.transaction(() => {
-    const invite = sqlite.prepare("SELECT token,project_id AS projectId,inviter_id AS inviterId,expires_at AS expiresAt,used_by AS usedBy FROM project_invites WHERE token=?").get(token) as { token: string; projectId: string; inviterId: string; expiresAt: number; usedBy: string | null } | undefined;
+    const invite = sqlite.prepare("SELECT token,project_id AS projectId,inviter_id AS inviterId,expires_at AS expiresAt,used_by AS usedBy,invited_user_id AS invitedUserId FROM project_invites WHERE token=?").get(token) as { token: string; projectId: string; inviterId: string; expiresAt: number; usedBy: string | null; invitedUserId: string | null } | undefined;
     if (!invite || invite.expiresAt < Date.now() || invite.usedBy) return { ok: false, message: "邀请链接已失效或已使用。" };
+    if(invite.invitedUserId&&invite.invitedUserId!==userId)return{ok:false,message:"此邀请发给其他账号，请切换到正确账号。"};
     const access = getProjectAccess(invite.projectId, invite.inviterId);
     if (access !== "创建者" && access !== "管理员") return { ok: false, message: "邀请人的项目管理权限已失效，请联系创建者。" };
     if (getProjectAccess(invite.projectId, userId)) { selectActiveProject(userId,invite.projectId); return { ok: true, projectId: invite.projectId }; }
@@ -83,6 +94,9 @@ export function acceptProjectInvite(token: string, userId: string) {
     sqlite.prepare("INSERT OR IGNORE INTO project_members(project_id,user_id,role,joined_at) VALUES(?,?,?,?)").run(invite.projectId, userId, "成员", Date.now());
     sqlite.prepare("UPDATE project_invites SET used_by=?,used_at=? WHERE token=?").run(userId, Date.now(), token);
     selectActiveProject(userId,invite.projectId);
+    const project=sqlite.prepare("SELECT COALESCE(nickname,title) AS name,creator_id AS creatorId FROM recruitment_projects WHERE id=?").get(invite.projectId) as {name:string;creatorId:string};
+    const member=sqlite.prepare("SELECT name FROM users WHERE id=?").get(userId) as {name:string|null};
+    recordNotification({key:"invite-accepted:"+token,type:"team.invitation_accepted",projectId:invite.projectId,actorId:userId,title:"队友已接受组队邀请",message:`${member.name||"新成员"}已接受邀请，加入“${project.name}”。`,href:"/projects/members?project="+encodeURIComponent(invite.projectId),recipients:[invite.inviterId,project.creatorId],data:{projectId:invite.projectId,userId}});
     return { ok: true, projectId: invite.projectId };
   }).immediate();
 }
@@ -100,8 +114,11 @@ export function applyToRecruitmentProject(input: { projectId: string; applicantI
   initializeDatabase();
   return sqlite.transaction(() => {
   requireOpenProjectSeat(input.projectId);
-  sqlite.prepare(
+  if(getProjectAccess(input.projectId,input.applicantId))throw new ProjectSettingsError("你已是项目成员，无需重复申请。",409);
+  const applicationId=crypto.randomUUID();
+  const result=sqlite.prepare(
     "INSERT OR IGNORE INTO team_applications (id, project_id, applicant_id, message, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-  ).run(crypto.randomUUID(), input.projectId, input.applicantId, input.message ?? "", "待审核", Date.now());
+  ).run(applicationId, input.projectId, input.applicantId, input.message ?? "", "待审核", Date.now());
+  if(result.changes){const project=sqlite.prepare("SELECT COALESCE(nickname,title) AS name FROM recruitment_projects WHERE id=?").get(input.projectId) as {name:string};const applicant=sqlite.prepare("SELECT name FROM users WHERE id=?").get(input.applicantId) as {name:string|null};recordNotification({key:"application:"+applicationId,type:"team.application_received",projectId:input.projectId,actorId:input.applicantId,title:"收到新的组队申请",message:`${applicant.name||"一位用户"}申请加入“${project.name}”。`,href:"/projects/members?project="+encodeURIComponent(input.projectId),recipients:projectManagers(input.projectId),data:{projectId:input.projectId,applicationId}});}
   }).immediate();
 }

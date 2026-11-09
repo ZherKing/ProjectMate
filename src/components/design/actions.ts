@@ -20,6 +20,9 @@ import { changeProjectMember, getViewableProjectId } from "@/lib/db/project-memb
 
 import { ProjectSettingsError } from "@/lib/db/project-settings";
 
+import {scheduleNotifications} from "@/lib/notifications/schedule";
+import {reviewTeamApplication} from "@/lib/db/team-applications";
+
 type Payload = Record<string, string>;
 export type ScreenResult = { ok: boolean; message: string; href?: string; summary?: string; generatedText?: string; generatedTitle?: string; generatedAt?: string; id?: string };
 
@@ -38,6 +41,7 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
         const exists = sqlite.prepare("SELECT id FROM team_applications WHERE project_id = ? AND applicant_id = ?").get(data.projectId, userId);
         if (exists) return { ok: false, message: "你已申请过该项目，请等待队长审核。" };
         applyToRecruitmentProject({ projectId: data.projectId, applicantId: userId });
+        scheduleNotifications();
         revalidatePath("/teams");
         return { ok: true, message: "申请已提交，等待队长审核。" };
       }
@@ -139,9 +143,14 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
       case "create-project-invite": {
         const projectId = getViewableProjectId(userId, data.projectId);
         if (!projectId) return { ok: false, message: "当前账号没有可邀请成员的项目。" };
-        const token = createProjectInvite(projectId, userId);
+        const token = createProjectInvite(projectId, userId,(data.recipientEmail||"").slice(0,254));
+        scheduleNotifications();
         if (!token) return { ok: false, message: "只有创建者或管理员可以邀请成员。" };
         return { ok: true, message: "邀请链接已生成。", href: "/projects/invite?token=" + token };
+      }
+      case "review-team-application": {
+        const result=reviewTeamApplication(data.projectId,userId,data.applicationId,data.decision==="approve",data.note||"");
+        scheduleNotifications();for(const path of ["/projects","/projects/members","/projects/tasks","/projects/coach","/teams"])revalidatePath(path);return result;
       }
       case "change-project-member-role":
       case "remove-project-member": {

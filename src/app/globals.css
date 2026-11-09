@@ -397,3 +397,37 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-v
 .pm-project-settings-dialog input:disabled, .pm-project-settings-dialog select:disabled { opacity: .65; cursor: not-allowed; }
 button[aria-busy="true"] { cursor: progress; }
 .design-screen [data-action="project-invite"]:disabled, .design-screen .apply-team-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Personal settings share existing surfaces, type sizes and rounded fields. */
+.pm-account-panel h3 { display: flex; align-items: center; gap: 7px; font-size: 16px; font-weight: 650; }
+.pm-account-settings-list { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
+.pm-account-settings-list > article { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.pm-account-settings-list p { font-size: 13px; line-height: 22px; color: var(--muted); margin-top: 6px; }
+.pm-account-panel button, .pm-account-panel a { white-space: nowrap; }
+.pm-account-panel .pm-workspace-form { margin-top: 16px; }
+.pm-account-panel .pm-workspace-form input:not([type="checkbox"]), .pm-account-panel .pm-workspace-form select, .pm-account-config input { width: 100%; padding: 10px 12px; border-radius: 9px; background: #fff; font-size: 13px; }
+.pm-account-code-row { display: flex; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.pm-account-code-row > input { min-width: 70px; flex: 1; }
+.pm-account-code-row > button { flex-shrink: 0; }
+.pm-workspace-modal .pm-workspace-form input { min-width: 0; }
+.pm-account-panel .pm-account-checkbox { display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: 13px; }
+.pm-account-checkbox input { width: 16px; height: 16px; accent-color: var(--primary); }
+.pm-account-panel .pm-account-form-card { display: block; }
+.pm-twofa-qr { display: block; width: 220px; max-width: 100%; margin: 0 auto; }
+.pm-account-secret, .pm-recovery-codes { display: block; background: var(--canvas); border-radius: 8px; padding: 12px; overflow-wrap: anywhere; font-size: 12px; line-height: 22px; user-select: all; }
+.pm-recovery-codes { max-height: 290px; overflow: auto; margin: 16px 0; }
+.pm-account-warning { color: var(--amber) !important; }
+.pm-account-config { padding: 12px; border-radius: 10px; background: var(--surface-soft); }
+.pm-account-config p { margin: 0 0 8px; }
+.pm-account-secret-box { margin-top: 16px; padding: 12px; border-radius: 10px; background: var(--surface-soft); }
+.pm-account-secret-box code { display: block; user-select: all; overflow-wrap: anywhere; font-size: 12px; margin: 8px 0; }
+.pm-account-small { font-size: 12px !important; overflow-wrap: anywhere; }
+.pm-account-inbox-heading { margin: 28px 0 16px; }
+.pm-account-notices { display: flex; flex-direction: column; gap: 14px; }
+.pm-account-notices p { font-size: 13px; line-height: 22px; color: var(--muted); margin: 8px 0 12px; }
+.pm-account-notice-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.pm-account-notice-top > span { font-size: 11px; color: var(--muted); }
+.pm-delivery-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; font-size: 12px; color: var(--muted); }
+.pm-delivery-list > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.pm-account-blocking-projects { display: flex; flex-direction: column; gap: 10px; max-height: 200px; overflow: auto; margin: 16px 0; font-size: 13px; color: var(--primary); }
+@media(max-width: 640px) { .pm-account-settings-list > article { align-items: flex-start; flex-direction: column; } .pm-account-panel .pm-todo-editor-actions { flex-wrap: wrap; } .pm-account-code-row > input { width: 100%; } }

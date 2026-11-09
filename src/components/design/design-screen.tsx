@@ -10,6 +10,9 @@ import { Info, X } from "lucide-react";
 import { screenAction } from "./actions";
 import { useSettingsEditor } from "./use-settings-editor";
 import { useAdminWorkspace } from "./use-admin-workspace";
+import { AccountSettingsWorkspace } from "@/components/settings/account-settings-workspace";
+import { LoginFactorDialog,LoginRecoveryDialog,type LoginChallenge } from "@/components/settings/login-dialogs";
+import { accountApi,renewSession } from "@/components/settings/common";
 import { ProjectWorkspaceSettings } from "./project-workspace-settings";
 import { DesignNoticeContext } from "./design-notice-context";
 
@@ -32,12 +35,17 @@ async function revealText(target: HTMLElement | null, value: string) {
     await new Promise((resolve) => setTimeout(resolve, 12));
   }
 }
-export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspaceProjectId }: { name: string; html: string; loggedIn: boolean; variant?: "register"; taskBoard?: ReactNode; workspaceProjectId?: string | null }) {
+export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspaceProjectId, settingsSection }: { name: string; html: string; loggedIn: boolean; variant?: "register"; taskBoard?: ReactNode; workspaceProjectId?: string | null; settingsSection?: string }) {
   const root=useRef<HTMLDivElement>(null);
+  useEffect(()=>{const screen=root.current?.closest<HTMLElement>(".design-screen");if(screen)screen.dataset.interactive="true";return()=>{if(screen)delete screen.dataset.interactive;};},[]);
   const [settingsOpen,setSettingsOpen]=useState(false);
+  const [loginChallenge,setLoginChallenge]=useState<LoginChallenge|null>(null);
+  const [loginRecovery,setLoginRecovery]=useState(false);
+  const githubHandled=useRef(false);
+  const [accountSlot,setAccountSlot]=useState<HTMLElement|null>(null);
   const reportPending=useRef(false);
   const [taskSlot,setTaskSlot]=useState<HTMLElement|null>(null);
-  useEffect(()=>{setTaskSlot(root.current?.querySelector<HTMLElement>("[data-todo-slot]")||null);},[html]);
+  useEffect(()=>{setTaskSlot(root.current?.querySelector<HTMLElement>("[data-todo-slot]")||null);setAccountSlot(root.current?.querySelector<HTMLElement>("[data-settings-workspace]")||null);},[html]);
   const detailCloseTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const competitionFilterTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   useEffect(()=>()=>{if(detailCloseTimer.current)clearTimeout(detailCloseTimer.current);if(competitionFilterTimer.current)clearTimeout(competitionFilterTimer.current);},[]);
@@ -46,6 +54,7 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
   const taskRoute=()=>{const projectId=root.current?.querySelector<HTMLElement>("[data-workspace-project-id]")?.dataset.workspaceProjectId;return "/projects/tasks"+(projectId?"?project="+encodeURIComponent(projectId):"");};
   const [notice,setNotice]=useState<Notice|null>(null);
   const [noticeClosing,setNoticeClosing]=useState(false);
+  useEffect(()=>{if(name!=="login"||githubHandled.current)return;const query=new URLSearchParams(location.search);if(query.get("account")==="deleted")setNotice({title:"账号已注销",message:"当前账号已关闭，个人登录凭据已失效。"});if(query.get("githubError")){githubHandled.current=true;setNotice({title:"GitHub登录未完成",message:query.get("githubError")==="not_configured"?"管理员尚未配置GitHub OAuth。":query.get("githubError")==="not_linked"?"请先使用站内账号登录，并在个人设置绑定GitHub。":"授权被取消、过期或未完成，请重新开始。"});return;}if(query.get("github")!=="ready")return;githubHandled.current=true;(async()=>{try{const state=await accountApi("/api/settings/github/login");if(state.needsFactor){setLoginChallenge({kind:"github"});return;}const result=await accountApi("/api/settings/github/login",{});await renewSession(result.ticket);finishLogin();}catch(e){setNotice({title:"GitHub登录未完成",message:(e as Error).message});}})();},[name]);
   const step=useRef(1);
   const loginMethod=useRef("password");
   const loginPending=useRef(false);
@@ -239,22 +248,27 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
     if(form.id!=="authForm")return;
     event.preventDefault();
     if(loginPending.current)return;
-    if(loginMethod.current!=="password"){toast("验证码服务尚未接入，请使用账号密码登录。","暂不可用");return;}
     const data=new FormData(form);
     const principal=String(data.get("principal")||"").trim();
     const password=String(data.get("password")||"");
-    if(!principal||!password){toast("请填写账号和登录密码。","信息不完整");return;}
+    if(!principal||loginMethod.current==="password"&&!password){toast("请填写账号和登录密码。","信息不完整");return;}
     const button=form.querySelector<HTMLButtonElement>('#btnSubmit');
     loginPending.current=true;if(button)button.disabled=true;
     try {
+      if(loginMethod.current==="sms"){
+        const emailCode=root.current?.querySelector<HTMLInputElement>("#smsInput")?.value||"";
+        const verified=await accountApi("/api/auth/email",{action:"verify",email:principal,code:emailCode});
+        if(verified.needsFactor){setLoginChallenge({kind:"email",challenge:verified.challenge});return;}
+        await renewSession(verified.ticket);finishLogin();return;
+      }
       const result=await signIn("credentials",{email:principal,password,redirect:false});
-      if(!result?.ok||result.error){toast("账号或密码不正确，请重新输入。","登录失败");return;}
-      const next=new URLSearchParams(location.search).get("next");
-      const destination=next?.startsWith("/")&&!next.startsWith("//")?next:"/dashboard";
-      router.push(destination);router.refresh();
-    } catch {toast("登录服务暂时不可用，请稍后重试。","登录失败");}
+      if(result?.code==="two_factor_required"){setLoginChallenge({kind:"password",email:principal,password});return;}
+      if(!result?.ok||result.error){toast(result?.code==="rate_limited"?"尝试过于频繁，请稍后再试。":"账号或密码不正确，请重新输入。","登录失败");return;}
+      finishLogin();
+    } catch(error) {toast(error instanceof Error?error.message:"登录服务暂时不可用，请稍后重试。","登录失败");}
     finally {loginPending.current=false;if(button)button.disabled=false;}
   }
+  function finishLogin(){setLoginChallenge(null);setLoginRecovery(false);const next=new URLSearchParams(location.search).get("next");const destination=next?.startsWith("/")&&!next.startsWith("//")&&!/[\\\u0000-\u001f]/.test(next)?next:"/dashboard";router.push(destination);router.refresh();}
   async function exportReport(button?:HTMLButtonElement){
     if(reportPending.current)return;
     const projectId=root.current?.querySelector<HTMLElement>("[data-workspace-project-id]")?.dataset.workspaceProjectId;
@@ -303,7 +317,10 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
       for(const [id,active] of [["btnMethodPwd",!sms],["btnMethodSms",sms]] as const){const tab=root.current.querySelector('#'+id);tab?.classList.toggle("text-primary",active);tab?.classList.toggle("text-on-surface-variant",!active);}
       return;
     }
-    if(action==="auth-unavailable"){event.preventDefault();toast("此认证服务尚未配置，请使用已注册的账号密码登录。","暂不可用");return;}
+    if(action==="auth-github"){event.preventDefault();window.location.assign("/api/auth/github?next="+encodeURIComponent(new URLSearchParams(location.search).get("next")||"/dashboard"));return;}
+    if(action==="auth-email-send"){event.preventDefault();const email=root.current.querySelector<HTMLInputElement>("#principalInput")?.value.trim()||"";if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast("请填写已注册的登录邮箱。","信息不完整");return;}if(button)button.disabled=true;try{const result=await accountApi("/api/auth/email",{action:"send",email});toast(result.message,"验证码请求完成");}catch(e){toast((e as Error).message,"发送未完成");}finally{if(button)button.disabled=false;}return;}
+    if(action==="auth-forgot"){event.preventDefault();root.current.querySelector<HTMLButtonElement>("#btnMethodSms")?.click();toast("可使用登录邮箱验证码和已启用的两步验证登录，再到个人设置更新密码。","找回密码");return;}
+    if(action==="auth-unavailable"){event.preventDefault();toast("此认证服务尚未配置，请使用邮箱密码、邮箱验证码或已绑定的GitHub登录。","暂不可用");return;}
     if(el.matches("[data-role-toggle]")){
       const selected=el.dataset.selected!=="true";
       el.dataset.selected=String(selected);
@@ -324,7 +341,7 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
     if(action==="new-project-task"){root.current.querySelector<HTMLElement>("#project-task-modal")?.classList.remove("hidden");return;}
     if(action==="close-workspace-modal"){el.closest<HTMLElement>("[id$='-modal']")?.classList.add("hidden");return;}
     if(action==="generate-project-invite"){
-      const modalRoot=el.closest<HTMLElement>("#project-invite-modal");const status=modalRoot?.querySelector<HTMLElement>("[data-project-invite-status]");const result=await run("create-project-invite",{projectId:root.current.querySelector<HTMLElement>("[data-workspace-project-id]")?.dataset.workspaceProjectId||""},button);
+      const modalRoot=el.closest<HTMLElement>("#project-invite-modal");const status=modalRoot?.querySelector<HTMLElement>("[data-project-invite-status]");const result=await run("create-project-invite",{recipientEmail:modalRoot?.querySelector<HTMLInputElement>("[data-project-invite-recipient]")?.value||"",projectId:root.current.querySelector<HTMLElement>("[data-workspace-project-id]")?.dataset.workspaceProjectId||""},button);
       if(result?.ok&&result.href){const input=modalRoot?.querySelector<HTMLInputElement>("[data-project-invite-link]");if(input)input.value=location.origin+result.href;if(status)status.textContent="邀请链接已生成，7 天内有效。";}else if(status)status.textContent=result?.message||"邀请链接生成失败。";return;
     }
     if(action==="copy-project-invite"){const input=el.closest<HTMLElement>("#project-invite-modal")?.querySelector<HTMLInputElement>("[data-project-invite-link]");if(input?.value){try{await navigator.clipboard.writeText(input.value);toast("邀请链接已复制。","复制成功");}catch{input.select();toast("请手动复制已选中的邀请链接。","复制未完成");}}return;}
@@ -492,15 +509,6 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
       filterCompetitions();return;
     }
     if(action==="logout"){toast("正在退出当前登录会话。","退出登录");setTimeout(()=>router.push("/api/auth/signout?callbackUrl=/"),800);return;}
-    if(action==="password-modal"){root.current.querySelector<HTMLElement>('#password-modal')?.classList.remove('hidden');return;}
-    if(action==="password-close"){root.current.querySelector<HTMLElement>('#password-modal')?.classList.add('hidden');return;}
-    if(action==="password-send"){const result=await fetch('/api/settings/password-code',{method:'POST'});const data=await result.json();toast(data.message||'验证码请求完成',result.ok?'验证码已发送':'发送失败');return;}
-    if(action==="password-submit"){const scope=root.current;const code=scope.querySelector<HTMLInputElement>('[data-password-code]')?.value||'';const password=scope.querySelector<HTMLInputElement>('[data-password-new]')?.value||'';const confirm=scope.querySelector<HTMLInputElement>('[data-password-confirm]')?.value||'';const result=await fetch('/api/settings/password',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code,password,confirm})});const data=await result.json();toast(data.message||'密码修改完成',result.ok?'修改成功':'修改失败');if(result.ok)scope.querySelector<HTMLElement>('#password-modal')?.classList.add('hidden');return;}
-    if(action==="twofa-modal"){root.current.querySelector<HTMLElement>('#twofa-modal')?.classList.remove('hidden');return;}
-    if(action==="twofa-close"){root.current.querySelector<HTMLElement>('#twofa-modal')?.classList.add('hidden');return;}
-    if(action==="twofa-send"){const result=await fetch('/api/settings/2fa',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'send-email'})});const data=await result.json();toast(data.message||'验证码请求完成',result.ok?'验证码已发送':'发送失败');return;}
-    if(action==="twofa-begin"){const code=root.current.querySelector<HTMLInputElement>('[data-twofa-email-code]')?.value||'';const result=await fetch('/api/settings/2fa',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'begin',emailCode:code})});const data=await result.json();toast(data.message||'验证完成',result.ok?'邮箱验证通过':'验证失败');if(result.ok){const guide=root.current.querySelector<HTMLElement>('[data-twofa-guide]');guide?.classList.remove('hidden');const qr=root.current.querySelector<HTMLImageElement>('[data-twofa-qr]');if(qr)qr.src=data.qr;const secret=root.current.querySelector<HTMLElement>('[data-twofa-secret]');if(secret)secret.textContent='手动密钥：'+data.secret;}return;}
-    if(action==="twofa-confirm"){const token=root.current.querySelector<HTMLInputElement>('[data-twofa-token]')?.value||'';const result=await fetch('/api/settings/2fa',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'confirm',token})});const data=await result.json();toast(data.message||'2FA 操作完成',result.ok?'绑定成功':'绑定失败');if(result.ok)root.current.querySelector<HTMLElement>('#twofa-modal')?.classList.add('hidden');return;}
     if(action==="review-approve"||action==="review-reject"){
       const competitionId=el.dataset.reviewId||el.closest<HTMLElement>('[data-review-id]')?.dataset.reviewId||"";
       const decision=action==="review-approve"?"approved":"rejected";
@@ -542,7 +550,7 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
   }
   return <div className="design-screen" data-screen={name} data-variant={variant}>
     <div ref={root} onSubmit={onAuthSubmit} onClick={onClick} onKeyDown={event=>{if(event.key==="Enter"&&(event.target as HTMLElement).matches("[data-coach-input]")){event.preventDefault();root.current?.querySelector<HTMLButtonElement>("button[data-action='coach']")?.click();}}} onInput={event=>{const target=event.target as HTMLElement;if(target.matches('[data-publish-competition-search]')){const query=(target as HTMLInputElement).value.trim().toLowerCase();root.current?.querySelectorAll<HTMLOptionElement>('[data-publish-competition-select] option').forEach(option=>{option.hidden=Boolean(query&&!option.textContent?.toLowerCase().includes(query));});}else if(target.matches('[data-publish-competition-select]'))refreshPublishCompetition(target as HTMLSelectElement);else if(target.matches('[data-competition-search]')){if(competitionFilterTimer.current)clearTimeout(competitionFilterTimer.current);competitionFilterTimer.current=setTimeout(()=>filterCompetitions(),100);}else if(target.matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}} onChange={event=>{const target=event.target as HTMLElement;if(target.matches('[data-publish-competition-select]'))refreshPublishCompetition(target as HTMLSelectElement);else if(target.matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}}>{markup}</div>
-    <DesignNoticeContext.Provider value={toast}>{taskSlot && taskBoard && createPortal(taskBoard,taskSlot)}{settingsOpen&&<ProjectWorkspaceSettings projectId={workspaceProjectId||null} onClose={()=>setSettingsOpen(false)}/>}</DesignNoticeContext.Provider>
+    <DesignNoticeContext.Provider value={toast}>{taskSlot && taskBoard && createPortal(taskBoard,taskSlot)}{accountSlot&&name==="settings"&&settingsSection!=="profile"&&createPortal(<AccountSettingsWorkspace section={settingsSection||"security"}/>,accountSlot)}{loginChallenge&&<LoginFactorDialog challenge={loginChallenge} onClose={()=>setLoginChallenge(null)} onSuccess={finishLogin} onRecovery={()=>{setLoginChallenge(null);setLoginRecovery(true);}}/>}{loginRecovery&&<LoginRecoveryDialog initialEmail={root.current?.querySelector<HTMLInputElement>("#principalInput")?.value||""} onClose={()=>setLoginRecovery(false)} onSuccess={finishLogin}/>}{settingsOpen&&<ProjectWorkspaceSettings projectId={workspaceProjectId||null} onClose={()=>setSettingsOpen(false)}/>}</DesignNoticeContext.Provider>
     {notice&&<div className={`fixed top-20 right-6 z-[100] w-80 max-w-[calc(100vw-2rem)] flex gap-3 overflow-hidden p-4 pb-5 bg-white rounded-xl shadow-xl border-l-4 border-primary ${noticeClosing?"pm-toast-closing":""}`} role="status" aria-live="polite" style={{"--pm-toast-duration":`${notice.login?1200:5000}ms`} as CSSProperties}><Info className="text-primary shrink-0" size={20}/><div className="flex-1"><p className="text-label-md font-semibold">{notice.title}</p><p className="text-body-sm text-on-surface-variant mt-1">{notice.message}</p></div>{!notice.login&&<button aria-label="关闭通知" onClick={()=>{setNoticeClosing(true);setTimeout(()=>setNotice(null),220);}}><X size={16}/></button>}<span className="pm-toast-progress absolute bottom-0 left-0 h-[3px] w-full origin-left bg-primary" aria-hidden="true"/></div>}
   </div>;
 }

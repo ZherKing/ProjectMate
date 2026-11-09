@@ -1,0 +1,10 @@
+"use client";
+import { signIn } from "next-auth/react";
+import { useContext, useEffect, useRef, useState } from "react";
+import { DesignNoticeContext } from "@/components/design/design-notice-context";
+export async function accountApi(path:string,data?:unknown,method="POST"){const response=await fetch(path,{method:data===undefined?"GET":method,headers:data===undefined?undefined:{"Content-Type":"application/json"},body:data===undefined?undefined:JSON.stringify(data),cache:"no-store"});const result=await response.json();if(!response.ok)throw new Error(result.message||"操作未完成，请重试。");return result;}
+export async function renewSession(ticket:string){const result=await signIn("credentials",{authTicket:ticket,redirect:false});if(!result?.ok||result.error)throw new Error("操作已完成，请重新登录。");}
+export function useNotify(){const toast=useContext(DesignNoticeContext),ref=useRef(toast);ref.current=toast;return (...args:Parameters<typeof toast>)=>ref.current(...args);}
+export function useCooldown(){const [until,setUntil]=useState(0),[now,setNow]=useState(Date.now());useEffect(()=>{if(!until)return;const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[until]);return{seconds:Math.max(0,Math.ceil((until-now)/1000)),start:(seconds=60)=>{setNow(Date.now());setUntil(Date.now()+seconds*1000);}};}
+export function PasswordProof({password,setPassword,factor,setFactor,enabled=true}:{password:string;setPassword:(v:string)=>void;factor:string;setFactor:(v:string)=>void;enabled?:boolean}){return <><label>当前登录密码<input type="password" aria-label="当前登录密码" autoComplete="current-password" maxLength={128} value={password} onChange={e=>setPassword(e.target.value)}/></label>{enabled&&<label>两步验证码或恢复码<input aria-label="两步验证码或恢复码" autoComplete="one-time-code" maxLength={80} value={factor} onChange={e=>setFactor(e.target.value)} placeholder="已启用两步验证时填写"/></label>}</>;}
+export function PanelTitle({number,title,description}:{number:string;title:string;description:string}){return <div className="pm-todo-heading"><div><h2><span className="pm-todo-section-number" aria-hidden="true">{number}</span>{title}</h2><p>{description}</p></div></div>;}

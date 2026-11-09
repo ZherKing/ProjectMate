@@ -1,3 +1,5 @@
+import sharp from "sharp";
+import { fileFailure, readBody, requireSameOrigin } from "@/lib/files/http";
 import { auth } from "@/auth";
 import { sqlite } from "@/lib/db/client";
 import { initializeDatabase } from "@/lib/db/initialize";
@@ -7,10 +9,9 @@ import { revalidatePath } from "next/cache";
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ message: "请先登录。" }, { status: 401 });
-  const origin = request.headers.get("origin");
-  if (!origin || new URL(origin).host !== request.headers.get("host")) return Response.json({ message: "请求来源无效。" }, { status: 403 });
   try {
-    const form = await request.formData();
+    requireSameOrigin(request);
+    const form = await new Response(new Uint8Array(await readBody(request,2*1024*1024+65536)),{headers:{"Content-Type":request.headers.get("content-type")||""}}).formData();
     const name = String(form.get("name") || "").trim();
     const school = String(form.get("school") || "").trim();
     const skills = String(form.get("skills") || "").trim();
@@ -24,7 +25,11 @@ export async function POST(request: Request) {
         : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255 ? "image/jpeg"
         : bytes.toString("ascii",0,4) === "RIFF" && bytes.toString("ascii",8,12) === "WEBP" ? "image/webp" : "";
       if (!type) return Response.json({ message: "请选择 PNG、JPEG 或 WebP 图片。" }, { status: 400 });
-      avatar = { bytes, type };
+      try {
+        const metadata=await sharp(bytes,{limitInputPixels:16000000,animated:false}).metadata();
+        if(!metadata.width||!metadata.height||!["jpeg","png","webp"].includes(metadata.format||""))throw new Error();
+        avatar={bytes:await sharp(bytes,{limitInputPixels:16000000}).rotate().resize(400,400,{fit:"cover"}).webp({quality:88}).toBuffer(),type:"image/webp"};
+      }catch{return Response.json({message:"图片损坏或尺寸过大，请重新选择。"},{status:400});}
     }
     initializeDatabase();
     const userId = session.user.id;
@@ -32,9 +37,10 @@ export async function POST(request: Request) {
       const old = getProfile(userId);
       sqlite.prepare("UPDATE users SET name = ? WHERE id = ?").run(name, userId);
       saveProfile(userId, { school, skills, education: old?.education ?? null, roles: old?.roles ?? null, interests: old?.interests ?? null, weeklyHours: old?.weeklyHours ?? null });
-      if (avatar) sqlite.prepare("INSERT INTO user_avatars VALUES (?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET content=excluded.content, content_type=excluded.content_type, updated_at=excluded.updated_at").run(userId, avatar.bytes, avatar.type, Date.now());
+      if (avatar) { const previous=sqlite.prepare("SELECT updated_at AS version FROM user_avatars WHERE user_id=?").get(userId) as {version:number}|undefined;sqlite.prepare("INSERT INTO user_avatars VALUES (?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET content=excluded.content, content_type=excluded.content_type, updated_at=excluded.updated_at").run(userId,avatar.bytes,avatar.type,Math.max(Date.now(),(previous?.version||0)+1)); }
     })();
     revalidatePath("/", "layout");
-    return Response.json({ ok: true });
-  } catch { return Response.json({ message: "保存未完成，请稍后重试。" }, { status: 500 }); }
+    const saved=sqlite.prepare("SELECT updated_at AS version FROM user_avatars WHERE user_id=?").get(userId) as {version:number}|undefined;
+    return Response.json({ok:true,userId,name,avatarUrl:saved?`/api/avatars/${encodeURIComponent(userId)}?v=${saved.version}`:null},{headers:{"Cache-Control":"no-store"}});
+  } catch(error) { return fileFailure(error); }
 }

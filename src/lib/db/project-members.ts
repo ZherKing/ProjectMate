@@ -13,6 +13,7 @@ export type ProjectMember = {
 
 export function getProjectAccess(projectId: string, userId: string): ProjectRole | null {
   initializeDatabase();
+  if(!sqlite.prepare("SELECT id FROM users WHERE id=? AND deleted_at IS NULL").get(userId))return null;
   const row = sqlite.prepare(`SELECT p.creator_id AS creatorId, m.role
     FROM recruitment_projects p LEFT JOIN project_members m ON m.project_id=p.id AND m.user_id=?
     WHERE p.id=? AND (p.creator_id=? OR m.user_id IS NOT NULL)`)

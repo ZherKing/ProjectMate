@@ -1,0 +1,2 @@
+import{securityActor,securityBody,securityFailure,field}from"@/lib/security/http";import{provePassword,sendSecurityCode}from"@/lib/security/service";import{SecurityError}from"@/lib/security/error";
+export async function POST(request:Request){try{const id=await securityActor(request),b=await securityBody(request);if(b.purpose!=="delete-account"&&b.purpose!=="transfer-project")throw new SecurityError("无效验证用途。");provePassword(id,field(b,"password",129));return Response.json({ok:true,...await sendSecurityCode(id,b.purpose)});}catch(e){return securityFailure(e);}}

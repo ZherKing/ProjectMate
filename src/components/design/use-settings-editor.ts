@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type RefObject } from "react";
+import { accountAvatarSrc } from "@/lib/account/avatar";
 import { useRouter } from "next/navigation";
 
 export function useSettingsEditor(root: RefObject<HTMLDivElement | null>, enabled: boolean, html: string, notify: (message: string, title?: string) => void) {
@@ -12,7 +13,7 @@ export function useSettingsEditor(root: RefObject<HTMLDivElement | null>, enable
     const initial = fields.map(field => field.value);
     const fileInput = scope.querySelector<HTMLInputElement>("[data-avatar-file]");
     const avatar = scope.querySelector<HTMLImageElement>("[data-settings-avatar]");
-    const initialAvatar = avatar?.src || "";
+    let initialAvatar = avatar?.src || "";
     const bar = scope.querySelector<HTMLElement>("[data-settings-save-bar]");
     let file: File | null = null;
     let preview = "";
@@ -70,7 +71,10 @@ export function useSettingsEditor(root: RefObject<HTMLDivElement | null>, enable
         const response=await fetch("/api/settings",{method:"POST",body:form});
         const result=await response.json();
         if(!response.ok)throw new Error(result.message||"保存失败，请重试。");
-        fields.forEach((field,index)=>{initial[index]=field.value;});file=null;
+        fields.forEach((field,index)=>{initial[index]=field.value;});file=null;if(fileInput)fileInput.value="";
+        initialAvatar=accountAvatarSrc(result.name,result.avatarUrl);if(avatar)avatar.src=initialAvatar;
+        if(preview){URL.revokeObjectURL(preview);preview="";}
+        window.dispatchEvent(new CustomEvent("projectmate:profile-updated",{detail:result}));
         update();notify("头像与个人资料已保存。","保存成功");router.refresh();
       } catch(error) { notify(error instanceof Error?error.message:"保存失败，请重试。","保存未完成"); }
       finally { busy=false;button.disabled=false; }

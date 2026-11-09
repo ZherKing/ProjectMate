@@ -1,0 +1,1 @@
+export async function register(){if(process.env.NEXT_RUNTIME==="nodejs"&&process.env.NOTIFICATION_DISABLE_WORKER!=="true"){const{startNotificationWorker}=await import("@/lib/notifications/dispatch");startNotificationWorker();}}

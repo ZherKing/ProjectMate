@@ -1,0 +1,3 @@
+import{securityActor,securityBody,securityFailure,field}from"@/lib/security/http";import{deletionSummary,deleteAccount}from"@/lib/account/lifecycle";
+export async function GET(){try{return Response.json(deletionSummary(await securityActor()),{headers:{"Cache-Control":"no-store"}});}catch(e){return securityFailure(e);}}
+export async function DELETE(request:Request){try{const id=await securityActor(request),b=await securityBody(request);return Response.json(await deleteAccount(id,{password:field(b,"password",129),factor:field(b,"factor"),code:field(b,"code"),confirmation:field(b,"confirmation")}));}catch(e){return securityFailure(e);}}

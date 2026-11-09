@@ -24,6 +24,7 @@
     "cheerio": "^1.2.0",
     "docx": "^9.15.3",
     "drizzle-orm": "^0.44.0",
+    "ipaddr.js": "^2.5.0",
     "lucide-react": "^0.468.0",
     "next": "^15.5.0",
     "next-auth": "^5.0.0-beta.29",
@@ -33,6 +34,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
+    "sharp": "^0.35.5",
     "shiki": "^4.6.0",
     "zod": "^3.25.0"
   },

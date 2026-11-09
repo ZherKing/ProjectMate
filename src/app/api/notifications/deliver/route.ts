@@ -1,0 +1,2 @@
+import{timingSafeEqual}from"node:crypto";import{dispatchNotifications}from"@/lib/notifications/dispatch";
+export async function POST(request:Request){const expected=process.env.NOTIFICATION_CRON_SECRET||"",actual=request.headers.get("authorization")||"";const target="Bearer "+expected;if(!expected||Buffer.byteLength(actual)!==Buffer.byteLength(target)||!timingSafeEqual(Buffer.from(actual),Buffer.from(target)))return new Response(null,{status:401});await dispatchNotifications(20);return Response.json({ok:true});}
