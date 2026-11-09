@@ -10,6 +10,7 @@ import { Info, X } from "lucide-react";
 import { screenAction } from "./actions";
 import { useSettingsEditor } from "./use-settings-editor";
 import { useAdminWorkspace } from "./use-admin-workspace";
+import {TeamMatchDialog} from "@/components/projects/team-match-dialog";
 import { AccountSettingsWorkspace } from "@/components/settings/account-settings-workspace";
 import { LoginFactorDialog,LoginRecoveryDialog,type LoginChallenge } from "@/components/settings/login-dialogs";
 import { accountApi,renewSession } from "@/components/settings/common";
@@ -39,6 +40,7 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
   const root=useRef<HTMLDivElement>(null);
   useEffect(()=>{const screen=root.current?.closest<HTMLElement>(".design-screen");if(screen)screen.dataset.interactive="true";return()=>{if(screen)delete screen.dataset.interactive;};},[]);
   const [settingsOpen,setSettingsOpen]=useState(false);
+  const [teamMatchOpen,setTeamMatchOpen]=useState(false);
   const [loginChallenge,setLoginChallenge]=useState<LoginChallenge|null>(null);
   const [loginRecovery,setLoginRecovery]=useState(false);
   const githubHandled=useRef(false);
@@ -54,7 +56,7 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
   const taskRoute=()=>{const projectId=root.current?.querySelector<HTMLElement>("[data-workspace-project-id]")?.dataset.workspaceProjectId;return "/projects/tasks"+(projectId?"?project="+encodeURIComponent(projectId):"");};
   const [notice,setNotice]=useState<Notice|null>(null);
   const [noticeClosing,setNoticeClosing]=useState(false);
-  useEffect(()=>{if(name!=="login"||githubHandled.current)return;const query=new URLSearchParams(location.search);if(query.get("account")==="deleted")setNotice({title:"账号已注销",message:"当前账号已关闭，个人登录凭据已失效。"});if(query.get("githubError")){githubHandled.current=true;setNotice({title:"GitHub登录未完成",message:query.get("githubError")==="not_configured"?"管理员尚未配置GitHub OAuth。":query.get("githubError")==="not_linked"?"请先使用站内账号登录，并在个人设置绑定GitHub。":"授权被取消、过期或未完成，请重新开始。"});return;}if(query.get("github")!=="ready")return;githubHandled.current=true;(async()=>{try{const state=await accountApi("/api/settings/github/login");if(state.needsFactor){setLoginChallenge({kind:"github"});return;}const result=await accountApi("/api/settings/github/login",{});await renewSession(result.ticket);finishLogin();}catch(e){setNotice({title:"GitHub登录未完成",message:(e as Error).message});}})();},[name]);
+  useEffect(()=>{if(name!=="login"||githubHandled.current)return;const query=new URLSearchParams(location.search);if(query.get("emailChanged"))setNotice({title:"邮箱已更新",message:"请使用新的登录邮箱登录，其他旧会话已失效。"});if(query.get("account")==="deleted")setNotice({title:"账号已注销",message:"当前账号已关闭，个人登录凭据已失效。"});if(query.get("githubError")){githubHandled.current=true;setNotice({title:"GitHub登录未完成",message:query.get("githubError")==="not_configured"?"管理员尚未配置GitHub OAuth。":query.get("githubError")==="not_linked"?"请先使用站内账号登录，并在个人设置绑定GitHub。":"授权被取消、过期或未完成，请重新开始。"});return;}if(query.get("github")!=="ready")return;githubHandled.current=true;(async()=>{try{const state=await accountApi("/api/settings/github/login");if(state.needsFactor){setLoginChallenge({kind:"github"});return;}const result=await accountApi("/api/settings/github/login",{});await renewSession(result.ticket);finishLogin();}catch(e){setNotice({title:"GitHub登录未完成",message:(e as Error).message});}})();},[name]);
   const step=useRef(1);
   const loginMethod=useRef("password");
   const loginPending=useRef(false);
@@ -123,6 +125,8 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
     onScroll();window.addEventListener("scroll",onScroll,{passive:true});
     return()=>window.removeEventListener("scroll",onScroll);
   },[]);
+  useEffect(()=>{if(name!=="teams")return;const open=(event:Event)=>{const id=(event as CustomEvent).detail;const card=Array.from(root.current?.querySelectorAll<HTMLElement>("[data-project-card]")||[]).find(c=>c.dataset.projectId===id);card?.querySelector<HTMLButtonElement>(".view-detail-btn")?.click();};window.addEventListener("projectmate:show-team",open);return()=>window.removeEventListener("projectmate:show-team",open);},[name,html]);
+  useEffect(()=>{if(name!=="teams")return;const id=new URLSearchParams(location.search).get("team");if(!id)return;const timer=setTimeout(()=>{const cards=root.current?.querySelectorAll<HTMLElement>("[data-project-card]");const card=Array.from(cards||[]).find(c=>c.dataset.projectId===id);card?.querySelector<HTMLButtonElement>(".view-detail-btn")?.click();},0);return()=>clearTimeout(timer);},[html,name]);
   const toast=(message:string,title="操作提示",login=false)=>setNotice({title,message,login});
   useSettingsEditor(root,name==="settings",html,toast);
   useAdminWorkspace(root,name==="admin",html,toast);
@@ -206,16 +210,16 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
   };
   const filterTeams=()=>{
     const scope=root.current;if(!scope)return;
-    const active=Array.from(scope.querySelectorAll('.role-chip[data-selected="true"],.filter-pill[data-selected="true"]')).map(el=>el.textContent?.trim()||"");
-    const roleFilters=[...scope.querySelectorAll<HTMLElement>('[data-team-role-filter][data-selected="true"]')].map(el=>el.dataset.teamRoleFilter||"");
-    const trackFilters=[...scope.querySelectorAll<HTMLElement>('[data-team-track-filter][data-selected="true"]')].map(el=>el.dataset.teamTrackFilter||"");
+    const normalize=(value:string)=>value.normalize("NFKC").toLowerCase();
+    const terms=normalize(scope.querySelector<HTMLInputElement>('[data-team-search]')?.value||"").trim().split(/\s+/).filter(Boolean);
+    const role=scope.querySelector<HTMLElement>('[data-team-role-filter][data-selected="true"]')?.dataset.teamRoleFilter||"";
+    const track=scope.querySelector<HTMLElement>('[data-team-track-filter][data-selected="true"]')?.dataset.teamTrackFilter||"";
     const hours=scope.querySelector<HTMLElement>('[data-team-hours-filter][data-selected="true"]')?.dataset.teamHoursFilter||"不限";
     const minimumHours=hours.includes("20")?20:hours.includes("10")?10:0;
-    const cards=[...scope.querySelectorAll<HTMLElement>('[data-project-card][data-project-id]')];
-    let visibleCount=0;
-    cards.forEach(el=>{const roles=el.dataset.roles||"";const track=el.dataset.track||"";const weekly=Number(el.dataset.hours||0);const roleOk=!roleFilters.length||roleFilters.some(tag=>roles.includes(tag));const trackOk=!trackFilters.length||trackFilters.some(tag=>track.includes(tag));const hoursOk=weekly>=minimumHours;const visible=roleOk&&trackOk&&hoursOk;el.classList.toggle("hidden",!visible);if(visible)visibleCount++;});
+    const cards=[...scope.querySelectorAll<HTMLElement>('[data-project-card][data-project-id]')];let visibleCount=0;
+    cards.forEach(card=>{const haystack=normalize([card.dataset.projectTitle,card.dataset.roles,card.dataset.track,card.dataset.event,card.querySelector("h3 + p")?.textContent].join(" "));const roles=(card.dataset.roles||"").split(/[，,、/]+/).map(s=>s.trim());const visible=(!role||roles.includes(role))&&(!track||(card.dataset.track||"自拟赛道")===track)&&Number(card.dataset.hours||0)>=minimumHours&&terms.every(t=>haystack.includes(t));card.classList.toggle("hidden",!visible);if(visible)visibleCount++;});
     let empty=scope.querySelector<HTMLElement>("[data-team-filter-empty]");
-    if(!empty){empty=document.createElement("p");empty.dataset.teamFilterEmpty="";empty.className="hidden rounded-xl bg-surface-container-low p-5 text-body-md text-on-surface-variant";empty.textContent="没有符合投入时间条件的组队项目。";scope.querySelector("[data-project-card]")?.parentElement?.append(empty);}
+    if(!empty){empty=document.createElement("p");empty.dataset.teamFilterEmpty="";empty.className="hidden rounded-xl bg-surface-container-low p-5 text-body-md text-on-surface-variant";empty.textContent="没有符合关键词或筛选条件的战队。";scope.querySelector("[data-project-card]")?.parentElement?.append(empty);}
     empty.classList.toggle("hidden",visibleCount>0||cards.length===0);
   };
   const refreshPublishCompetition=(select:HTMLSelectElement)=>{
@@ -359,7 +363,7 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
       const path=document.createElementNS("http://www.w3.org/2000/svg","path");path.setAttribute("d","M6 6l12 12M18 6 6 18");path.setAttribute("stroke-linecap","round");icon.append(path);role.append(icon);roleRoot.append(role);if(input)input.value="";
       const count=section?.querySelector<HTMLElement>("[data-selected-role-count]");if(count)count.textContent=`已选 ${roleRoot.querySelectorAll('[data-role-toggle][data-selected="true"]').length} 个角色`;return;
     }
-    if(id==="open-ai-match-btn"){if(guard())modal("ai-synergy-modal",true);return;}
+    if(id==="open-ai-match-btn"){if(guard())setTeamMatchOpen(true);return;}
     if(action==="open-competition-detail"&&el.closest("[data-competition-card]")&&el.tagName==="BUTTON"){
       event.preventDefault();event.stopPropagation();
     }
@@ -542,15 +546,17 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
     if(el.hasAttribute("data-sort-filter")){
       root.current.querySelectorAll<HTMLElement>("[data-sort-filter]").forEach(item=>{const on=item===el;item.dataset.selected=String(on);item.classList.toggle("bg-surface-container-lowest",on);item.classList.toggle("text-primary",on);item.classList.toggle("font-semibold",on);});filterCompetitions();return;
     }
-    if(el.classList.contains('filter-pill')||el.classList.contains('role-chip')||el.hasAttribute('data-team-hours-filter')){const group=el.hasAttribute('data-team-hours-filter')?'[data-team-hours-filter]':el.classList.contains('role-chip')?'[data-team-role-filter]': '[data-team-track-filter]';root.current.querySelectorAll<HTMLElement>(group).forEach(item=>{if(item!==el)item.dataset.selected="false";item.classList.remove('bg-primary','text-on-primary','bg-surface-container-lowest','text-primary');});el.dataset.selected=el.dataset.selected==="true"?"false":"true";el.classList.toggle('bg-primary');el.classList.toggle('text-on-primary');el.classList.toggle('bg-surface-container-lowest',el.dataset.selected==="true");el.classList.toggle('text-primary',el.dataset.selected==="true");filterTeams();return;}
+    if(el.hasAttribute('data-team-track-filter')||el.hasAttribute('data-team-role-filter')||el.hasAttribute('data-team-hours-filter')){const group=el.hasAttribute('data-team-hours-filter')?'[data-team-hours-filter]':el.hasAttribute('data-team-role-filter')?'[data-team-role-filter]':'[data-team-track-filter]';root.current.querySelectorAll<HTMLElement>(group).forEach(item=>{const active=item===el;item.dataset.selected=String(active);item.setAttribute("aria-pressed",String(active));item.classList.remove('bg-primary','text-on-primary','bg-surface-container-lowest','text-primary','active');});filterTeams();return;}
+
     if(el.closest('#filter-tabs')){syncCompetitionTabs(root.current,el as HTMLElement);const heading=root.current.querySelector('h1');if(/收藏/.test(label)){if(!guard())return;root.current.dataset.favoritesMode="true";root.current.dataset.recommendationsMode="false";root.current.dataset.competitionPage="1";if(heading)heading.textContent="我收藏的赛事";router.push("/competitions/favorites");return;}if(/AI 推荐/.test(label)){if(!guard())return;router.push("/competitions/recommendations");return;}root.current.dataset.favoritesMode="false";root.current.dataset.recommendationsMode="false";root.current.dataset.competitionPage="1";if(heading)heading.textContent="发现比赛";router.push("/competitions");return;}
     if(action==="page-prev"||action==="page-next"){const current=Number(root.current.dataset.competitionPage||1);root.current.dataset.competitionPage=String(Math.max(1,current+(action==="page-next"?1:-1)));filterCompetitions(false);return;}
     if(/新建任务|任务看板|更新任务看板/.test(label)){router.push(taskRoute());return;}
+    if(el.closest("[data-admin-settings-save],[data-admin-settings-test],[data-admin-settings-cancel]"))return;
     if(action==="unavailable"||button){toast("此功能尚在完善中，当前操作未修改数据。","功能说明");}
   }
   return <div className="design-screen" data-screen={name} data-variant={variant}>
-    <div ref={root} onSubmit={onAuthSubmit} onClick={onClick} onKeyDown={event=>{if(event.key==="Enter"&&(event.target as HTMLElement).matches("[data-coach-input]")){event.preventDefault();root.current?.querySelector<HTMLButtonElement>("button[data-action='coach']")?.click();}}} onInput={event=>{const target=event.target as HTMLElement;if(target.matches('[data-publish-competition-search]')){const query=(target as HTMLInputElement).value.trim().toLowerCase();root.current?.querySelectorAll<HTMLOptionElement>('[data-publish-competition-select] option').forEach(option=>{option.hidden=Boolean(query&&!option.textContent?.toLowerCase().includes(query));});}else if(target.matches('[data-publish-competition-select]'))refreshPublishCompetition(target as HTMLSelectElement);else if(target.matches('[data-competition-search]')){if(competitionFilterTimer.current)clearTimeout(competitionFilterTimer.current);competitionFilterTimer.current=setTimeout(()=>filterCompetitions(),100);}else if(target.matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}} onChange={event=>{const target=event.target as HTMLElement;if(target.matches('[data-publish-competition-select]'))refreshPublishCompetition(target as HTMLSelectElement);else if(target.matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}}>{markup}</div>
-    <DesignNoticeContext.Provider value={toast}>{taskSlot && taskBoard && createPortal(taskBoard,taskSlot)}{accountSlot&&name==="settings"&&settingsSection!=="profile"&&createPortal(<AccountSettingsWorkspace section={settingsSection||"security"}/>,accountSlot)}{loginChallenge&&<LoginFactorDialog challenge={loginChallenge} onClose={()=>setLoginChallenge(null)} onSuccess={finishLogin} onRecovery={()=>{setLoginChallenge(null);setLoginRecovery(true);}}/>}{loginRecovery&&<LoginRecoveryDialog initialEmail={root.current?.querySelector<HTMLInputElement>("#principalInput")?.value||""} onClose={()=>setLoginRecovery(false)} onSuccess={finishLogin}/>}{settingsOpen&&<ProjectWorkspaceSettings projectId={workspaceProjectId||null} onClose={()=>setSettingsOpen(false)}/>}</DesignNoticeContext.Provider>
+    <div ref={root} onSubmit={onAuthSubmit} onClick={onClick} onKeyDown={event=>{if(event.key==="Enter"&&(event.target as HTMLElement).matches("[data-coach-input]")){event.preventDefault();root.current?.querySelector<HTMLButtonElement>("button[data-action='coach']")?.click();}}} onInput={event=>{const target=event.target as HTMLElement;if(target.matches('[data-team-search]'))filterTeams();else if(target.matches('[data-publish-competition-search]')){const query=(target as HTMLInputElement).value.trim().toLowerCase();root.current?.querySelectorAll<HTMLOptionElement>('[data-publish-competition-select] option').forEach(option=>{option.hidden=Boolean(query&&!option.textContent?.toLowerCase().includes(query));});}else if(target.matches('[data-publish-competition-select]'))refreshPublishCompetition(target as HTMLSelectElement);else if(target.matches('[data-competition-search]')){if(competitionFilterTimer.current)clearTimeout(competitionFilterTimer.current);competitionFilterTimer.current=setTimeout(()=>filterCompetitions(),100);}else if(target.matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}} onChange={event=>{const target=event.target as HTMLElement;if(target.matches('[data-publish-competition-select]'))refreshPublishCompetition(target as HTMLSelectElement);else if(target.matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}}>{markup}</div>
+    <DesignNoticeContext.Provider value={toast}>{taskSlot && taskBoard && createPortal(taskBoard,taskSlot)}{accountSlot&&name==="settings"&&settingsSection!=="profile"&&createPortal(<AccountSettingsWorkspace section={settingsSection||"security"}/>,accountSlot)}{loginChallenge&&<LoginFactorDialog challenge={loginChallenge} onClose={()=>setLoginChallenge(null)} onSuccess={finishLogin} onRecovery={()=>{setLoginChallenge(null);setLoginRecovery(true);}}/>}{loginRecovery&&<LoginRecoveryDialog initialEmail={root.current?.querySelector<HTMLInputElement>("#principalInput")?.value||""} onClose={()=>setLoginRecovery(false)} onSuccess={finishLogin}/>}{teamMatchOpen&&<TeamMatchDialog onClose={()=>setTeamMatchOpen(false)}/>} {settingsOpen&&<ProjectWorkspaceSettings projectId={workspaceProjectId||null} onClose={()=>setSettingsOpen(false)}/>}</DesignNoticeContext.Provider>
     {notice&&<div className={`fixed top-20 right-6 z-[100] w-80 max-w-[calc(100vw-2rem)] flex gap-3 overflow-hidden p-4 pb-5 bg-white rounded-xl shadow-xl border-l-4 border-primary ${noticeClosing?"pm-toast-closing":""}`} role="status" aria-live="polite" style={{"--pm-toast-duration":`${notice.login?1200:5000}ms`} as CSSProperties}><Info className="text-primary shrink-0" size={20}/><div className="flex-1"><p className="text-label-md font-semibold">{notice.title}</p><p className="text-body-sm text-on-surface-variant mt-1">{notice.message}</p></div>{!notice.login&&<button aria-label="关闭通知" onClick={()=>{setNoticeClosing(true);setTimeout(()=>setNotice(null),220);}}><X size={16}/></button>}<span className="pm-toast-progress absolute bottom-0 left-0 h-[3px] w-full origin-left bg-primary" aria-hidden="true"/></div>}
   </div>;
 }

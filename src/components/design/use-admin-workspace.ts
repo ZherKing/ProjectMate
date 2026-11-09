@@ -9,6 +9,7 @@ export function useAdminWorkspace(root: RefObject<HTMLDivElement | null>, enable
     const scope = root.current;
     if (!enabled || !scope) return;
     let page = 1;
+    let settingsBusy = false;
     const pageSize = 5;
     const search = scope.querySelector<HTMLInputElement>("[data-admin-queue-search]");
     const source = scope.querySelector<HTMLSelectElement>("[data-admin-source-filter]");
@@ -42,9 +43,9 @@ export function useAdminWorkspace(root: RefObject<HTMLDivElement | null>, enable
       if (!(event.target instanceof Element)) return;
       const button = event.target.closest<HTMLButtonElement>("button[data-admin-queue-page], button[data-admin-refresh]");
       const settingsButton = event.target.closest<HTMLButtonElement>("button[data-admin-settings-save], button[data-admin-settings-test]");
-      if (event.target.closest("[data-admin-settings-cancel]")) { settingFields.forEach((field, index) => { if (field.type === "checkbox") (field as HTMLInputElement).checked = settingInitial[index] === "true"; else field.value = settingInitial[index]; }); updateSettingsBar(); return; }
+      if (event.target.closest("[data-admin-settings-cancel]")) { event.preventDefault();event.stopPropagation();if(settingsBusy)return; settingFields.forEach((field, index) => { if (field.type === "checkbox") (field as HTMLInputElement).checked = settingInitial[index] === "true"; else field.value = settingInitial[index]; }); updateSettingsBar(); return; }
       if (settingsButton) {
-        event.preventDefault();
+        event.preventDefault();event.stopPropagation();if(settingsBusy)return;settingsBusy=true;settingsButton.disabled=true;
         const values = Object.fromEntries(settingFields.map(input => [input.name, input.type === "checkbox" ? (input as HTMLInputElement).checked : input.value]));
         const message = scope.querySelector<HTMLElement>("[data-admin-settings-message]");
         const endpoint = settingsButton.hasAttribute("data-admin-settings-test") ? "/api/admin/settings/test" : "/api/admin/settings";
@@ -55,7 +56,7 @@ export function useAdminWorkspace(root: RefObject<HTMLDivElement | null>, enable
           if (message) { message.textContent = result.message || "操作完成"; message.classList.remove("hidden"); }
           if (response.ok && !settingsButton.hasAttribute("data-admin-settings-test")) { settingFields.forEach((field, index) => { settingInitial[index] = field.type === "checkbox" ? String((field as HTMLInputElement).checked) : field.value; }); updateSettingsBar(); }
           notify(result.message || "操作完成", response.ok ? "操作成功" : "操作未完成");
-        }).catch(() => notify("请求未完成，请稍后重试。", "连接失败"));
+        }).catch(() => notify("请求未完成，请稍后重试。", "连接失败")).finally(()=>{settingsBusy=false;settingsButton.disabled=false;});
         return;
       }
       if (!button) return;

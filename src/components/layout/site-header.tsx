@@ -20,7 +20,7 @@ export async function SiteHeader() {
     <div className={styles.inner}>
       <div className={styles.left}>
         <Link href="/" aria-label={`${siteName} 首页`} className={styles.brand}><img src={siteIcon} alt="" width={32} height={32} /><span>{siteName}</span></Link>
-        <SiteNav items={nav} className={styles.nav} />
+        <SiteNav items={user ? [["仪表盘", "/dashboard"], ...nav] : nav} className={styles.nav} />
       </div>
       <div className={styles.actions}>
         {user ? <>

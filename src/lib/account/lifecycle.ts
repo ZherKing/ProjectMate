@@ -17,6 +17,7 @@ export async function deleteAccount(userId:string,input:{password:string;factor:
   sqlite.prepare("DELETE FROM project_members WHERE user_id=?").run(userId);sqlite.prepare("DELETE FROM team_applications WHERE applicant_id=?").run(userId);sqlite.prepare("DELETE FROM project_invites WHERE inviter_id=? OR invited_user_id=?").run(userId,userId);
   sqlite.prepare("DELETE FROM site_settings WHERE key=?").run("2fa.pending."+userId);
   sqlite.prepare("DELETE FROM github_states WHERE user_id=?").run(userId);
+  if(sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='team_match_analyses'").get())sqlite.prepare("DELETE FROM team_match_analyses WHERE user_id=?").run(userId);
   if(sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='favorites'").get())sqlite.prepare("DELETE FROM favorites WHERE user_id=?").run(userId);
   if(sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='mcp_grants'").get()){
    sqlite.prepare("UPDATE mcp_grants SET revoked_at=? WHERE user_id=? OR project_id NOT IN (SELECT id FROM recruitment_projects)").run(Date.now(),userId);

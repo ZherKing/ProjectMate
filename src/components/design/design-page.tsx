@@ -101,7 +101,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     main.find('input').eq(3).attr("value", profile?.skills || "");
     main.find('input').eq(0).attr("data-settings-field","name").attr("maxlength","40");
     main.find('input').eq(1).attr("data-settings-field","school").attr("maxlength","120").removeAttr("readonly").removeClass("cursor-not-allowed select-none");
-    const skillInput=main.find('input').eq(3).attr("data-settings-field","skills").attr("maxlength","500").attr("placeholder","输入技能，用逗号分隔").attr("data-settings-tags","");
+    const skillInput=main.find('input').eq(3).attr("data-settings-field","skills").attr("maxlength","500").attr("placeholder","输入技能，用逗号分隔").attr("data-settings-tags","").attr("id","technical-skills");
     const skillWrap=skillInput.parent();
     skillWrap.attr("class","relative flex items-center").attr("data-settings-tags-container","");
     skillWrap.children().not(skillInput).remove();
@@ -117,7 +117,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     avatarArea.find("span").filter((_,el)=>/认证高校学生/.test(text($(el)))).remove();
     main.find("span").filter((_,el)=>/^已核验$|ENTERPRISE SSO BOUND/.test(text($(el)))).text("账号资料");
     main.find("p,span").filter((_,el)=>/全国大学生计算机系统与算法竞赛参赛资格已同步/.test(text($(el)))).text("填写你的学校或所在组织。");
-    main.find("p").filter((_,el)=>/绑定后不可直接修改/.test(text($(el)))).text("邮箱用于账号登录，当前页面不支持变更登录邮箱。");
+    main.find("p").filter((_,el)=>/绑定后不可直接修改/.test(text($(el)))).text("邮箱用于账号登录。如需变更，请前往“安全与登录”验证后修改。");
     main.find("span").filter((_,el)=>/草稿配置已实时写入客户端本地缓存/.test(text($(el)))).text("你有尚未保存的个人资料修改");
     main.find("span").filter((_,el)=>/^MAX 5 TAGS$/.test(text($(el)))).text("用逗号分隔");
     main.find("button").filter((_,el)=>/放弃未保存修改/.test(text($(el)))).attr("data-action","discard-settings");
@@ -494,6 +494,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       }
     }
     const projects = listRecruitmentProjects();
+    const eventNames=new Map(allCompetitions.map(c=>[c.id,c.name]));
     const seatTotal = projects.reduce((sum, project) => sum + (project.seatCount || 0), 0);
     main.find("h2").filter((_,el)=>/精选活跃战队/.test(text($(el)))).parent().find("span").filter((_,el)=>/共 \d+ 个精选席位/.test(text($(el)))).text(projects.length ? (projects.every(p=>p.seatCount!==null)?`共 ${seatTotal} 个席位`:seatTotal?`已设 ${seatTotal} 个席位`:"人数上限未设置") : "暂无席位数据");
     const activeProjectCount = projects.filter((project) => project.status === "招募中" && (project.seatCount===null||project.memberCount<project.seatCount)).length;
@@ -502,16 +503,22 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     main.find("p").filter((_,el)=>text($(el)) === "急需核心技术岗").next().text(String(openRoleCount));
     main.find("p").filter((_,el)=>text($(el)) === "平均匹配响应").next().text("暂无数据");
     const teamFilters=main.find('[data-section="team-filters"]');
-    const trackFilterButtons=main.find("button.filter-pill");
-    trackFilterButtons.each((index,el)=>{const label=text($(el));if(label!=="全部赛事")$(el).attr("data-team-track-filter",label);});
-    main.find("button.role-chip").each((_,el)=>{ $(el).attr("data-team-role-filter",text($(el))); });
-    main.find("button").filter((_,el)=>/^(不限|10h+\/周|20h\+\/周\(冲刺\))$/.test(text($(el)))).each((_,el)=>{ $(el).attr("data-team-hours-filter",text($(el))); });
+    const trackHost=main.find("button.filter-pill").first().parent();
+    const roleHost=main.find("button.role-chip").first().parent();
+    trackHost.find("button.filter-pill").remove();roleHost.find("button.role-chip").remove();
+    const makeFilter=(kind:string,label:string,value:string,active=false)=>'<button type="button" class="pm-team-filter '+(kind==="track"?'filter-pill':'role-chip')+'" data-team-'+kind+'-filter="'+escapeHtml(value)+'" data-selected="'+active+'" aria-pressed="'+active+'">'+escapeHtml(label)+'</button>';
+    trackHost.append(makeFilter("track","全部赛事","",true));
+    [...new Set(projects.map(p=>p.trackName||"自拟赛道"))].slice(0,30).forEach(track=>trackHost.append(makeFilter("track",track,track)));
+    roleHost.append(makeFilter("role","全部角色","",true));
+    [...new Set(projects.flatMap(p=>(p.roles||"").split(/[，,、/]+/).map(r=>r.trim()).filter(Boolean)))].slice(0,30).forEach(role=>roleHost.append(makeFilter("role",role,role)));
+    const filterBox=trackHost.parent();filterBox.attr("data-team-filter-panel","").addClass("pm-team-filter-panel").prepend('<label class="pm-member-search pm-team-search" data-search-field><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4-4"/></svg><input data-team-search aria-label="搜索战队、赛事赛道或招募角色" placeholder="搜索战队名称、比赛、赛道或招募角色…" maxlength="150"></label>');
+    main.find("button").filter((_,el)=>/^(不限|10h\+\/周|20h\+\/周\(冲刺\))$/.test(text($(el)))).each((_,el)=>{const value=text($(el));$(el).attr("data-team-hours-filter",value).attr("data-selected",String(value==="不限")).attr("aria-pressed",String(value==="不限")).addClass("pm-team-filter");});
     const sampleCards=main.find(".apply-team-btn").filter((_,el)=>!$(el).closest("#ai-synergy-modal").length).map((_,el)=>$(el).closest('[class*="rounded-xl"]').get(0)).get();
     if(projects.length && sampleCards.length){
       const parent=$(sampleCards[0]).parent(); const template=$(sampleCards[0]).clone();
       sampleCards.forEach(el=>$(el).remove());
       projects.forEach(project=>{
-        const card=template.clone();card.attr("id","project-"+project.id).attr("data-project-card","").attr("data-project-id",project.id).attr("data-project-title",project.title).attr("data-roles",project.roles||"").attr("data-track",project.trackName||"").attr("data-hours",String(project.weeklyHours||10));
+        const card=template.clone();card.attr("id","project-"+project.id).attr("data-project-card","").attr("data-project-id",project.id).attr("data-project-title",project.title).attr("data-roles",project.roles||"").attr("data-track",project.trackName||"").attr("data-hours",String(project.weeklyHours||10)).attr("data-event",eventNames.get(project.competitionId||"")||"");
         card.find("h3").first().text(project.title);
         card.find("h3").first().next("p").text(project.description);
         card.find("span").filter((_,el)=>/^队长:/.test(text($(el)))).text(project.creatorName || "项目发起人");
@@ -714,12 +721,13 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       const card = $(el);
       const score = scoreFor(card.attr("data-roles") || null, Number(card.attr("data-hours")) || null);
       const label = card.find("span").filter((__, span) => /等待匹配|资料匹配/.test(text($(span)))).first();
-      if (label.length) label.text(score === null ? "完善资料后匹配" : `资料匹配 ${score}%`);
+      if (label.length) label.text(score === null ? "完善资料后匹配" : score>0?"技能/时间相关":"暂无直接匹配");
       if (score !== null) card.attr("data-match-score", String(score));
     });
     if (!listRecruitmentProjects().length) main.find(".apply-team-btn").filter((_, el) => !$(el).closest("#ai-synergy-modal").length).each((_, el) => { $(el).closest('[class*="rounded-xl"]').remove(); });
     if (user?.id && !profileTerms.length) main.find("#ai-synergy-modal").find("p").filter((_, el) => /匹配|推荐/.test(text($(el)))).last().text("完善个人技能、兴趣和每周投入时间后，系统会按规则筛选项目。");
   }
+  if(name==="teams")main.find("#ai-synergy-modal").remove();
   $("[data-action='favorite']").each((index,el)=>{
     const card=$(el).parents().filter((_,parent)=>$(parent).find("h3").length===1).first();
     $(el).attr("data-favorite-key",card.attr("data-competition-id")||card.find("h3").text().trim().slice(0,250)||name+"-"+index);
@@ -770,6 +778,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     }
   }
   if(name==="login"){
+    main.find("button").filter((_,el)=>/高校.*SSO/.test(text($(el)))).remove();
     main.find("button").filter((_,el)=>text($(el))==="GitHub").attr("data-action","auth-github").removeAttr("data-route");
     main.find("#btnGetCode").attr("data-action","auth-email-send");
     main.find("a").filter((_,el)=>/忘记密码/.test(text($(el)))).attr("data-action","auth-forgot").attr("href","#");
