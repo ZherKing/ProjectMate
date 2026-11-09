@@ -10,6 +10,7 @@ import { Info, X } from "lucide-react";
 import { screenAction } from "./actions";
 import { useSettingsEditor } from "./use-settings-editor";
 import { useAdminWorkspace } from "./use-admin-workspace";
+import { ProjectWorkspaceSettings } from "./project-workspace-settings";
 import { DesignNoticeContext } from "./design-notice-context";
 
 type Notice = { title: string; message: string; login?: boolean };
@@ -31,8 +32,10 @@ async function revealText(target: HTMLElement | null, value: string) {
     await new Promise((resolve) => setTimeout(resolve, 12));
   }
 }
-export function DesignScreen({ name, html, loggedIn, variant, taskBoard }: { name: string; html: string; loggedIn: boolean; variant?: "register"; taskBoard?: ReactNode }) {
+export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspaceProjectId }: { name: string; html: string; loggedIn: boolean; variant?: "register"; taskBoard?: ReactNode; workspaceProjectId?: string | null }) {
   const root=useRef<HTMLDivElement>(null);
+  const [settingsOpen,setSettingsOpen]=useState(false);
+  const reportPending=useRef(false);
   const [taskSlot,setTaskSlot]=useState<HTMLElement|null>(null);
   useEffect(()=>{setTaskSlot(root.current?.querySelector<HTMLElement>("[data-todo-slot]")||null);},[html]);
   const detailCloseTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -252,12 +255,32 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard }: { nam
     } catch {toast("登录服务暂时不可用，请稍后重试。","登录失败");}
     finally {loginPending.current=false;if(button)button.disabled=false;}
   }
+  async function exportReport(button?:HTMLButtonElement){
+    if(reportPending.current)return;
+    const projectId=root.current?.querySelector<HTMLElement>("[data-workspace-project-id]")?.dataset.workspaceProjectId;
+    if(!projectId){toast("请先选择可访问的项目。","暂无报告");return;}
+    reportPending.current=true;
+    const label=button?.querySelector("span"),originalLabel=label?.textContent,originalWidth=button?.style.minWidth||"";
+    if(button){button.style.minWidth=button.getBoundingClientRect().width+"px";button.disabled=true;button.setAttribute("aria-busy","true");if(label)label.textContent="导出中…";}
+    try{
+      const response=await fetch(`/api/projects/${encodeURIComponent(projectId)}/report`,{cache:"no-store"});
+      if(!response.ok){const result=await response.json().catch(()=>({message:"报告生成失败，请稍后重试。"}));throw new Error(result.message);}
+      const blob=await response.blob();if(!blob.size)throw new Error("报告内容为空，请重试。");
+      const encoded=response.headers.get("content-disposition")?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+      const filename=encoded?decodeURIComponent(encoded):"项目报告.docx";
+      const url=URL.createObjectURL(blob),anchor=document.createElement("a");anchor.href=url;anchor.download=filename;document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+      toast("报告已生成，正在下载。","导出成功");
+    }catch(error){toast(error instanceof Error?error.message:"报告生成失败，请稍后重试。","导出未完成");}
+    finally{reportPending.current=false;if(button){button.disabled=false;button.removeAttribute("aria-busy");button.style.minWidth=originalWidth;if(label)label.textContent=originalLabel||"导出项目报告";}}
+  }
   async function onClick(event:React.MouseEvent<HTMLDivElement>){
     const raw=event.target as Element;
     const el=raw.closest<HTMLElement>('button,a,[data-route],[data-action],[data-track-filter],[data-competition-id]');if(!el||!root.current?.contains(el))return;
     const button=el.tagName==="BUTTON"?el as HTMLButtonElement:undefined;
     const id=el.id;const action=el.dataset.action;
     if(id==="btnSubmit"||id==="registerSubmit")return;
+    if(action==="project-settings"){setSettingsOpen(true);return;}
+    if(action==="export-project-report"){await exportReport(button);return;}
     const label=el.textContent?.replace(/\s+/g," ").trim()||"";
     const route=el.dataset.route;
     if(route){event.preventDefault();const destination=route.startsWith("/teams/create")?"/teams?create=1":route;if(["/profile","/teams/create","/projects","/dashboard","/settings","/competitions/detail","/competitions/favorites"].some(p=>route.startsWith(p))&&!guard(destination))return;router.push(destination);return;}
@@ -436,7 +459,7 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard }: { nam
       const result=await run("favorite",{key},button);if(result?.ok){el.classList.toggle("text-error");const card=el.closest<HTMLElement>('[data-competition-id]');if(card)card.dataset.favorite=String(card.dataset.favorite!=="true");}return;
     }
     if(action==="apply"||el.classList.contains("apply-team-btn")){const card=el.closest<HTMLElement>('[data-project-id]');await run("apply",{projectId:el.dataset.projectId||card?.dataset.projectId||"design-sample"},button);return;}
-    if(action==="team-details"||el.classList.contains("view-detail-btn")){const projectId=el.dataset.projectId||el.closest<HTMLElement>('[data-project-id]')?.dataset.projectId||"";const modalRoot=root.current.querySelector<HTMLElement>("#team-detail-modal");const card=el.closest<HTMLElement>('[data-project-id]');const details=JSON.parse(modalRoot?.dataset.teamDetails||"{}")[projectId];if(modalRoot&&details){modalRoot.dataset.projectId=projectId;modalRoot.classList.remove("hidden","pm-detail-closing");const set=(selector:string,value:string)=>{const node=modalRoot.querySelector<HTMLElement>(selector);if(node)node.textContent=value;};set("[data-team-detail-title]",details.title);set("[data-team-detail-description]",details.description);set("[data-team-detail-status]",details.status);set("[data-team-detail-track]",details.trackName);set("[data-team-detail-hours]",details.weeklyHours?`${details.weeklyHours} 小时 / 周`:"未设置");set("[data-team-detail-creator]",details.creatorName);set("[data-team-detail-roles]",details.roles);set("[data-team-detail-members]",String(details.memberCount||0));set("[data-team-detail-seats]",String(details.seatCount||0));}return;}
+    if(action==="team-details"||el.classList.contains("view-detail-btn")){const projectId=el.dataset.projectId||el.closest<HTMLElement>('[data-project-id]')?.dataset.projectId||"";const modalRoot=root.current.querySelector<HTMLElement>("#team-detail-modal");const card=el.closest<HTMLElement>('[data-project-id]');const details=JSON.parse(modalRoot?.dataset.teamDetails||"{}")[projectId];if(modalRoot&&details){modalRoot.dataset.projectId=projectId;modalRoot.classList.remove("hidden","pm-detail-closing");const set=(selector:string,value:string)=>{const node=modalRoot.querySelector<HTMLElement>(selector);if(node)node.textContent=value;};set("[data-team-detail-title]",details.title);set("[data-team-detail-description]",details.description);set("[data-team-detail-status]",details.status);set("[data-team-detail-track]",details.trackName);set("[data-team-detail-hours]",details.weeklyHours?`${details.weeklyHours} 小时 / 周`:"未设置");set("[data-team-detail-creator]",details.creatorName);set("[data-team-detail-roles]",details.roles);set("[data-team-detail-members]",String(details.memberCount||0));set("[data-team-detail-seats]",details.seatCount==null?"未设置":String(details.seatCount));const apply=modalRoot.querySelector<HTMLButtonElement>('[data-action="apply-team-detail"]');if(apply){const full=details.seatCount!=null&&details.memberCount>=details.seatCount;apply.disabled=details.status!=="招募中"||full;apply.textContent=details.status!=="招募中"?"暂停招募":full?"已满员":"申请加入";}}return;}
     if(action==="close-team-detail"){const modalRoot=root.current.querySelector<HTMLElement>("#team-detail-modal");if(modalRoot){modalRoot.classList.add("pm-detail-closing");setTimeout(()=>{modalRoot.classList.add("hidden");modalRoot.classList.remove("pm-detail-closing");},180);}return;}
     if(action==="apply-team-detail"){const modalRoot=root.current.querySelector<HTMLElement>("#team-detail-modal");await run("apply",{projectId:modalRoot?.dataset.projectId||""},button);return;}
     if(action==="coach"||id==="btn-apply-suggestion"){
@@ -515,12 +538,11 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard }: { nam
     if(el.closest('#filter-tabs')){syncCompetitionTabs(root.current,el as HTMLElement);const heading=root.current.querySelector('h1');if(/收藏/.test(label)){if(!guard())return;root.current.dataset.favoritesMode="true";root.current.dataset.recommendationsMode="false";root.current.dataset.competitionPage="1";if(heading)heading.textContent="我收藏的赛事";router.push("/competitions/favorites");return;}if(/AI 推荐/.test(label)){if(!guard())return;router.push("/competitions/recommendations");return;}root.current.dataset.favoritesMode="false";root.current.dataset.recommendationsMode="false";root.current.dataset.competitionPage="1";if(heading)heading.textContent="发现比赛";router.push("/competitions");return;}
     if(action==="page-prev"||action==="page-next"){const current=Number(root.current.dataset.competitionPage||1);root.current.dataset.competitionPage=String(Math.max(1,current+(action==="page-next"?1:-1)));filterCompetitions(false);return;}
     if(/新建任务|任务看板|更新任务看板/.test(label)){router.push(taskRoute());return;}
-    if(/导出项目报告/.test(label)){router.push(taskRoute());return;}
     if(action==="unavailable"||button){toast("此功能尚在完善中，当前操作未修改数据。","功能说明");}
   }
   return <div className="design-screen" data-screen={name} data-variant={variant}>
     <div ref={root} onSubmit={onAuthSubmit} onClick={onClick} onKeyDown={event=>{if(event.key==="Enter"&&(event.target as HTMLElement).matches("[data-coach-input]")){event.preventDefault();root.current?.querySelector<HTMLButtonElement>("button[data-action='coach']")?.click();}}} onInput={event=>{const target=event.target as HTMLElement;if(target.matches('[data-publish-competition-search]')){const query=(target as HTMLInputElement).value.trim().toLowerCase();root.current?.querySelectorAll<HTMLOptionElement>('[data-publish-competition-select] option').forEach(option=>{option.hidden=Boolean(query&&!option.textContent?.toLowerCase().includes(query));});}else if(target.matches('[data-publish-competition-select]'))refreshPublishCompetition(target as HTMLSelectElement);else if(target.matches('[data-competition-search]')){if(competitionFilterTimer.current)clearTimeout(competitionFilterTimer.current);competitionFilterTimer.current=setTimeout(()=>filterCompetitions(),100);}else if(target.matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}} onChange={event=>{const target=event.target as HTMLElement;if(target.matches('[data-publish-competition-select]'))refreshPublishCompetition(target as HTMLSelectElement);else if(target.matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}}>{markup}</div>
-    <DesignNoticeContext.Provider value={toast}>{taskSlot && taskBoard && createPortal(taskBoard,taskSlot)}</DesignNoticeContext.Provider>
+    <DesignNoticeContext.Provider value={toast}>{taskSlot && taskBoard && createPortal(taskBoard,taskSlot)}{settingsOpen&&<ProjectWorkspaceSettings projectId={workspaceProjectId||null} onClose={()=>setSettingsOpen(false)}/>}</DesignNoticeContext.Provider>
     {notice&&<div className={`fixed top-20 right-6 z-[100] w-80 max-w-[calc(100vw-2rem)] flex gap-3 overflow-hidden p-4 pb-5 bg-white rounded-xl shadow-xl border-l-4 border-primary ${noticeClosing?"pm-toast-closing":""}`} role="status" aria-live="polite" style={{"--pm-toast-duration":`${notice.login?1200:5000}ms`} as CSSProperties}><Info className="text-primary shrink-0" size={20}/><div className="flex-1"><p className="text-label-md font-semibold">{notice.title}</p><p className="text-body-sm text-on-surface-variant mt-1">{notice.message}</p></div>{!notice.login&&<button aria-label="关闭通知" onClick={()=>{setNoticeClosing(true);setTimeout(()=>setNotice(null),220);}}><X size={16}/></button>}<span className="pm-toast-progress absolute bottom-0 left-0 h-[3px] w-full origin-left bg-primary" aria-hidden="true"/></div>}
   </div>;
 }

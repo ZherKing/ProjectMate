@@ -12,12 +12,7 @@ export function NavigationProgress() {
     return () => { if (finishTimer.current) clearTimeout(finishTimer.current); };
   }, [pathname, search]);
   useEffect(() => {
-    const click = (event: MouseEvent) => {
-      if (!(event.target instanceof Element) || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const target = event.target.closest<HTMLElement>("a[href], [data-route]");
-      if (!target || target.matches(":disabled") || target.getAttribute("target") === "_blank" || target.hasAttribute("download")) return;
-      const destination = target.getAttribute("data-route") || target.getAttribute("href");
-      if (!destination || destination.startsWith("#")) return;
+    const start = (destination:string) => {
       const url = new URL(destination, window.location.href);
       if (url.origin !== location.origin || url.pathname + url.search === location.pathname + location.search) return;
       if (finishTimer.current) clearTimeout(finishTimer.current);
@@ -25,8 +20,18 @@ export function NavigationProgress() {
       started.current = performance.now(); setActive(true);
       fallbackTimer.current = setTimeout(() => setActive(false), 15000);
     };
+    const click = (event: MouseEvent) => {
+      if (!(event.target instanceof Element) || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const target = event.target.closest<HTMLElement>("a[href], [data-route]");
+      if (!target || target.matches(":disabled") || target.getAttribute("target") === "_blank" || target.hasAttribute("download")) return;
+      const destination = target.getAttribute("data-route") || target.getAttribute("href");
+      if (!destination || destination.startsWith("#")) return;
+      start(destination);
+    };
+    const programmatic = (event: Event) => { const destination=(event as CustomEvent<unknown>).detail; if(typeof destination==="string")start(destination); };
+    window.addEventListener("projectmate:navigation-start",programmatic);
     document.addEventListener("click", click, true);
-    return () => { document.removeEventListener("click", click, true); if (fallbackTimer.current) clearTimeout(fallbackTimer.current); };
+    return () => { window.removeEventListener("projectmate:navigation-start",programmatic); document.removeEventListener("click", click, true); if (fallbackTimer.current) clearTimeout(fallbackTimer.current); };
   }, []);
   return <div className={`pm-navigation-progress${active ? " is-active" : ""}`} aria-hidden="true" />;
 }

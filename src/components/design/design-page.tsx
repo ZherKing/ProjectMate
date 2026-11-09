@@ -14,6 +14,7 @@ import { ProjectOverviewPanel } from "./project-overview-panel";
 import { ProjectFilesWorkspace as ProjectFilesPanel } from "./project-files-workspace";
 import { fileLimits, fileUsage, listProjectFiles } from "@/lib/files/store";
 import { resourceUrl } from "@/lib/mcp/oauth";
+import { getProjectSettings } from "@/lib/db/project-settings";
 import { getProjectOverview } from "@/lib/db/project-overview";
 import { getProjectAccess, getViewableProjectId, listProjectMembers } from "@/lib/db/project-members";
 import { DesignScreen } from "./design-screen";
@@ -40,6 +41,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   const user = session?.user;
   const workspaceProjectId = name === "projects" && user?.id ? getViewableProjectId(user.id, requestedProjectId) : null;
   const workspaceRole = workspaceProjectId && user?.id ? getProjectAccess(workspaceProjectId, user.id) : null;
+  const workspaceSettings = workspaceProjectId && user?.id ? getProjectSettings(workspaceProjectId,user.id) : null;
   const recommendationsView = (name === "competitions" || name === "favorites") && query?.tab === "recommendations";
   const favoritesView = !recommendationsView && (name === "favorites" || (name === "competitions" && query?.tab === "favorites"));
   if ((name === "dashboard" || name === "projects" || name === "settings" || name === "competitionDetail") && !user) redirect("/login");
@@ -486,10 +488,10 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       }
     }
     const projects = listRecruitmentProjects();
-    const seatTotal = projects.reduce((sum, project) => sum + project.seatCount, 0);
-    main.find("h2").filter((_,el)=>/精选活跃战队/.test(text($(el)))).parent().find("span").filter((_,el)=>/共 \d+ 个精选席位/.test(text($(el)))).text(projects.length ? `共 ${seatTotal} 个席位` : "暂无席位数据");
-    const activeProjectCount = projects.filter((project) => project.status === "招募中").length;
-    const openRoleCount = projects.reduce((sum, project) => sum + (project.roles ? project.roles.split(/[，,、/]+/).map((role) => role.trim()).filter(Boolean).length : 0), 0);
+    const seatTotal = projects.reduce((sum, project) => sum + (project.seatCount || 0), 0);
+    main.find("h2").filter((_,el)=>/精选活跃战队/.test(text($(el)))).parent().find("span").filter((_,el)=>/共 \d+ 个精选席位/.test(text($(el)))).text(projects.length ? (projects.every(p=>p.seatCount!==null)?`共 ${seatTotal} 个席位`:seatTotal?`已设 ${seatTotal} 个席位`:"人数上限未设置") : "暂无席位数据");
+    const activeProjectCount = projects.filter((project) => project.status === "招募中" && (project.seatCount===null||project.memberCount<project.seatCount)).length;
+    const openRoleCount = projects.filter(p=>p.status==="招募中"&&(p.seatCount===null||p.memberCount<p.seatCount)).reduce((sum, project) => sum + (project.roles ? project.roles.split(/[，,、/]+/).map((role) => role.trim()).filter(Boolean).length : 0), 0);
     main.find("p").filter((_,el)=>text($(el)) === "正在寻光组队中").next().text(String(activeProjectCount));
     main.find("p").filter((_,el)=>text($(el)) === "急需核心技术岗").next().text(String(openRoleCount));
     main.find("p").filter((_,el)=>text($(el)) === "平均匹配响应").next().text("暂无数据");
@@ -508,15 +510,16 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
         card.find("h3").first().next("p").text(project.description);
         card.find("span").filter((_,el)=>/^队长:/.test(text($(el)))).text(project.creatorName || "项目发起人");
         card.find("span").filter((_,el)=>/^每周 \d/.test(text($(el)))).text("每周 "+(project.weeklyHours||10)+"h");
-        card.find("span").filter((_,el)=>/共 \d+ 个席位|差 \d+ 人满员|招募中/.test(text($(el)))).first().text(`共 ${project.seatCount} 个席位`);
         card.find("span").filter((_,el)=>/^已开工 MVP/.test(text($(el)))).text(project.status);
         card.find("span").filter((_,el)=>/^AI 契合/.test(text($(el)))).text("等待匹配");
         card.find("[data-icon=psychology]").parent().contents().filter((_,el)=>el.type==="text").remove();
         card.find("[data-icon=psychology]").parent().append(escapeHtml(project.trackName || "自拟赛道"));
         const roleBox=card.find("div.space-y-2.mb-5");
-        roleBox.find("span.text-error").text("正在招募");
+        roleBox.find("span.text-on-surface-variant").filter((_,el)=>/岗位需求缺口/.test(text($(el)))).text("团队席位:");
+        roleBox.find("span.text-error").text(project.seatCount===null?"人数上限未设置":`共 ${project.seatCount} 个席位`);
         roleBox.find("div.flex.flex-wrap").html('<span class="px-2.5 py-1 rounded-lg bg-error-container text-on-error-container text-label-sm">'+escapeHtml(project.roles || "待补充角色")+'</span>');
         card.find(".apply-team-btn").attr("data-project-id",project.id).attr("data-action","apply");
+        if(project.status!=="招募中"||project.seatCount!==null&&project.memberCount>=project.seatCount)card.find(".apply-team-btn").prop("disabled",true).text(project.status!=="招募中"?"暂停招募":"已满员");
         card.find(".view-detail-btn").attr("data-project-id",project.id).attr("data-action","team-details");
         parent.append(card);
       });
@@ -737,6 +740,9 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
       tab.attr("aria-current", active ? "page" : "false").attr("data-route", (index === 0 ? "/projects/tasks" : index === 1 ? "/projects/coach" : index === 2 ? "/projects/members" : index === 3 ? "/projects" : "/projects/files") + projectSuffix).removeAttr("data-action");
     });
     main.attr("data-workspace-project-id", projectId || "");
+    main.find('button[aria-label="项目设置"]').attr("data-action","project-settings").removeAttr("data-route");
+    main.find("button").filter((_,el)=>/导出项目报告/.test(text($(el)))).attr("data-action","export-project-report").removeAttr("data-route").prop("disabled",!projectId);
+    if(workspaceSettings&&(workspaceSettings.status!=="招募中"||workspaceSettings.maxMembers!==null&&workspaceSettings.memberCount>=workspaceSettings.maxMembers))main.find('[data-action="project-invite"]').prop("disabled",true).attr("title",workspaceSettings.status!=="招募中"?"当前项目已暂停招募":"团队人数已达上限");
     main.find('[data-route="/projects/tasks"]').attr("data-route", "/projects/tasks" + projectSuffix);
     if (workspaceRole !== "创建者") {
       main.find('[data-action="new-project-task"], [data-action="edit-project-nickname"]').remove();
@@ -753,12 +759,12 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
         : overviewView
         ? <ProjectOverviewPanel data={projectId && user?.id ? getProjectOverview(projectId, user.id) : null} />
         : membersView
-        ? <ProjectMembersPanel projectId={projectId} viewerId={user?.id || ""} viewerRole={workspaceRole} members={projectId && user?.id ? listProjectMembers(projectId, user.id) : []} />
+        ? <ProjectMembersPanel canInvite={!!workspaceSettings&&workspaceSettings.status==="招募中"&&(workspaceSettings.maxMembers===null||workspaceSettings.memberCount<workspaceSettings.maxMembers)} projectId={projectId} viewerId={user?.id || ""} viewerRole={workspaceRole} members={projectId && user?.id ? listProjectMembers(projectId, user.id) : []} />
         : <ProjectTodoBoard projectId={projectId} tasks={tasks} canEdit={workspaceRole === "创建者"} />;
     }
   }
   const renderedHtml = sharedShell ? main.toString() : $("body").html() || "";
-  const screen = <DesignScreen key={(filesView ? "project-files" : overviewView ? "project-overview" : membersView ? "project-members" : tasksView ? "project-tasks" : name) + (workspaceProjectId || "")} name={name} html={renderedHtml} loggedIn={!!user} variant={variant} taskBoard={taskBoard} />;
+  const screen = <DesignScreen key={(filesView ? "project-files" : overviewView ? "project-overview" : membersView ? "project-members" : tasksView ? "project-tasks" : name) + (workspaceProjectId || "")} name={name} workspaceProjectId={workspaceProjectId} html={renderedHtml} loggedIn={!!user} variant={variant} taskBoard={taskBoard} />;
   return sharedShell ? <SiteShell>{screen}</SiteShell> : <>{hasHeader && name !== "competitionDetail" && <SiteHeader />}{screen}{name !== "competitionDetail" && <SiteFooter />}</>;
 }
 

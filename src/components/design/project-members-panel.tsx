@@ -35,7 +35,7 @@ function MemberDialog({ title, busy, onClose, children }: { title: string; busy:
   </div></div>;
 }
 
-export function ProjectMembersPanel({ projectId, viewerId, viewerRole, members }: { projectId: string | null; viewerId: string; viewerRole: ProjectRole | null; members: ProjectMember[] }) {
+export function ProjectMembersPanel({ projectId, viewerId, viewerRole, members, canInvite = true }: { projectId: string | null; viewerId: string; viewerRole: ProjectRole | null; members: ProjectMember[]; canInvite?: boolean }) {
   const router = useRouter();
   const toast = useContext(DesignNoticeContext);
   const [query, setQuery] = useState("");
@@ -74,7 +74,7 @@ export function ProjectMembersPanel({ projectId, viewerId, viewerRole, members }
   }
   return <section className="pm-todo-board pm-members-panel" aria-labelledby="members-heading">
     <div className="pm-todo-heading"><div><h2 id="members-heading"><span className="pm-todo-section-number">02</span>成员架构</h2><p>管理项目成员与权限，共同推进项目协作。</p></div>
-      <div className="pm-todo-tools"><span>共 {members.length} 位成员 · 当前权限：{viewerRole || "无项目权限"}</span>{canManage && <button type="button" className="pm-button-primary" onClick={() => open({ kind: "invite" })}><UserPlus size={16} />邀请新成员</button>}</div>
+      <div className="pm-todo-tools"><span>共 {members.length} 位成员 · 当前权限：{viewerRole || "无项目权限"}</span>{canManage && <button type="button" className="pm-button-primary" disabled={!canInvite} title={!canInvite?"项目已暂停招募或人数已达上限":undefined} onClick={() => open({ kind: "invite" })}><UserPlus size={16} />邀请新成员</button>}</div>
     </div>
     <div className="pm-members-toolbar"><label className="pm-member-search"><Search size={17} aria-hidden="true" /><input aria-label="搜索成员昵称" placeholder="搜索成员昵称…" value={query} maxLength={100} onChange={e => { setQuery(e.target.value); setPage(1); }} /></label>
       <label className="pm-member-filter"><span>项目权限</span><select aria-label="筛选项目权限" value={role} onChange={e => { setRole(e.target.value); setPage(1); }}><option value="">全部权限</option><option>创建者</option><option>管理员</option><option>成员</option></select></label>

@@ -377,3 +377,23 @@ input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-v
 .pm-mcp-write-consent input { accent-color: var(--primary); }
 .pm-files-document-placeholder { min-height: 340px; }
 .pm-files-code-placeholder { min-height: 620px; }
+
+/* Workspace settings reuse the same rounded modal and field controls. */
+.pm-project-settings-dialog { width: min(100%,540px); }
+.pm-project-settings-section { margin-top: 20px; }
+.pm-project-settings-section + .pm-project-settings-section { border-top: 1px solid var(--line); padding-top: 20px; }
+.pm-project-settings-section h3 { font-size: 15px; font-weight: 650; }
+.pm-project-settings-section .pm-workspace-form { margin-top: 12px; }
+.pm-project-settings-section .pm-workspace-form p { font-size: 12px; margin: 0; }
+.pm-project-settings-section select { width: 100%; padding: 10px 12px; border-radius: 9px; background: #fff; font-size: 13px; }
+.pm-project-switch-search { width: 100%; }
+.pm-project-settings-name { font-weight: 600; overflow-wrap: anywhere; }
+.pm-project-settings-info { padding: 12px; border-radius: 10px; background: var(--canvas); font-size: 12px; color: var(--muted); }
+.pm-project-settings-info > div { display: flex; gap: 12px; justify-content: space-between; margin: 4px 0; }
+.pm-project-settings-info dd { margin: 0; text-align: right; overflow-wrap: anywhere; min-width: 0; }
+.pm-project-settings-info dt { flex-shrink: 0; }
+.pm-project-switch-confirm { margin-top: 14px; padding: 12px; border-radius: 10px; background: var(--amber-soft); }
+.pm-project-settings-dialog button { white-space: nowrap; }
+.pm-project-settings-dialog input:disabled, .pm-project-settings-dialog select:disabled { opacity: .65; cursor: not-allowed; }
+button[aria-busy="true"] { cursor: progress; }
+.design-screen [data-action="project-invite"]:disabled, .design-screen .apply-team-btn:disabled { opacity: .5; cursor: not-allowed; }

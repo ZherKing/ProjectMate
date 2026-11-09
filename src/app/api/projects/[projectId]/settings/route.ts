@@ -1,0 +1,5 @@
+import { revalidatePath } from "next/cache";
+import { currentUserId, fileFailure, readBody, requireSameOrigin } from "@/lib/files/http";
+import { ProjectSettingsError, updateProjectSettings } from "@/lib/db/project-settings";
+export const runtime="nodejs";
+export async function POST(request:Request,{params}:{params:Promise<{projectId:string}>}){try{requireSameOrigin(request);const userId=await currentUserId(),{projectId}=await params,body=JSON.parse((await readBody(request,4096)).toString());if(body?.maxMembers!==null&&typeof body?.maxMembers!=="number"||typeof body?.status!=="string")throw new ProjectSettingsError("项目设置格式无效。");const settings=updateProjectSettings(projectId,userId,{maxMembers:body.maxMembers,status:body.status});for(const path of ["/projects","/projects/tasks","/projects/members","/projects/files","/projects/coach","/teams"])revalidatePath(path);return Response.json({ok:true,settings});}catch(error){if(error instanceof ProjectSettingsError)return Response.json({message:error.message},{status:error.status});return fileFailure(error);}}

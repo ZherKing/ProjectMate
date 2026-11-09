@@ -1,6 +1,8 @@
 import { sqlite } from "./client";
 import { initializeDatabase } from "./initialize";
-import { getProjectAccess } from "./project-members";
+import { getProjectAccess, getViewableProjectId } from "./project-members";
+
+import { requireOpenProjectSeat, selectActiveProject, ProjectSettingsError } from "./project-settings";
 
 export function createRecruitmentProject(input: {
   creatorId: string;
@@ -13,15 +15,18 @@ export function createRecruitmentProject(input: {
 }) {
   initializeDatabase();
   const id = crypto.randomUUID();
+  return sqlite.transaction(() => {
   sqlite.prepare("INSERT INTO recruitment_projects (id, creator_id, competition_id, track_name, title, description, roles, weekly_hours, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(id, input.creatorId, input.competitionId, input.trackName, input.title, input.description, input.roles, input.weeklyHours, "招募中", Date.now());
   sqlite.prepare("INSERT OR IGNORE INTO project_members(project_id,user_id,role,joined_at) VALUES(?,?,?,?)").run(id, input.creatorId, "项目发起人", Date.now());
+  selectActiveProject(input.creatorId,id);
   return id;
+  }).immediate();
 }
 
 export function listRecruitmentProjects() {
   initializeDatabase();
-  const rows = sqlite.prepare("SELECT id, creator_id AS creatorId, competition_id AS competitionId, track_name AS trackName, title, description, roles, weekly_hours AS weeklyHours, status, (SELECT name FROM users WHERE users.id = recruitment_projects.creator_id) AS creatorName, (SELECT COUNT(*) FROM users u WHERE u.id=recruitment_projects.creator_id OR EXISTS (SELECT 1 FROM project_members m WHERE m.project_id=recruitment_projects.id AND m.user_id=u.id)) AS memberCount FROM recruitment_projects ORDER BY created_at DESC").all() as Array<{ id: string; title: string; description: string; roles: string | null; trackName: string | null; status: string; weeklyHours: number | null; creatorName: string | null; memberCount: number }>;
-  return rows.map((row) => ({ ...row, seatCount: Math.max(row.memberCount + (row.roles ? row.roles.split(/[，,、/]+/).map((role) => role.trim()).filter(Boolean).length : 1), row.memberCount) }));
+  const rows = sqlite.prepare("SELECT id, creator_id AS creatorId, competition_id AS competitionId, track_name AS trackName, title, description, roles, weekly_hours AS weeklyHours, max_members AS maxMembers, status, (SELECT name FROM users WHERE users.id = recruitment_projects.creator_id) AS creatorName, (SELECT COUNT(*) FROM users u WHERE u.id=recruitment_projects.creator_id OR EXISTS (SELECT 1 FROM project_members m WHERE m.project_id=recruitment_projects.id AND m.user_id=u.id)) AS memberCount FROM recruitment_projects ORDER BY created_at DESC").all() as Array<{ id: string; title: string; description: string; roles: string | null; trackName: string | null; status: string; weeklyHours: number | null; creatorName: string | null; memberCount: number; maxMembers: number | null }>;
+  return rows.map((row) => ({ ...row, seatCount: row.maxMembers }));
 }
 
 export function getAccessibleProjectId(userId: string, requestedId?: string) {
@@ -30,8 +35,8 @@ export function getAccessibleProjectId(userId: string, requestedId?: string) {
     const owned = sqlite.prepare("SELECT id FROM recruitment_projects WHERE id = ? AND creator_id = ?").get(requestedId, userId) as { id: string } | undefined;
     return owned?.id ?? null;
   }
-  const firstOwned = sqlite.prepare("SELECT id FROM recruitment_projects WHERE creator_id = ? ORDER BY created_at DESC LIMIT 1").get(userId) as { id: string } | undefined;
-  return firstOwned?.id ?? null;
+  const active=getViewableProjectId(userId);
+  return active&&getProjectAccess(active,userId)==="创建者"?active:null;
 }
 
 export function getOwnedProjectContext(userId: string, projectId: string) {
@@ -60,6 +65,7 @@ export function createProjectInvite(projectId: string, inviterId: string) {
   initializeDatabase();
   const access = getProjectAccess(projectId, inviterId);
   if (access !== "创建者" && access !== "管理员") return null;
+  requireOpenProjectSeat(projectId);
   const token = crypto.randomUUID().replace(/-/g, "");
   sqlite.prepare("INSERT INTO project_invites(token,project_id,inviter_id,expires_at,created_at) VALUES(?,?,?,?,?)").run(token, projectId, inviterId, Date.now() + 7 * 24 * 60 * 60 * 1000, Date.now());
   return token;
@@ -72,11 +78,13 @@ export function acceptProjectInvite(token: string, userId: string) {
     if (!invite || invite.expiresAt < Date.now() || invite.usedBy) return { ok: false, message: "邀请链接已失效或已使用。" };
     const access = getProjectAccess(invite.projectId, invite.inviterId);
     if (access !== "创建者" && access !== "管理员") return { ok: false, message: "邀请人的项目管理权限已失效，请联系创建者。" };
-    if (getProjectAccess(invite.projectId, userId)) return { ok: true, projectId: invite.projectId };
+    if (getProjectAccess(invite.projectId, userId)) { selectActiveProject(userId,invite.projectId); return { ok: true, projectId: invite.projectId }; }
+    try { requireOpenProjectSeat(invite.projectId); } catch(error) { if(error instanceof ProjectSettingsError)return {ok:false,message:error.message};throw error; }
     sqlite.prepare("INSERT OR IGNORE INTO project_members(project_id,user_id,role,joined_at) VALUES(?,?,?,?)").run(invite.projectId, userId, "成员", Date.now());
     sqlite.prepare("UPDATE project_invites SET used_by=?,used_at=? WHERE token=?").run(userId, Date.now(), token);
+    selectActiveProject(userId,invite.projectId);
     return { ok: true, projectId: invite.projectId };
-  })();
+  }).immediate();
 }
 
 export function addProjectTask(projectId: string, userId: string, input: { title: string; priority: string; assignee: string }) {
@@ -90,7 +98,10 @@ export function addProjectTask(projectId: string, userId: string, input: { title
 
 export function applyToRecruitmentProject(input: { projectId: string; applicantId: string; message?: string }) {
   initializeDatabase();
+  return sqlite.transaction(() => {
+  requireOpenProjectSeat(input.projectId);
   sqlite.prepare(
     "INSERT OR IGNORE INTO team_applications (id, project_id, applicant_id, message, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
   ).run(crypto.randomUUID(), input.projectId, input.applicantId, input.message ?? "", "待审核", Date.now());
+  }).immediate();
 }

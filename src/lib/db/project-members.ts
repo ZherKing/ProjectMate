@@ -24,6 +24,8 @@ export function getProjectAccess(projectId: string, userId: string): ProjectRole
 export function getViewableProjectId(userId: string, requestedId?: string) {
   initializeDatabase();
   if (requestedId) return getProjectAccess(requestedId, userId) ? requestedId : null;
+  const preferred=sqlite.prepare("SELECT project_id AS id FROM user_project_preferences WHERE user_id=?").get(userId) as {id:string}|undefined;
+  if(preferred&&getProjectAccess(preferred.id,userId))return preferred.id;
   const row = sqlite.prepare(`SELECT p.id FROM recruitment_projects p
     LEFT JOIN project_members m ON m.project_id=p.id AND m.user_id=?
     WHERE p.creator_id=? OR m.user_id IS NOT NULL

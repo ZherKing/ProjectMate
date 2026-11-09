@@ -59,6 +59,12 @@ export const competitionTracks = sqliteTable("competition_tracks", {
   deadline: integer("deadline", { mode: "timestamp" }),
 });
 
+export const userProjectPreferences = sqliteTable("user_project_preferences", {
+  userId: text("user_id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
 export const recruitmentProjects = sqliteTable("recruitment_projects", {
   id: text("id").primaryKey(),
   creatorId: text("creator_id").notNull(),
@@ -68,6 +74,7 @@ export const recruitmentProjects = sqliteTable("recruitment_projects", {
   description: text("description").notNull(),
   roles: text("roles"),
   weeklyHours: integer("weekly_hours"),
+  maxMembers: integer("max_members"),
   status: text("status").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });

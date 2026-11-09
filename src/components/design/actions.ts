@@ -18,6 +18,8 @@ import { consumeAiQuota } from "@/lib/ai/limits";
 import { getCompetitionAnalysis } from "@/lib/ai/analysis-cache";
 import { changeProjectMember, getViewableProjectId } from "@/lib/db/project-members";
 
+import { ProjectSettingsError } from "@/lib/db/project-settings";
+
 type Payload = Record<string, string>;
 export type ScreenResult = { ok: boolean; message: string; href?: string; summary?: string; generatedText?: string; generatedTitle?: string; generatedAt?: string; id?: string };
 
@@ -200,6 +202,7 @@ export async function screenAction(action: string, data: Payload = {}): Promise<
       default: return { ok: false, message: "此功能尚在完善中，当前操作未修改数据。" };
     }
   } catch (error) {
+    if (error instanceof ProjectSettingsError) return {ok:false,message:error.message};
     if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) return { ok: false, message: "DeepSeek 请求超时，请检查服务状态后重试。" };
     const detail = error instanceof Error ? error.message.toLowerCase() : "";
     if (/insufficient balance|余额不足|402/.test(detail)) return { ok: false, message: "DeepSeek 账户余额不足，请充值或更换可用的 API Key 后重试。" };

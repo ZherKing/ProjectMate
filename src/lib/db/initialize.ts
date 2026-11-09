@@ -22,6 +22,9 @@ export function initializeDatabase() {
     "CREATE TABLE IF NOT EXISTS competition_ai_analyses (competition_id TEXT NOT NULL, track_id TEXT NOT NULL, source_updated_at INTEGER NOT NULL, analysis TEXT NOT NULL, model TEXT NOT NULL, generated_at INTEGER NOT NULL, PRIMARY KEY(competition_id,track_id));",
   );
   sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS user_project_preferences (user_id TEXT PRIMARY KEY,project_id TEXT NOT NULL,updated_at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS project_report_exports (user_id TEXT NOT NULL,created_at INTEGER NOT NULL);
+    CREATE INDEX IF NOT EXISTS project_report_exports_user_idx ON project_report_exports(user_id,created_at);
     CREATE TABLE IF NOT EXISTS project_files (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, kind TEXT NOT NULL, path TEXT NOT NULL, owner_id TEXT NOT NULL, latest_version_id TEXT NOT NULL, created_at INTEGER NOT NULL, UNIQUE(project_id,kind,path));
     CREATE TABLE IF NOT EXISTS project_file_versions (id TEXT PRIMARY KEY, file_id TEXT NOT NULL, version INTEGER NOT NULL, uploader_id TEXT NOT NULL, size INTEGER NOT NULL, mime TEXT NOT NULL, sha256 TEXT NOT NULL, storage_key TEXT NOT NULL, created_at INTEGER NOT NULL, UNIQUE(file_id,version));
     CREATE TABLE IF NOT EXISTS project_file_uploads (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, uploader_id TEXT NOT NULL, path TEXT NOT NULL, kind TEXT NOT NULL, expected_size INTEGER NOT NULL, received INTEGER NOT NULL, storage_key TEXT NOT NULL, expires_at INTEGER NOT NULL);
@@ -42,6 +45,7 @@ export function initializeDatabase() {
   if (!taskColumns.some(column => column.name === "notes")) sqlite.exec("ALTER TABLE project_tasks ADD COLUMN notes TEXT");
   const projectColumns = sqlite.prepare("PRAGMA table_info(recruitment_projects)").all() as Array<{ name: string }>;
   if (!projectColumns.some((column) => column.name === "nickname")) sqlite.exec("ALTER TABLE recruitment_projects ADD COLUMN nickname TEXT");
+  if (!projectColumns.some(column => column.name === "max_members")) sqlite.exec("ALTER TABLE recruitment_projects ADD COLUMN max_members INTEGER");
   sqlite.exec("UPDATE competitions SET review_status='pending' WHERE review_status='approved' AND status LIKE '%待核验%'");
   sqlite.exec("CREATE INDEX IF NOT EXISTS admin_audit_logs_created_at_idx ON admin_audit_logs(created_at DESC)");
   const userColumns = sqlite.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
