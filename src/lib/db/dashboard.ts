@@ -1,2 +1,35 @@
+import { getProfile } from "./profile";
+import { listCompetitionTracks } from "./queries";
+import { getViewableProjectId } from "./project-members";
+import { getProjectOverview } from "./project-overview";
+import { listProjectTasks, getLatestCoachReport } from "./tasks";
+import { teamMatches } from "@/lib/teams/matching";
 import{sqlite}from"./client";import{listUserProjects}from"./project-settings";import{listCompetitions,listFavoriteCompetitionIds}from"./queries";import{inbox}from"@/lib/notifications/store";import{securityUser}from"@/lib/security/service";
 export function dashboardData(userId:string){const user=securityUser(userId);if(!user)return null;const projects=listUserProjects(userId),favorites=listFavoriteCompetitionIds(userId),competitions=listCompetitions(),favoriteCompetitions=competitions.filter(c=>favorites.has(c.id)||favorites.has(c.name)),now=Date.now();const counts=sqlite.prepare(`SELECT COUNT(*) AS total,COALESCE(SUM(CASE WHEN t.status='已完成' THEN 1 ELSE 0 END),0) AS completed FROM project_tasks t WHERE t.project_id IN(SELECT p.id FROM recruitment_projects p WHERE p.creator_id=? OR EXISTS(SELECT 1 FROM project_members m WHERE m.project_id=p.id AND m.user_id=?))`).get(userId,userId) as {total:number;completed:number};const tasks=sqlite.prepare(`SELECT t.id,t.project_id AS projectId,t.title,t.status,t.priority,COALESCE(p.nickname,p.title) AS projectName FROM project_tasks t JOIN recruitment_projects p ON p.id=t.project_id WHERE t.status<>'已完成' AND(p.creator_id=? OR EXISTS(SELECT 1 FROM project_members m WHERE m.project_id=p.id AND m.user_id=?)) ORDER BY CASE t.priority WHEN '高' THEN 0 WHEN '中' THEN 1 ELSE 2 END,t.created_at ASC LIMIT 5`).all(userId,userId) as Array<{id:string;projectId:string;title:string;status:string;priority:string;projectName:string}>;const deadlines=sqlite.prepare(`SELECT c.id AS competitionId,c.name,MIN(t.deadline) AS deadline FROM competitions c JOIN competition_tracks t ON t.competition_id=c.id WHERE c.review_status='approved' AND t.deadline>=? AND t.deadline<=? GROUP BY c.id ORDER BY deadline`).all(now,now+7*86400000) as Array<{competitionId:string;name:string;deadline:number}>;const selected=new Set([...favoriteCompetitions.map(c=>c.id),...(sqlite.prepare(`SELECT competition_id AS id FROM recruitment_projects p WHERE p.creator_id=? OR EXISTS(SELECT 1 FROM project_members m WHERE m.project_id=p.id AND m.user_id=?)`).all(userId,userId) as Array<{id:string}>).map(r=>r.id)]);const notifications=inbox(userId);return {name:user.name||"项目成员",projects,taskCount:counts.total,unfinished:counts.total-counts.completed,tasks,favorites:favoriteCompetitions.slice(0,5),favoriteCount:favoriteCompetitions.length,deadlines:deadlines.filter(d=>selected.has(d.competitionId)).slice(0,10),notifications:{items:notifications.items.slice(0,5),unread:notifications.unread}};}
+
+/** Read-only dashboard view model; rendering a dashboard never triggers a model call. */
+export function dashboardTemplateData(userId: string) {
+  const data = dashboardData(userId);
+  if (!data) return null;
+  const profile = getProfile(userId);
+  const terms = [...new Set([profile?.skills, profile?.interests, profile?.roles]
+    .filter(Boolean).join(",").toLowerCase().split(/[\s,，、/|]+/).filter(t => t.length >= 2))];
+  const tracks = listCompetitionTracks();
+  const recommendations = listCompetitions().map(item => {
+    const trackNames = tracks.find(group => group.competitionId === item.id)?.names || [];
+    const haystack = [item.name, item.platform, item.status, ...trackNames].join(" ").toLowerCase();
+    const matched = terms.filter(t => haystack.includes(t));
+    const open = /报名中|进行中/.test(item.status);
+    return { ...item, trackNames, matched, score: terms.length ? matched.length * 3 + (open ? 1 : 0) : 0 };
+  }).filter(item => item.score > 0).sort((a,b) => b.score-a.score || b.updatedAt-a.updatedAt);
+  const activeId = getViewableProjectId(userId);
+  const active = data.projects.find(p => p.id === activeId) || data.projects[0] || null;
+  const overview = active ? getProjectOverview(active.id, userId) : null;
+  const activeTasks = active ? listProjectTasks(active.id) : [];
+  const completed = activeTasks.filter(task => task.status === "已完成").length;
+  const report = active ? getLatestCoachReport(active.id) : null;
+  return { ...data, profile, recommendations, active, overview, activeTasks, completed,
+    progress: activeTasks.length ? Math.round(completed / activeTasks.length * 100) : 0,
+    report, teams: teamMatches(userId),
+  };
+}

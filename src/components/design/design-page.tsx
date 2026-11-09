@@ -1,3 +1,4 @@
+import { populateDashboard } from "./dashboard-content";
 import type { AnyNode } from "domhandler";
 import * as cheerio from "cheerio";
 import screens from "@/design/screens.json";
@@ -426,11 +427,6 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     const modalHtml='<div id="competition-detail-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-inverse-surface/45 p-3 sm:p-6 backdrop-blur-[6px]" data-competition-modal data-track-data="'+escapeHtml(JSON.stringify(trackData))+'" data-competition-data="'+escapeHtml(JSON.stringify(competitionData))+'">'+detailCard.toString()+"</div>";
     main.append(modalHtml);
   }
-  if (name === "dashboard") {
-    const h=main.find("h1");h.text("下午好，"+(user?.name || "项目成员")+"！");
-    main.find("a,button").filter((_,el)=>/立即组队|发布队伍/.test(text($(el)))).attr("data-route","/teams/create");
-    main.find('input[type="checkbox"]').attr("data-action","demo-task");
-  }
   if (name === "teams") {
     main.find("span").filter((_, el) => /LIVE TEAMMATCHING SYSTEM|实时组队就绪/.test(text($(el)))).parent().remove();
     main.find("#open-creator-btn").find("span").filter((_, el) => /^\+\s*一键发布组队项目$/.test(text($(el)))).text("一键发布组队项目");
@@ -786,6 +782,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     main.find("#principalInput").attr("placeholder","请输入已注册的登录邮箱");
     main.find("label[for='principalInput']").text("登录邮箱");
   }
+  if (name === "dashboard" && user?.id) populateDashboard($, user.id);
   const renderedHtml = sharedShell ? main.toString() : $("body").html() || "";
   const screen = <DesignScreen key={(filesView ? "project-files" : overviewView ? "project-overview" : membersView ? "project-members" : tasksView ? "project-tasks" : name) + (workspaceProjectId || "")} name={name} settingsSection={settingsSection} workspaceProjectId={workspaceProjectId} html={renderedHtml} loggedIn={!!user} variant={variant} taskBoard={taskBoard} />;
   return sharedShell ? <SiteShell>{screen}</SiteShell> : <>{hasHeader && name !== "competitionDetail" && <SiteHeader />}{screen}{name !== "competitionDetail" && <SiteFooter />}</>;
