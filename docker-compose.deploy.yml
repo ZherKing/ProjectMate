@@ -1,0 +1,24 @@
+services:
+  web:
+    image: ${PROJECTMATE_IMAGE:?请通过 deploy.sh 指定带固定版本的镜像}
+    restart: unless-stopped
+    ports:
+      - "${PROJECTMATE_PORT:-3000}:3000"
+    env_file:
+      - ${PROJECTMATE_ENV_FILE:-.env}
+    environment:
+      DATABASE_URL: file:/app/data/database.sqlite
+      STORAGE_PATH: /app/data/storage
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+    volumes:
+      - projectmate-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "const r=require('http').get('http://127.0.0.1:3000/login',res=>{res.resume();process.exit(res.statusCode>=200&&res.statusCode<400?0:1)});r.on('error',()=>process.exit(1));r.setTimeout(5000,()=>{r.destroy();process.exit(1)})"]
+      interval: 10s
+      timeout: 7s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  projectmate-data:

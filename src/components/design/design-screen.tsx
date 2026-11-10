@@ -1,4 +1,5 @@
 "use client";
+import { captchaTicket } from "@/lib/auth/captcha-client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
@@ -237,13 +238,12 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
       const passwordConfirm = String(data.get("passwordConfirm") || "");
       if(!name || !email || password.length < 8){toast("请填写昵称、有效邮箱和至少 8 位密码。","信息不完整");return;}
       if(password !== passwordConfirm){toast("两次输入的密码不一致。","注册失败");return;}
-      const button=form.querySelector<HTMLButtonElement>("#registerSubmit");if(button)button.disabled=true;
+      const button=form.querySelector<HTMLButtonElement>("#registerSubmit");if(button?.disabled)return;if(button)button.disabled=true;
       try {
-        const response=await fetch("/api/register",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name,email,password})});
-        const result=await response.json() as {ok?:boolean;message?:string};
+        const response=await fetch("/api/register",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name,email,password,captchaTicket:await captchaTicket("register",email)})});
+        const result=await response.json() as {ok?:boolean;message?:string;ticket:string};
         if(!response.ok||!result.ok){toast(result.message||"注册未完成，请稍后重试。","注册失败");return;}
-        const signed=await signIn("credentials",{email,password,redirect:false});
-        if(!signed?.ok||signed.error){toast("账号已创建，请返回登录。","注册完成");return;}
+        await renewSession(result.ticket);
         router.push("/profile");router.refresh();
       } catch {toast("注册服务暂时不可用，请稍后重试。","注册失败");}
       finally {if(button)button.disabled=false;}
@@ -261,13 +261,13 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
     try {
       if(loginMethod.current==="sms"){
         const emailCode=root.current?.querySelector<HTMLInputElement>("#smsInput")?.value||"";
-        const verified=await accountApi("/api/auth/email",{action:"verify",email:principal,code:emailCode});
+        const verified=await accountApi("/api/auth/email",{action:"verify",email:principal,code:emailCode,captchaTicket:await captchaTicket("email-login",principal)});
         if(verified.needsFactor){setLoginChallenge({kind:"email",challenge:verified.challenge});return;}
         await renewSession(verified.ticket);finishLogin();return;
       }
-      const result=await signIn("credentials",{email:principal,password,redirect:false});
+      const result=await signIn("credentials",{email:principal,password,captchaTicket:await captchaTicket("login",principal),redirect:false});
       if(result?.code==="two_factor_required"){setLoginChallenge({kind:"password",email:principal,password});return;}
-      if(!result?.ok||result.error){toast(result?.code==="rate_limited"?"尝试过于频繁，请稍后再试。":"账号或密码不正确，请重新输入。","登录失败");return;}
+      if(!result?.ok||result.error){toast(result?.code==="captcha_required"?"人机验证已失效，请重新验证。":result?.code==="rate_limited"?"尝试过于频繁，请稍后再试。":"账号或密码不正确，请重新输入。","登录失败");return;}
       finishLogin();
     } catch(error) {toast(error instanceof Error?error.message:"登录服务暂时不可用，请稍后重试。","登录失败");}
     finally {loginPending.current=false;if(button)button.disabled=false;}
@@ -321,8 +321,8 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
       for(const [id,active] of [["btnMethodPwd",!sms],["btnMethodSms",sms]] as const){const tab=root.current.querySelector('#'+id);tab?.classList.toggle("text-primary",active);tab?.classList.toggle("text-on-surface-variant",!active);}
       return;
     }
-    if(action==="auth-github"){event.preventDefault();window.location.assign("/api/auth/github?next="+encodeURIComponent(new URLSearchParams(location.search).get("next")||"/dashboard"));return;}
-    if(action==="auth-email-send"){event.preventDefault();const email=root.current.querySelector<HTMLInputElement>("#principalInput")?.value.trim()||"";if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast("请填写已注册的登录邮箱。","信息不完整");return;}if(button)button.disabled=true;try{const result=await accountApi("/api/auth/email",{action:"send",email});toast(result.message,"验证码请求完成");}catch(e){toast((e as Error).message,"发送未完成");}finally{if(button)button.disabled=false;}return;}
+    if(action==="auth-github"){event.preventDefault();if(button)button.disabled=true;try{const result=await accountApi("/api/auth/github",{captchaTicket:await captchaTicket("github","github"),next:new URLSearchParams(location.search).get("next")||"/dashboard"});window.location.assign(result.url);}catch(e){toast((e as Error).message,"登录未完成");}finally{if(button)button.disabled=false;}return;}
+    if(action==="auth-email-send"){event.preventDefault();const email=root.current.querySelector<HTMLInputElement>("#principalInput")?.value.trim()||"";if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast("请填写已注册的登录邮箱。","信息不完整");return;}if(button)button.disabled=true;try{const result=await accountApi("/api/auth/email",{action:"send",email,captchaTicket:await captchaTicket("email-send",email)});toast(result.message,"验证码请求完成");}catch(e){toast((e as Error).message,"发送未完成");}finally{if(button)button.disabled=false;}return;}
     if(action==="auth-forgot"){event.preventDefault();root.current.querySelector<HTMLButtonElement>("#btnMethodSms")?.click();toast("可使用登录邮箱验证码和已启用的两步验证登录，再到个人设置更新密码。","找回密码");return;}
     if(action==="auth-unavailable"){event.preventDefault();toast("此认证服务尚未配置，请使用邮箱密码、邮箱验证码或已绑定的GitHub登录。","暂不可用");return;}
     if(el.matches("[data-role-toggle]")){

@@ -1,3 +1,5 @@
+import { ProjectDiscussionPanel } from "./project-discussion-panel";
+import { discussionMessages } from "@/lib/db/discussions";
 import { populateDashboard } from "./dashboard-content";
 import type { AnyNode } from "domhandler";
 import * as cheerio from "cheerio";
@@ -35,11 +37,12 @@ import { sqlite } from "@/lib/db/client";
 export type ScreenName = keyof typeof screens;
 
 export async function DesignPage({ name, variant, query, adminSection = "review", settingsSection = "profile" }: { name: ScreenName; variant?: "register"; query?: Record<string, string | string[] | undefined>; adminSection?: "review" | "sources" | "users" | "logs" | "settings"; settingsSection?: SettingsSection }) {
+  const discussionView = name === "projects" && query?.tab === "discussion";
   const tasksView = name === "projects" && query?.tab === "tasks";
   const membersView = name === "projects" && query?.tab === "members";
   const coachView = name === "projects" && query?.tab === "coach";
   const filesView = name === "projects" && query?.tab === "files";
-  const overviewView = name === "projects" && !tasksView && !membersView && !coachView && !filesView;
+  const overviewView = name === "projects" && !tasksView && !membersView && !coachView && !filesView && !discussionView;
   const requestedProjectId = typeof query?.project === "string" ? query.project : undefined;
   const session = await auth();
   const user = session?.user;
@@ -744,10 +747,11 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     const overviewTab = tabs.children("button").filter((_,el)=>text($(el)) === "概览").first();
     tabs.children("button").filter((_,el)=>text($(el)) === "复盘归档").remove();
     const filesTab = tabs.children("button").filter((_,el)=>text($(el)) === "文档产出").first();
-    [taskTab, coachTab, memberTab, overviewTab, filesTab].forEach((tab,index)=>{
-      const active = index === 0 ? tasksView : index === 1 ? coachView : index === 2 ? membersView : index === 3 ? overviewView : filesView;
+    const discussionTab = filesTab.clone().text("讨论空间").insertAfter(filesTab);
+    [taskTab, coachTab, memberTab, overviewTab, filesTab, discussionTab].forEach((tab,index)=>{
+      const active = index === 0 ? tasksView : index === 1 ? coachView : index === 2 ? membersView : index === 3 ? overviewView : index === 4 ? filesView : discussionView;
       tab.attr("class", "px-4 py-2 rounded-lg flex items-center gap-1.5 whitespace-nowrap " + (active ? "font-title-md text-title-md bg-surface-container-lowest text-primary shadow-sm" : "font-body-md text-body-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest"));
-      tab.attr("aria-current", active ? "page" : "false").attr("data-route", (index === 0 ? "/projects/tasks" : index === 1 ? "/projects/coach" : index === 2 ? "/projects/members" : index === 3 ? "/projects" : "/projects/files") + projectSuffix).removeAttr("data-action");
+      tab.attr("aria-current", active ? "page" : "false").attr("data-route", (index === 0 ? "/projects/tasks" : index === 1 ? "/projects/coach" : index === 2 ? "/projects/members" : index === 3 ? "/projects" : index === 4 ? "/projects/files" : "/projects/discussion") + projectSuffix).removeAttr("data-action");
     });
     main.attr("data-workspace-project-id", projectId || "");
     main.find('button[aria-label="项目设置"]').attr("data-action","project-settings").removeAttr("data-route");
@@ -760,11 +764,13 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     if (workspaceRole !== "创建者" && workspaceRole !== "管理员") {
       main.find('[data-action="project-invite"]').remove();
     }
-    if (tasksView || membersView || overviewView || filesView) {
+    if (tasksView || membersView || overviewView || filesView || discussionView) {
       // Replace only the content beneath the shared tabs inside the existing width wrapper.
       tabs.nextAll().remove();
       tabs.after('<div data-todo-slot></div>');
-      taskBoard = filesView
+      taskBoard = discussionView
+        ? <ProjectDiscussionPanel projectId={projectId} userId={user?.id || ""} initial={projectId && user?.id ? discussionMessages(projectId,user.id) : {messages:[],hasMore:false}} />
+        : filesView
         ? <ProjectFilesPanel projectId={projectId} userId={user?.id || ""} role={workspaceRole} initialFiles={projectId && user?.id ? listProjectFiles(projectId,user.id) : []} initialUsage={projectId && user?.id ? fileUsage(projectId,user.id) : {usedBytes:0,...fileLimits()}} mcpUrl={resourceUrl()} />
         : overviewView
         ? <ProjectOverviewPanel data={projectId && user?.id ? getProjectOverview(projectId, user.id) : null} />
@@ -784,7 +790,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
   }
   if (name === "dashboard" && user?.id) populateDashboard($, user.id);
   const renderedHtml = sharedShell ? main.toString() : $("body").html() || "";
-  const screen = <DesignScreen key={(filesView ? "project-files" : overviewView ? "project-overview" : membersView ? "project-members" : tasksView ? "project-tasks" : name) + (workspaceProjectId || "")} name={name} settingsSection={settingsSection} workspaceProjectId={workspaceProjectId} html={renderedHtml} loggedIn={!!user} variant={variant} taskBoard={taskBoard} />;
+  const screen = <DesignScreen key={(discussionView ? "project-discussion" : filesView ? "project-files" : overviewView ? "project-overview" : membersView ? "project-members" : tasksView ? "project-tasks" : name) + (workspaceProjectId || "")} name={name} settingsSection={settingsSection} workspaceProjectId={workspaceProjectId} html={renderedHtml} loggedIn={!!user} variant={variant} taskBoard={taskBoard} />;
   return sharedShell ? <SiteShell>{screen}</SiteShell> : <>{hasHeader && name !== "competitionDetail" && <SiteHeader />}{screen}{name !== "competitionDetail" && <SiteFooter />}</>;
 }
 

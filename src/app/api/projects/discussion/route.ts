@@ -1,0 +1,5 @@
+import { securityActor,securityBody,securityFailure,field } from "@/lib/security/http";
+import { discussionMessages,sendDiscussionMessage } from "@/lib/db/discussions";
+import { SecurityError } from "@/lib/security/error";
+export async function GET(request:Request){try{const user=await securityActor(),q=new URL(request.url).searchParams;const before=q.get('before'),after=q.get('after');if([before,after].some(v=>v!==null&&(!Number.isSafeInteger(Number(v))||Number(v)<0)))throw new SecurityError('分页标识无效。');return Response.json(discussionMessages(q.get('project')||'',user,before?Number(before):undefined,after!==null?Number(after):undefined),{headers:{'Cache-Control':'no-store'}});}catch(e){return securityFailure(e);}}
+export async function POST(request:Request){try{const user=await securityActor(request),body=await securityBody(request);return Response.json(sendDiscussionMessage(field(body,'projectId'),user,field(body,'body',2001),field(body,'requestId')),{headers:{'Cache-Control':'no-store'}});}catch(e){return securityFailure(e);}}

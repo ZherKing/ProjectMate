@@ -22,6 +22,8 @@ export function initializeDatabase() {
     "CREATE TABLE IF NOT EXISTS competition_ai_analyses (competition_id TEXT NOT NULL, track_id TEXT NOT NULL, source_updated_at INTEGER NOT NULL, analysis TEXT NOT NULL, model TEXT NOT NULL, generated_at INTEGER NOT NULL, PRIMARY KEY(competition_id,track_id));",
   );
   sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS project_discussion_messages (id INTEGER PRIMARY KEY AUTOINCREMENT,project_id TEXT NOT NULL,user_id TEXT NOT NULL,body TEXT NOT NULL,request_id TEXT NOT NULL,created_at INTEGER NOT NULL,UNIQUE(project_id,user_id,request_id));
+    CREATE INDEX IF NOT EXISTS project_discussion_project_idx ON project_discussion_messages(project_id,id);
     CREATE TABLE IF NOT EXISTS user_project_preferences (user_id TEXT PRIMARY KEY,project_id TEXT NOT NULL,updated_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS project_report_exports (user_id TEXT NOT NULL,created_at INTEGER NOT NULL);
     CREATE INDEX IF NOT EXISTS project_report_exports_user_idx ON project_report_exports(user_id,created_at);

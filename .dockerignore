@@ -16,3 +16,9 @@ AGENTS.md
 
 # Isolated UI verification build
 /.next-ui-qa/
+
+# Isolated builds, local SQLite sidecars and verification output
+.next-*
+*.sqlite*
+*.db
+coverage
