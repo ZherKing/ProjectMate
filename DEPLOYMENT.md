@@ -8,36 +8,55 @@
 ./build.sh 1.0.0
 ```
 
-默认构建 `projectmate:1.0.0`，目标平台 `linux/amd64`，然后执行 `docker image save` 并 gzip 压缩，生成 `artifacts/projectmate-1.0.0.tar.gz`。脚本不启动容器、不推送镜像，已有同名包时拒绝覆盖。压缩包只包含镜像，不包含数据库、上传文件或 `.env`。
+默认构建 `projectmate:1.0.0`，目标平台 `linux/amd64`，通过 `docker image save` 导出 TAR，再生成 `artifacts/projectmate-1.0.0-amd64.zip`。已有同名 ZIP 时拒绝覆盖，不推送镜像或启动容器。构建机需安装 `zip`。
+
+ZIP 解压后的内容：
+
+```text
+projectmate-1.0.0-amd64.tar  # Docker 镜像
+release.txt                 # 构建时镜像标签与TAR名称记录，仅供参考
+deploy.sh
+docker-compose.deploy.yml
+.env.example
+DEPLOYMENT.md
+```
+
+发布包不包含开发机 `.env`、数据库或上传文件。本项目在运行时自动创建 SQLite 数据库和表，无需种子库；数据库、上传文件持久化到 Docker 命名卷。
 
 ARM64 服务器需要显式指定：
 
 ```sh
-PROJECTMATE_PLATFORM=linux/arm64 ./build.sh 1.0.0
+PROJECTMATE_PLATFORM=linux/arm64 bash build.sh 1.0.0
 ```
 
-可用第二参数自定义镜像名，例如 `./build.sh 1.0.0 myteam/projectmate`；输出目录由 `PROJECTMATE_OUTPUT_DIR` 指定。跨架构构建需要 Docker 的相应平台构建支持，依赖与基础镜像仍需在构建机下载。
+可用第二参数自定义镜像名，例如 `bash build.sh 1.0.0 myteam/projectmate`；输出目录由 `PROJECTMATE_OUTPUT_DIR` 指定。跨架构构建需要 Docker 的相应平台构建支持，依赖与基础镜像仍需在构建机下载。
 
 ## 上传到服务器并部署
 
-将以下文件上传至服务器同一目录：
-
-- `artifacts/projectmate-1.0.0.tar.gz`
-- `deploy.sh`
-- `docker-compose.deploy.yml`
-- 服务器自己的 `.env`（首次参考 `.env.example` 创建，不将开发密钥直接公开）
+服务器须已安装 Docker Engine、支持 `up --wait` 的 Compose 插件、`unzip`；首次自动生成密钥需要 `openssl`。无需源码、Node.js 或镜像仓库账号。
 
 ```sh
-# 本机执行：替换服务器账号、地址和目标路径
-scp artifacts/projectmate-1.0.0.tar.gz deploy.sh docker-compose.deploy.yml user@server:/srv/projectmate/
+# 本机：先在服务器创建 /srv/projectmate，替换账号与地址
+scp artifacts/projectmate-1.0.0-amd64.zip user@server:/srv/projectmate/
 
-# 服务器执行：先准备好 /srv/projectmate/.env
+# 服务器：每次都使用同一个部署目录
 cd /srv/projectmate
-chmod +x deploy.sh
-./deploy.sh projectmate-1.0.0.tar.gz projectmate:1.0.0
+unzip -o projectmate-1.0.0-amd64.zip
+bash deploy.sh
 ```
 
-脚本校验压缩包，执行 `docker image load`，确认归档包含指定标签后再启动 `web`，不拉取镜像。版本不匹配或导入失败时，不重建当前服务。仅导入你自己构建或信任的镜像包。目标机器须已安装 Docker Engine 和 Compose；无需克隆源码、安装 Node 或登录镜像仓库。
+首次部署会从 `.env.example` 创建权限为 `600` 的 `.env`，自动生成随机 `AUTH_SECRET`，并在交互终端询问网站对外地址 `AUTH_URL`。AI、GitHub 等可选配置可提前在 `.env` 中填写；已有 `.env` 不会被覆盖。无交互终端时，脚本创建配置后退出，提示编辑配置并重新运行。不要将 `AUTH_SECRET` 留为 `change-me`。
+
+执行后提示输入镜像包文件名，例如 `projectmate-1.0.0-amd64.tar`；可以填写绝对路径，路径含空格也无需额外加引号。文件必须已上传并解压为 Docker 镜像归档，不能填写发布 ZIP。脚本校验文件后导入，自动识别包内唯一版本标签；存在多个标签时会列出并要求输入完整标签。`release.txt` 只供参考，不再决定要部署的文件。空输入、文件缺失、导入失败、无版本或标签不匹配时不重建服务。只导入自己构建或信任的镜像包。
+
+升级时将新 ZIP 解压到**同一目录**，再次执行 `bash deploy.sh`；只覆盖发布文件，保留服务器 `.env`。保持同一个 Compose 项目名，数据库和上传文件继续使用原数据卷。不要为了升级删除数据卷，也不要直接用开发库覆盖生产库。更换部署目录时，应明确通过 `PROJECTMATE_ENV_FILE` 指向原服务器配置。
+
+兼容原来的显式参数方式（包含旧版 `.tar.gz` 包）：
+
+```sh
+bash deploy.sh projectmate-1.0.0-amd64.tar projectmate:1.0.0
+bash deploy.sh projectmate-1.0.0.tar.gz projectmate:1.0.0
+```
 
 若镜像早已手动导入，也保留本地镜像模式：
 
@@ -45,7 +64,7 @@ chmod +x deploy.sh
 ./deploy.sh projectmate:1.0.0 --local
 ```
 
-脚本等待 HTTP 健康检查；失败时返回非零退出码。健康检查只证明应用可访问，不代表 SMTP、AI 等服务已配置。部署会重建应用容器，可能短暂中断。部署不会删除数据卷。
+脚本等待 HTTP 健康检查；失败时输出容器状态和最近日志，并返回非零退出码。健康检查只证明应用可访问，不代表 SMTP、AI 等服务已配置。部署会重建应用容器，可能短暂中断。部署不会删除数据卷。
 
 可选覆盖：
 
@@ -112,3 +131,29 @@ GEETEST_KEY=极验控制台的服务端密钥
 ## 项目讨论记录
 
 项目空间的“讨论空间”使用同一 SQLite 数据库长期保存消息，每 5 秒拉取新消息，历史按 30 条分批加载。只有项目当前成员可读写；退出或被移除后失去访问权限。容器升级继续复用数据卷，讨论记录随数据库一并保留。注销账号时，个人独立项目的讨论随项目清理，共享项目中的协作记录保留并显示“已注销用户”。
+
+## EdgeOne + Nginx（无需源站证书）
+
+仓库根目录的 `nginx.conf` 是**站点配置片段**，供宿主机 Nginx 的 `http` 块包含；不要用它直接覆盖 `/etc/nginx/nginx.conf`。它监听 HTTP 80，将请求代理至同一宿主机的 `127.0.0.1:3000`，兼容流式响应、MCP、WebSocket 与上传，不启用 Nginx 代理缓存。
+
+1. 将 `server_name _;` 改成实际域名，如 `server_name example.com www.example.com;`。`_` 只是占位名称，不是通配匹配规则。
+2. 若用 `PROJECTMATE_PORT` 改过宿主机端口，相应修改 `proxy_pass` 的端口。此配置假定 Nginx 在宿主机运行；若 Nginx 也在容器里，`127.0.0.1` 指向该 Nginx 容器，需改为共享网络中的应用服务地址。
+3. 在 EdgeOne 设置该域名 HTTP 回源、回源端口 80，回源 Host 保持公网域名。HTTPS 在 EdgeOne 终止，边缘启用 HTTP 跳转 HTTPS；源站不配置证书，也不再做 HTTPS 跳转，以免回源循环。
+4. 服务器 `.env` 中设置 `AUTH_URL=https://你的公网域名`。配置优先转发 EdgeOne 提供的合法 `X-Forwarded-Proto`，未提供时按公网 HTTPS 处理；不要改成源站的 `$scheme`，HTTP 回源不代表访客使用 HTTP。
+5. EdgeOne 不要缓存登录/注册、API/MCP、设置、仪表盘、项目空间等动态或带身份的响应；最稳妥是只为 `/_next/static/*` 配置静态缓存，其他路径绕过缓存。流式接口的边缘超时也需满足实际请求时间。
+6. 默认允许 25 MiB 请求体，覆盖应用默认 20 MiB 文件限制。提高 `.env` 的 `PROJECT_FILE_MAX_MB` 时，同步调整 Nginx 及 EdgeOne 上传限制，留出请求封装余量。
+
+在服务器自行检查并加载（本次未自动执行）：
+
+```sh
+sudo cp nginx.conf /etc/nginx/conf.d/projectmate.conf
+sudo nginx -t
+# 仅在校验成功后执行
+sudo systemctl reload nginx
+```
+
+先确认主配置在 `http` 块内包含 `/etc/nginx/conf.d/*.conf`，并处理已有同域名站点，避免重复路由。配置不包含默认站点删除操作。
+
+这里没有盲目信任所有客户端 IP 头：源站日志中的 `$remote_addr` 仍是直连的 EdgeOne 节点地址。需要真实客户端 IP 时，应按 EdgeOne 官方说明，仅对受信回源 IP 范围配置 `set_real_ip_from` 与对应真实 IP 头，不能用 `0.0.0.0/0` 信任任意请求。源站访问限制也应在服务器防火墙或 EdgeOne 回源鉴权中配置。
+
+Nginx 代理指令参考：[官方文档](https://nginx.org/en/docs/http/ngx_http_proxy_module.html)。

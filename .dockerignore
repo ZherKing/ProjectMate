@@ -27,3 +27,7 @@ coverage
 /artifacts/
 *.tar.gz
 *.tgz
+
+# Offline release bundles (including custom output directories)
+*.zip
+*.tar

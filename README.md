@@ -268,7 +268,7 @@ npm run start
 ./build.sh 1.0.0
 ```
 
-生成 `artifacts/projectmate-1.0.0.tar.gz`，包含镜像 `projectmate:1.0.0`，不包含数据库、上传文件或 `.env`。默认目标平台为常见服务器的 `linux/amd64`；ARM64 服务器使用：
+生成 `artifacts/projectmate-1.0.0-amd64.zip`，包含镜像 TAR、部署脚本、Compose 配置、`.env.example`、版本信息和部署说明；不包含数据库、上传文件或本地 `.env`。构建机需安装 `zip`。默认目标平台为常见服务器的 `linux/amd64`；ARM64 服务器使用：
 
 ```bash
 PROJECTMATE_PLATFORM=linux/arm64 ./build.sh 1.0.0
@@ -278,17 +278,19 @@ PROJECTMATE_PLATFORM=linux/arm64 ./build.sh 1.0.0
 
 ### 7.2 上传服务器并导入部署
 
-上传镜像包、`deploy.sh`、`docker-compose.deploy.yml` 到同一目录，在服务器独立准备 `.env`，填写稳定的 `AUTH_SECRET` 和实际 HTTPS `AUTH_URL`。
+上传 ZIP 到服务器固定部署目录并解压。首次运行自动生成随机 `AUTH_SECRET`，交互询问实际 `AUTH_URL`；无交互时提示编辑生成的 `.env` 后重新运行。首次生成密钥需安装 `openssl`。已有 `.env` 不会覆盖。
 
 ```bash
 # 本机执行，替换服务器信息
-scp artifacts/projectmate-1.0.0.tar.gz deploy.sh docker-compose.deploy.yml user@server:/srv/projectmate/
+scp artifacts/projectmate-1.0.0-amd64.zip user@server:/srv/projectmate/
 
-# 服务器执行，先准备 .env
+# 服务器执行（每次升级使用同一部署目录）
 cd /srv/projectmate
-chmod +x deploy.sh
-./deploy.sh projectmate-1.0.0.tar.gz projectmate:1.0.0
+unzip -o projectmate-1.0.0-amd64.zip
+bash deploy.sh
 ```
+
+按提示输入实际镜像包文件名（例如 `projectmate-1.0.0-amd64.tar`），脚本检查文件并导入后识别版本；多标签时要求选择，不再依赖 `release.txt` 的旧文件名。
 
 脚本校验归档、通过 `docker image load` 导入、确认精确版本标签，再部署并等待 HTTP 健康检查；不从镜像仓库拉取。服务器只需 Docker/Compose，无需源码或 Node 环境。只导入可信的包，并确保构建平台与服务器 CPU 架构一致。
 
@@ -413,8 +415,8 @@ ProjectMate/
 ├── Dockerfile                 # 多阶段构建与非 root 运行镜像
 ├── docker-compose.yml         # 从源码构建的基础 Compose 入口
 ├── docker-compose.deploy.yml  # 指定版本镜像、健康检查与持久卷
-├── build.sh                   # 构建并导出版本化 tar.gz 镜像包
-├── deploy.sh                  # 导入离线镜像包并部署指定版本
+├── build.sh                   # 构建镜像并生成 ZIP 发布包
+├── deploy.sh                  # 交互输入镜像包、识别版本并部署
 ├── DEPLOYMENT.md              # 部署与反向代理补充说明
 ├── drizzle.config.ts          # Drizzle 数据库开发工具配置
 ├── next.config.ts             # standalone 输出与构建目录配置
@@ -573,8 +575,9 @@ node --env-file=.env --import tsx src/lib/db/seed.ts
 node --env-file=.env --import tsx src/lib/crawler/sync.ts
 
 # 镜像构建导出 / 服务器导入部署
-./build.sh 1.0.0
-./deploy.sh projectmate-1.0.0.tar.gz projectmate:1.0.0
+bash build.sh 1.0.0
+# 服务器解压 ZIP 后，在部署目录执行
+bash deploy.sh
 
 # 代码差异格式检查
 git diff --check
