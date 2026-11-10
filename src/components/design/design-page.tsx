@@ -789,6 +789,7 @@ export async function DesignPage({ name, variant, query, adminSection = "review"
     main.find("label[for='principalInput']").text("登录邮箱");
   }
   if (name === "dashboard" && user?.id) populateDashboard($, user.id);
+  if (name === "home") $("#demo-modal").remove();
   const renderedHtml = sharedShell ? main.toString() : $("body").html() || "";
   const screen = <DesignScreen key={(discussionView ? "project-discussion" : filesView ? "project-files" : overviewView ? "project-overview" : membersView ? "project-members" : tasksView ? "project-tasks" : name) + (workspaceProjectId || "")} name={name} settingsSection={settingsSection} workspaceProjectId={workspaceProjectId} html={renderedHtml} loggedIn={!!user} variant={variant} taskBoard={taskBoard} />;
   return sharedShell ? <SiteShell>{screen}</SiteShell> : <>{hasHeader && name !== "competitionDetail" && <SiteHeader />}{screen}{name !== "competitionDetail" && <SiteFooter />}</>;

@@ -1,4 +1,5 @@
 "use client";
+import { WorkflowDemoDialog } from "./workflow-demo-dialog";
 import { captchaTicket } from "@/lib/auth/captcha-client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -40,6 +41,7 @@ async function revealText(target: HTMLElement | null, value: string) {
 export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspaceProjectId, settingsSection }: { name: string; html: string; loggedIn: boolean; variant?: "register"; taskBoard?: ReactNode; workspaceProjectId?: string | null; settingsSection?: string }) {
   const root=useRef<HTMLDivElement>(null);
   useEffect(()=>{const screen=root.current?.closest<HTMLElement>(".design-screen");if(screen)screen.dataset.interactive="true";return()=>{if(screen)delete screen.dataset.interactive;};},[]);
+  const [demoOpen,setDemoOpen]=useState(false);
   const [settingsOpen,setSettingsOpen]=useState(false);
   const [teamMatchOpen,setTeamMatchOpen]=useState(false);
   const [loginChallenge,setLoginChallenge]=useState<LoginChallenge|null>(null);
@@ -472,8 +474,8 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
       const svg='<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520"><rect width="900" height="520" rx="24" fill="#3525cd"/><text x="60" y="90" font-size="30" fill="white">ProjectMate · 招募搭档</text><text x="60" y="200" font-size="30" fill="white">'+title.slice(0,24)+'</text><text x="60" y="300" font-size="22" fill="white">'+roles.slice(0,36)+'</text><text x="60" y="430" font-size="20" fill="white">'+location.origin+'/teams</text></svg>';
       const url=URL.createObjectURL(new Blob([svg],{type:"image/svg+xml"}));const a=document.createElement("a");a.href=url;a.download="项目招募海报.svg";a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);toast("招募海报已生成。","下载已开始");return;
     }
-    if(action==="open-demo"){modal("demo-modal",true);return;}
-    if(action==="close-demo"){modal("demo-modal",false);return;}
+    if(action==="open-demo"){setDemoOpen(true);return;}
+    if(action==="close-demo"){setDemoOpen(false);return;}
     if(action==="access-details"){root.current.querySelector('[data-access-details]')?.scrollIntoView({behavior:"smooth"});return;}
     if(action==="favorite"){
       const key=el.dataset.favoriteKey||el.closest('article,[data-competition-id]')?.querySelector('h3')?.textContent||"selected-track";
@@ -556,7 +558,7 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
   }
   return <div className="design-screen" data-screen={name} data-variant={variant}>
     <div ref={root} onSubmit={onAuthSubmit} onClick={onClick} onKeyDown={event=>{if(event.key==="Enter"&&(event.target as HTMLElement).matches("[data-coach-input]")){event.preventDefault();root.current?.querySelector<HTMLButtonElement>("button[data-action='coach']")?.click();}}} onInput={event=>{const target=event.target as HTMLElement;if(target.matches('[data-team-search]'))filterTeams();else if(target.matches('[data-publish-competition-search]')){const query=(target as HTMLInputElement).value.trim().toLowerCase();root.current?.querySelectorAll<HTMLOptionElement>('[data-publish-competition-select] option').forEach(option=>{option.hidden=Boolean(query&&!option.textContent?.toLowerCase().includes(query));});}else if(target.matches('[data-publish-competition-select]'))refreshPublishCompetition(target as HTMLSelectElement);else if(target.matches('[data-competition-search]')){if(competitionFilterTimer.current)clearTimeout(competitionFilterTimer.current);competitionFilterTimer.current=setTimeout(()=>filterCompetitions(),100);}else if(target.matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}} onChange={event=>{const target=event.target as HTMLElement;if(target.matches('[data-publish-competition-select]'))refreshPublishCompetition(target as HTMLSelectElement);else if(target.matches('[data-platform-filter],[data-status-filter]'))filterCompetitions();}}>{markup}</div>
-    <DesignNoticeContext.Provider value={toast}>{taskSlot && taskBoard && createPortal(taskBoard,taskSlot)}{accountSlot&&name==="settings"&&settingsSection!=="profile"&&createPortal(<AccountSettingsWorkspace section={settingsSection||"security"}/>,accountSlot)}{loginChallenge&&<LoginFactorDialog challenge={loginChallenge} onClose={()=>setLoginChallenge(null)} onSuccess={finishLogin} onRecovery={()=>{setLoginChallenge(null);setLoginRecovery(true);}}/>}{loginRecovery&&<LoginRecoveryDialog initialEmail={root.current?.querySelector<HTMLInputElement>("#principalInput")?.value||""} onClose={()=>setLoginRecovery(false)} onSuccess={finishLogin}/>}{teamMatchOpen&&<TeamMatchDialog onClose={()=>setTeamMatchOpen(false)}/>} {settingsOpen&&<ProjectWorkspaceSettings projectId={workspaceProjectId||null} onClose={()=>setSettingsOpen(false)}/>}</DesignNoticeContext.Provider>
+    <DesignNoticeContext.Provider value={toast}>{demoOpen&&<WorkflowDemoDialog onClose={()=>setDemoOpen(false)}/>}{taskSlot && taskBoard && createPortal(taskBoard,taskSlot)}{accountSlot&&name==="settings"&&settingsSection!=="profile"&&createPortal(<AccountSettingsWorkspace section={settingsSection||"security"}/>,accountSlot)}{loginChallenge&&<LoginFactorDialog challenge={loginChallenge} onClose={()=>setLoginChallenge(null)} onSuccess={finishLogin} onRecovery={()=>{setLoginChallenge(null);setLoginRecovery(true);}}/>}{loginRecovery&&<LoginRecoveryDialog initialEmail={root.current?.querySelector<HTMLInputElement>("#principalInput")?.value||""} onClose={()=>setLoginRecovery(false)} onSuccess={finishLogin}/>}{teamMatchOpen&&<TeamMatchDialog onClose={()=>setTeamMatchOpen(false)}/>} {settingsOpen&&<ProjectWorkspaceSettings projectId={workspaceProjectId||null} onClose={()=>setSettingsOpen(false)}/>}</DesignNoticeContext.Provider>
     {notice&&<div className={`fixed top-20 right-6 z-[100] w-80 max-w-[calc(100vw-2rem)] flex gap-3 overflow-hidden p-4 pb-5 bg-white rounded-xl shadow-xl border-l-4 border-primary ${noticeClosing?"pm-toast-closing":""}`} role="status" aria-live="polite" style={{"--pm-toast-duration":`${notice.login?1200:5000}ms`} as CSSProperties}><Info className="text-primary shrink-0" size={20}/><div className="flex-1"><p className="text-label-md font-semibold">{notice.title}</p><p className="text-body-sm text-on-surface-variant mt-1">{notice.message}</p></div>{!notice.login&&<button aria-label="关闭通知" onClick={()=>{setNoticeClosing(true);setTimeout(()=>setNotice(null),220);}}><X size={16}/></button>}<span className="pm-toast-progress absolute bottom-0 left-0 h-[3px] w-full origin-left bg-primary" aria-hidden="true"/></div>}
   </div>;
 }
