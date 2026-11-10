@@ -430,8 +430,8 @@ ProjectMate/
 
 | 项目 | 值 |
 | --- | --- |
-| 邮箱 | `demo@projectmate.local` |
-| 密码 | `projectmate-demo` |
+| 邮箱 | `judge@projectmate.local` |
+| 密码 | `projectmatedemo` |
 | 创建条件 | `users` 表为空时执行种子初始化 |
 | 默认角色 | 普通用户，不是固定管理员 |
 
@@ -664,7 +664,7 @@ SMTP 由管理员后台设置，通知邮箱还需用户验证；GitHub 需要 O
 
 ### 团队信息
 
-出于隐私考虑，本公开仓库不披露团队名称、学校、成员姓名、分工及指导教师资料。正式提交给评审的 README 版本仍需补齐官方要求的团队信息；报名系统中的身份资料不能视作已经替代 README 的团队信息章节。
+团队名称：浏览器来信
 
 - 公开演示地址：[https://match.mclzyun.com](https://match.mclzyun.com)
 - 评审测试账号：如需提供，由提交方通过评审渠道另行交付；此处不发布真实账号凭据。
