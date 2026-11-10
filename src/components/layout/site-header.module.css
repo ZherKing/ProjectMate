@@ -22,3 +22,14 @@
 @media (min-width: 1280px) { .nav { display: flex; } }
 @media (max-width: 639px) { .publish { display: none; } .actions { gap: 8px; } }
 @media (prefers-reduced-motion: reduce) { .header { transition: none; } }
+
+/* Phone-only navigation row; desktop header rules remain unchanged. */
+@media (max-width: 640px) {
+  .header { height: 108px; }
+  .inner { height: 64px; padding-inline: 16px; gap: 12px; }
+  .left { min-width: 0; flex-shrink: 1; }
+  .brand { font-size: 20px; gap: 8px; }
+  .brand span { max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
+  .nav { display: flex; position: absolute; inset: 64px 0 auto; height: 44px; padding: 4px 12px 6px; gap: 4px; overflow-x: auto; border-top: 1px solid var(--line); background: rgba(255,255,255,.96); scrollbar-width: thin; }
+  .nav a { flex: 0 0 auto; padding: 7px 12px; font-size: 13px; line-height: 20px; }
+}
