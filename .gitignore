@@ -81,3 +81,8 @@ docker-compose.override.yml
 /.next-shell-favorites-ui-qa/
 /.next-delete-favorites-qa/
 /.next-review-qa/
+
+# Exported offline Docker images
+/artifacts/
+*.tar.gz
+*.tgz

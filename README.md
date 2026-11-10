@@ -262,45 +262,37 @@ npm run start
 
 ## 7. Docker 构建与部署
 
-### 7.1 本机构建并部署
-
-先准备 `.env`，配置稳定的 `AUTH_SECRET` 和实际对外访问的 `AUTH_URL`。
+### 7.1 本机构建并导出压缩包
 
 ```bash
 ./build.sh 1.0.0
-./deploy.sh projectmate:1.0.0 --local
 ```
 
-- `build.sh` 构建指定版本的镜像，不自动推送。
-- `deploy.sh --local` 使用已经存在的本地镜像；不带 `--local` 时拉取指定镜像。
-- 两个脚本拒绝 `latest`，发布时应使用新的固定版本标签。
-- 部署等待 HTTP 健康检查；成功不代表模型、邮箱等第三方服务已经配置。
-
-### 7.2 镜像仓库与服务器部署
-
-在构建机上：
+生成 `artifacts/projectmate-1.0.0.tar.gz`，包含镜像 `projectmate:1.0.0`，不包含数据库、上传文件或 `.env`。默认目标平台为常见服务器的 `linux/amd64`；ARM64 服务器使用：
 
 ```bash
-./build.sh 1.0.0 ghcr.io/your-name/projectmate
-docker push ghcr.io/your-name/projectmate:1.0.0
+PROJECTMATE_PLATFORM=linux/arm64 ./build.sh 1.0.0
 ```
 
-将 `deploy.sh`、`docker-compose.deploy.yml` 和服务器 `.env` 放在同一目录，在服务器上执行：
+可通过第二参数自定义镜像名，`PROJECTMATE_OUTPUT_DIR` 指定导出目录。脚本不启动本机服务、不推送，拒绝 `latest` 及覆盖已有同名压缩包。
+
+### 7.2 上传服务器并导入部署
+
+上传镜像包、`deploy.sh`、`docker-compose.deploy.yml` 到同一目录，在服务器独立准备 `.env`，填写稳定的 `AUTH_SECRET` 和实际 HTTPS `AUTH_URL`。
 
 ```bash
-./deploy.sh ghcr.io/your-name/projectmate:1.0.0
+# 本机执行，替换服务器信息
+scp artifacts/projectmate-1.0.0.tar.gz deploy.sh docker-compose.deploy.yml user@server:/srv/projectmate/
+
+# 服务器执行，先准备 .env
+cd /srv/projectmate
+chmod +x deploy.sh
+./deploy.sh projectmate-1.0.0.tar.gz projectmate:1.0.0
 ```
 
-`your-name` 是仓库占位，需替换；私有仓库先执行 `docker login`。
+脚本校验归档、通过 `docker image load` 导入、确认精确版本标签，再部署并等待 HTTP 健康检查；不从镜像仓库拉取。服务器只需 Docker/Compose，无需源码或 Node 环境。只导入可信的包，并确保构建平台与服务器 CPU 架构一致。
 
-可按需覆盖配置路径、端口和 Compose 项目名：
-
-```bash
-PROJECTMATE_ENV_FILE=/srv/projectmate/.env \
-PROJECTMATE_PORT=3000 \
-COMPOSE_PROJECT_NAME=projectmate \
-./deploy.sh ghcr.io/your-name/projectmate:1.0.0
-```
+默认端口 `3000`，可设置 `PROJECTMATE_PORT`；`.env` 路径由 `PROJECTMATE_ENV_FILE` 指定，Compose 项目名由 `COMPOSE_PROJECT_NAME` 指定。若镜像已手动导入，仍可运行 `./deploy.sh projectmate:1.0.0 --local`。
 
 ### 7.3 持久化与升级
 
@@ -372,6 +364,8 @@ GitHub 回调地址为 `AUTH_URL` + `/api/settings/github/callback`。通知 SMT
 | `AUTH_TRUST_HOST` | 经可信反向代理运行时，按 Auth.js 部署环境需要配置 |
 | `NOTIFICATION_DISABLE_WORKER` | `true` 关闭常驻通知投递 worker，改由外部定时投递 |
 | `SAIKR_CONTESTS_URL` | 覆盖赛氪公开页面入口 |
+| `PROJECTMATE_PLATFORM` | 构建目标平台，默认 `linux/amd64`，也支持 `linux/arm64` |
+| `PROJECTMATE_OUTPUT_DIR` | 构建导出目录，默认 `artifacts/` |
 | `PROJECTMATE_ENV_FILE` | `deploy.sh` 使用的环境文件路径 |
 | `PROJECTMATE_PORT` | Docker 映射到宿主机的端口，默认 `3000` |
 | `COMPOSE_PROJECT_NAME` | 部署项目名，默认 `projectmate`，影响持久卷名称 |
@@ -419,8 +413,8 @@ ProjectMate/
 ├── Dockerfile                 # 多阶段构建与非 root 运行镜像
 ├── docker-compose.yml         # 从源码构建的基础 Compose 入口
 ├── docker-compose.deploy.yml  # 指定版本镜像、健康检查与持久卷
-├── build.sh                   # 构建指定版本镜像
-├── deploy.sh                  # 拉取/部署指定版本镜像
+├── build.sh                   # 构建并导出版本化 tar.gz 镜像包
+├── deploy.sh                  # 导入离线镜像包并部署指定版本
 ├── DEPLOYMENT.md              # 部署与反向代理补充说明
 ├── drizzle.config.ts          # Drizzle 数据库开发工具配置
 ├── next.config.ts             # standalone 输出与构建目录配置
@@ -554,9 +548,9 @@ node --import tsx --test tests/*.test.ts
 node --env-file=.env --import tsx src/lib/db/seed.ts
 node --env-file=.env --import tsx src/lib/crawler/sync.ts
 
-# 镜像构建 / 本地镜像部署
+# 镜像构建导出 / 服务器导入部署
 ./build.sh 1.0.0
-./deploy.sh projectmate:1.0.0 --local
+./deploy.sh projectmate-1.0.0.tar.gz projectmate:1.0.0
 
 # 代码差异格式检查
 git diff --check

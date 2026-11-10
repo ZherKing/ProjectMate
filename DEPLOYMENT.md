@@ -2,32 +2,50 @@
 
 需要 Docker Engine 和支持 `up --wait` 的 Docker Compose 插件。镜像使用项目的 `package-lock.json` 执行 `npm ci`，包括 SQLite 本地模块编译工具；运行镜像不包含这些编译工具。
 
-## 构建指定版本
-
-```sh
-./build.sh 1.0.0 ghcr.io/your-name/projectmate
-# 推送由你显式执行；build.sh 不会自动推送
-docker push ghcr.io/your-name/projectmate:1.0.0
-```
-
-省略仓库时使用 `projectmate:1.0.0`。禁止 `latest`，每次发布使用新版本标签。构建不会读取或打包 `.env`、数据库、上传文件及本地 `.next-*` 缓存。
-
-## 在服务器部署
-
-将 `deploy.sh`、`docker-compose.deploy.yml` 和服务器 `.env` 放在同一目录。首次部署先参考 `.env.example` 创建 `.env`，设置独立的 `AUTH_SECRET`、实际外部 `AUTH_URL`，以及需要的 AI、SMTP/第三方服务配置。
-
-```sh
-./deploy.sh ghcr.io/your-name/projectmate:1.0.0
-```
-
-脚本会拉取这个固定版本，只启动 `web` 服务，等待 HTTP 健康检查通过后返回成功。拉取、配置校验或健康检查失败会返回非零退出码。健康检查证明应用 HTTP 可访问，不代表 SMTP、AI 等外部服务已配置成功。
-
-本机已经构建镜像时：
+## 构建并导出离线镜像包
 
 ```sh
 ./build.sh 1.0.0
+```
+
+默认构建 `projectmate:1.0.0`，目标平台 `linux/amd64`，然后执行 `docker image save` 并 gzip 压缩，生成 `artifacts/projectmate-1.0.0.tar.gz`。脚本不启动容器、不推送镜像，已有同名包时拒绝覆盖。压缩包只包含镜像，不包含数据库、上传文件或 `.env`。
+
+ARM64 服务器需要显式指定：
+
+```sh
+PROJECTMATE_PLATFORM=linux/arm64 ./build.sh 1.0.0
+```
+
+可用第二参数自定义镜像名，例如 `./build.sh 1.0.0 myteam/projectmate`；输出目录由 `PROJECTMATE_OUTPUT_DIR` 指定。跨架构构建需要 Docker 的相应平台构建支持，依赖与基础镜像仍需在构建机下载。
+
+## 上传到服务器并部署
+
+将以下文件上传至服务器同一目录：
+
+- `artifacts/projectmate-1.0.0.tar.gz`
+- `deploy.sh`
+- `docker-compose.deploy.yml`
+- 服务器自己的 `.env`（首次参考 `.env.example` 创建，不将开发密钥直接公开）
+
+```sh
+# 本机执行：替换服务器账号、地址和目标路径
+scp artifacts/projectmate-1.0.0.tar.gz deploy.sh docker-compose.deploy.yml user@server:/srv/projectmate/
+
+# 服务器执行：先准备好 /srv/projectmate/.env
+cd /srv/projectmate
+chmod +x deploy.sh
+./deploy.sh projectmate-1.0.0.tar.gz projectmate:1.0.0
+```
+
+脚本校验压缩包，执行 `docker image load`，确认归档包含指定标签后再启动 `web`，不拉取镜像。版本不匹配或导入失败时，不重建当前服务。仅导入你自己构建或信任的镜像包。目标机器须已安装 Docker Engine 和 Compose；无需克隆源码、安装 Node 或登录镜像仓库。
+
+若镜像早已手动导入，也保留本地镜像模式：
+
+```sh
 ./deploy.sh projectmate:1.0.0 --local
 ```
+
+脚本等待 HTTP 健康检查；失败时返回非零退出码。健康检查只证明应用可访问，不代表 SMTP、AI 等服务已配置。部署会重建应用容器，可能短暂中断。部署不会删除数据卷。
 
 可选覆盖：
 
@@ -35,16 +53,16 @@ docker push ghcr.io/your-name/projectmate:1.0.0
 PROJECTMATE_ENV_FILE=/srv/projectmate/.env \
 PROJECTMATE_PORT=3000 \
 COMPOSE_PROJECT_NAME=projectmate \
-./deploy.sh ghcr.io/your-name/projectmate:1.0.0
+./deploy.sh projectmate-1.0.0.tar.gz projectmate:1.0.0
 ```
 
 默认 Compose 项目名是 `projectmate`，默认卷名是 `projectmate_projectmate-data`，数据库与文件分别位于容器 `/app/data/database.sqlite`、`/app/data/storage`。与旧默认项目名一致时可复用原 `docker-compose.yml` 的数据卷。若以前使用自定义 Compose 项目名，请继续传同一个 `COMPOSE_PROJECT_NAME`；改名会使用另一份卷，看起来像空网站。
 
 部署会重建应用容器，可能短暂不可访问；脚本不执行删除数据卷或数据库的操作。首次把宿主机本地网站切到 Docker 时，本地 `database.sqlite` 不会自动迁移到卷。迁移、发布前备份和恢复应在停止写入后显式进行，不能拿运行中的 SQLite 文件直接覆盖。
 
-回退代码版本：再次运行 `deploy.sh` 并指定旧镜像标签。数据卷继续保留；若某次升级含不兼容的数据变更，应结合发布前备份恢复，不能只回退镜像。不要执行 `docker compose down -v`，这会删除数据卷。
+回退代码版本：上传旧版本镜像包，再运行 `deploy.sh 旧版本.tar.gz 镜像名:旧版本`。数据卷继续保留；若某次升级含不兼容的数据变更，应结合发布前备份恢复，不能只回退镜像。不要执行 `docker compose down -v`，这会删除数据卷。
 
-脚本不会自动执行公网部署、反向代理、TLS 或镜像仓库登录。私有仓库需事先 `docker login`；生产服务应通过 HTTPS 域名访问并配置 `AUTH_URL`。
+脚本不配置反向代理或 TLS；生产服务应通过 HTTPS 域名访问并配置 `AUTH_URL`。离线部署不需要访问镜像仓库；构建阶段仍需要下载基础镜像与依赖。
 
 ## 登录注册的人机验证
 

@@ -22,3 +22,8 @@ AGENTS.md
 *.sqlite*
 *.db
 coverage
+
+# Exported offline Docker images
+/artifacts/
+*.tar.gz
+*.tgz
