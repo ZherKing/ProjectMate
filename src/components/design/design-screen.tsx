@@ -553,7 +553,7 @@ export function DesignScreen({ name, html, loggedIn, variant, taskBoard, workspa
     if(el.closest('#filter-tabs')){syncCompetitionTabs(root.current,el as HTMLElement);const heading=root.current.querySelector('h1');if(/收藏/.test(label)){if(!guard())return;root.current.dataset.favoritesMode="true";root.current.dataset.recommendationsMode="false";root.current.dataset.competitionPage="1";if(heading)heading.textContent="我收藏的赛事";router.push("/competitions/favorites");return;}if(/AI 推荐/.test(label)){if(!guard())return;router.push("/competitions/recommendations");return;}root.current.dataset.favoritesMode="false";root.current.dataset.recommendationsMode="false";root.current.dataset.competitionPage="1";if(heading)heading.textContent="发现比赛";router.push("/competitions");return;}
     if(action==="page-prev"||action==="page-next"){const current=Number(root.current.dataset.competitionPage||1);root.current.dataset.competitionPage=String(Math.max(1,current+(action==="page-next"?1:-1)));filterCompetitions(false);return;}
     if(/新建任务|任务看板|更新任务看板/.test(label)){router.push(taskRoute());return;}
-    if(el.closest("[data-admin-settings-save],[data-admin-settings-test],[data-admin-settings-cancel]"))return;
+    if(el.closest("[data-admin-source-sync],[data-admin-settings-save],[data-admin-settings-test],[data-admin-settings-cancel]"))return;
     if(action==="unavailable"||button){toast("此功能尚在完善中，当前操作未修改数据。","功能说明");}
   }
   return <div className="design-screen" data-screen={name} data-variant={variant}>

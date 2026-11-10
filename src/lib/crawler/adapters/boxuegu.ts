@@ -28,13 +28,15 @@ export class BoxueguAdapter implements CompetitionSourceAdapter {
   }
 
   async fetchAndParse(): Promise<RawCompetition[]> {
-    const apiUrl = process.env.BOXUEGU_TRACK_API_URL ?? defaultApiUrl;
+    const apiUrl = process.env.BOXUEGU_TRACK_API_URL?.trim() || defaultApiUrl;
     const response = await fetch(apiUrl, {
       headers: { "user-agent": process.env.CRAWLER_USER_AGENT ?? "ProjectMateBot/1.0" },
       signal: AbortSignal.timeout(15_000),
     });
     if (!response.ok) throw new Error("传智杯赛事接口请求失败：" + response.status);
-    return this.parseApi((await response.json()) as BoxueguPayload);
+    const payload = await response.json() as BoxueguPayload;
+    if(payload.code !== undefined && payload.code !== 200) throw new Error("传智杯接口返回异常状态");
+    return this.parseApi(payload);
   }
 
   parseApi(payload: BoxueguPayload): RawCompetition[] {

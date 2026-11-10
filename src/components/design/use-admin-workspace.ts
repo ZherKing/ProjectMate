@@ -10,6 +10,7 @@ export function useAdminWorkspace(root: RefObject<HTMLDivElement | null>, enable
     if (!enabled || !scope) return;
     let page = 1;
     let settingsBusy = false;
+    const syncing = new Set<string>();
     const pageSize = 5;
     const search = scope.querySelector<HTMLInputElement>("[data-admin-queue-search]");
     const source = scope.querySelector<HTMLSelectElement>("[data-admin-source-filter]");
@@ -41,6 +42,12 @@ export function useAdminWorkspace(root: RefObject<HTMLDivElement | null>, enable
     const changed = () => { page = 1; filter(); };
     const clicked = (event: MouseEvent) => {
       if (!(event.target instanceof Element)) return;
+      const syncButton=event.target.closest<HTMLButtonElement>("button[data-admin-source-sync]");
+      if(syncButton){
+        event.preventDefault();event.stopPropagation();const sourceId=syncButton.dataset.adminSourceSync||"";if(syncing.has(sourceId)||syncButton.disabled)return;syncing.add(sourceId);syncButton.disabled=true;syncButton.textContent="同步中…";syncButton.setAttribute("aria-busy","true");
+        const message=syncButton.closest("[data-source-card]")?.querySelector<HTMLElement>("[data-source-sync-message]");if(message)message.textContent="正在连接数据源并抓取公开资料，请稍候…";
+        fetch("/api/admin/sources/sync",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:sourceId}),signal:AbortSignal.timeout(180000)}).then(async response=>{const result=await response.json();if(message)message.textContent=result.message||"同步未完成，请刷新查看。";notify(result.message||"同步未完成。",response.ok?"数据源已同步":"同步未完成");router.refresh();}).catch(()=>{if(message)message.textContent="连接中断或等待超时，请刷新查看同步状态；请勿连续重复请求。";notify("连接中断或等待超时，请刷新查看同步状态。","同步状态待确认");}).finally(()=>{syncing.delete(sourceId);syncButton.disabled=false;syncButton.textContent="立即同步";syncButton.removeAttribute("aria-busy");});return;
+      }
       const button = event.target.closest<HTMLButtonElement>("button[data-admin-queue-page], button[data-admin-refresh]");
       const settingsButton = event.target.closest<HTMLButtonElement>("button[data-admin-settings-save], button[data-admin-settings-test]");
       if (event.target.closest("[data-admin-settings-cancel]")) { event.preventDefault();event.stopPropagation();if(settingsBusy)return; settingFields.forEach((field, index) => { if (field.type === "checkbox") (field as HTMLInputElement).checked = settingInitial[index] === "true"; else field.value = settingInitial[index]; }); updateSettingsBar(); return; }
