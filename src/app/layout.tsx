@@ -5,6 +5,10 @@ import { SignoutDialog } from "@/components/layout/signout-dialog";
 import { UserMenuBehavior } from "@/components/layout/user-menu-behavior";
 
 export const metadata: Metadata = {
+  icons: {
+    icon: [{ url: "/assets/favicon.svg?v=pm-1", type: "image/svg+xml", sizes: "any" }],
+    shortcut: "/assets/favicon.svg?v=pm-1",
+  },
   title: {
     default: "ProjectMate｜首页",
     template: "ProjectMate｜%s",
