@@ -1,3 +1,5 @@
+import { NotificationMenu } from "./notification-menu";
+import { inbox } from "@/lib/notifications/store";
 import Link from "next/link";
 import { Suspense } from "react";
 import { auth } from "@/auth";
@@ -13,6 +15,7 @@ const nav = [["比赛中心", "/competitions"], ["组队大厅", "/teams"], ["�
 
 export async function SiteHeader() {
   const user = (await auth())?.user;
+  const notifications = user?.id ? inbox(user.id) : null;
   const isAdmin = !!user?.id && hasAdminRole(user.id);
   const siteName = getSiteSetting("site.name") || "ProjectMate";
   const siteIcon = getSiteSetting("site.icon") || "/assets/logo.svg";
@@ -24,6 +27,7 @@ export async function SiteHeader() {
       </div>
       <div className={styles.actions}>
         {user ? <>
+          {notifications && <NotificationMenu key={user.id} initial={{items:notifications.items,unread:notifications.unread,total:notifications.total}}/>}
           <details className="pm-user-menu">
             <summary className={styles.user}>
               <span className={styles.avatar}><AccountAvatar userId={user.id!} name={user.name} image={user.image}/></span>
