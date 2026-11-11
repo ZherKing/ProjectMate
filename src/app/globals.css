@@ -512,3 +512,42 @@ button[aria-busy="true"] { cursor: progress; }
   [data-coach-field] { padding: 6px 8px; }
   [data-coach-submit] { min-width: 64px; }
 }
+
+/* Second phone pass: auth, settings, collaboration and compact actions. */
+@media (max-width: 640px) {
+  .design-screen[data-screen="login"] .lg\:col-span-6 { padding: 24px; }
+  .design-screen[data-screen="login"] .lg\:col-span-6 > .relative.z-10 { padding-block: 0; }
+  .design-screen[data-screen="login"] .my-auto.py-12 { padding-block: 28px 8px; gap: 14px; }
+  .design-screen[data-screen="login"] h1 { font-size: 30px; line-height: 1.35; }
+  .design-screen[data-screen="login"] .my-auto.py-12 > p { font-size: 14px; line-height: 1.7; }
+  .design-screen[data-screen="login"] .border-b:has(+ #authForm),
+  .design-screen[data-screen="login"] .border-b:has(+ #registerForm) { flex-direction: column; align-items: flex-start; gap: 14px; padding-bottom: 14px; margin-bottom: 20px; }
+  .design-screen[data-screen="login"] .border-b:has(+ form) > div { width: 100%; gap: 20px; }
+  .design-screen[data-screen="login"] .border-b:has(+ form) button { white-space: nowrap; }
+  .design-screen[data-screen="login"] .border-b:has(+ form) > .inline-flex button { font-size: 20px; line-height: 28px; }
+  .design-screen[data-screen="login"] input:not([type="checkbox"]),
+  .design-screen[data-screen="settings"] input:not([type="checkbox"]) { font-size: 16px !important; }
+  .design-screen[data-screen="settings"] aside.sticky { position: static; width: 100%; }
+  [role="navigation"][aria-label="个人设置导航"] { grid-template-columns: minmax(0,1fr); }
+  [role="navigation"][aria-label="个人设置导航"] a { padding: 9px 10px; }
+  .pm-overview-members { grid-template-columns: minmax(0,1fr); gap: 8px; }
+  .pm-overview-member { padding: 10px 12px; }
+  .pm-overview-member p { white-space: normal; overflow-wrap: anywhere; }
+  .pm-overview-inline-empty { flex-direction: column; align-items: flex-start; }
+  .pm-team-match-dialog .pm-todo-editor-actions > a,
+  .pm-team-match-dialog .pm-todo-editor-actions > button { justify-content: center; flex: 1 1 100%; }
+  .pm-invitation-card > header { padding: 18px; gap: 12px; }
+  .pm-invitation-card h1 { font-size: 20px; }
+  .pm-invitation-actions > a, .pm-invitation-actions > button { flex: 1 1 auto; justify-content: center; min-height: 42px; }
+  .pm-mcp-consent { margin-block: 16px; padding: 20px; }
+  .pm-mcp-consent h1 { font-size: 22px; line-height: 1.4; overflow-wrap: anywhere; }
+  .pm-mcp-consent p { overflow-wrap: anywhere; }
+  .pm-file-picker-actions > button { flex: 1 1 auto; justify-content: center; }
+  .pm-document-preview-toolbar { gap: 8px; }
+  .pm-document-preview-toolbar select { max-width: 100%; }
+  .pm-account-panel .pm-todo-heading { gap: 12px; }
+  .pm-account-notice-top { align-items: flex-start; flex-direction: column; }
+  .design-screen[data-screen="admin"] [data-admin-source-sync] { min-height: 42px; }
+  .design-screen[data-screen="admin"] [data-admin-settings-bar]:not(.hidden) { flex-direction: column; align-items: stretch; gap: 10px; }
+  .design-screen[data-screen="admin"] [data-admin-settings-bar] button { white-space: nowrap; }
+}
